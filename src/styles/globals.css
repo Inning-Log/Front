@@ -1,0 +1,77 @@
+@import "tailwindcss";
+
+@theme {
+  /* Brand */
+  --color-brand-dark: #0e4824;
+  --color-brand-deep: #14783a;
+  --color-brand-default: #1a8a45;
+  --color-brand-light: #1fbf5a;
+  --color-brand-bright: #2ddb6f;
+
+  /* Text */
+  --color-text-primary: #0a0a0a;
+  --color-text-secondary: #0d0d0d;
+  --color-text-tertiary: #1a1a1a;
+  --color-text-inverse: #ffffff;
+
+  /* Status */
+  --color-danger-default: #d93030;
+  --color-danger-light: #ff4d4d;
+
+  /* Surface */
+  --color-surface-brand: #c8edd5;
+  --color-surface-brand-light: #e8f5e0;
+  --color-surface-default: #ffffff;
+}
+
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  min-width: 320px;
+  background-color: #ffffff;
+  overflow-x: hidden;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+@keyframes splash-bounce {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+
+  50% {
+    transform: translateY(-4px) scale(1.02);
+  }
+}
+
+.animate-splash-bounce {
+  animation: splash-bounce 0.8s ease-in-out infinite;
+}
