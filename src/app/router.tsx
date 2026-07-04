@@ -10,7 +10,7 @@ import { AddFriendPage } from "../pages/Home/AddFriendPage";
 import { NotificationPage } from "../pages/Home/NotificationPage";
 import { NotificationSettingPage } from "../pages/Home/NotificationSettingPage";
 import { MyPage } from "../pages/MyPage/MyPage";
-import { OnBoardingPage } from "../pages/OnBoarding/OnBoardingPage";
+import { OnBoardingPage } from "../pages/Onboarding/OnBoardingPage";
 import { RecordPage } from "../pages/Record/RecordPage";
 import { SplashPage } from "../pages/Splash/SplashPage";
 import { TimelinePage } from "../pages/Timeline/TimelinePage";
