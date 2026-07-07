@@ -62,6 +62,15 @@ img {
   height: auto;
 }
 
+.button-text {
+  font-family: Pretendard, sans-serif;
+  font-size: 17px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: normal;
+  letter-spacing: 0.17px;
+}
+
 @keyframes splash-bounce {
   0%,
   100% {
