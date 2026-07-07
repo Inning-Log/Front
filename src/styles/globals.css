@@ -1,27 +1,28 @@
 @import "tailwindcss";
 
 @theme {
-  /* Brand */
-  --color-brand-dark: #0e4824;
-  --color-brand-deep: #14783a;
-  --color-brand-default: #1a8a45;
-  --color-brand-light: #1fbf5a;
-  --color-brand-bright: #2ddb6f;
-
-  /* Text */
-  --color-text-primary: #0a0a0a;
-  --color-text-secondary: #0d0d0d;
-  --color-text-tertiary: #1a1a1a;
-  --color-text-inverse: #ffffff;
-
-  /* Status */
-  --color-danger-default: #d93030;
-  --color-danger-light: #ff4d4d;
+  /* Background */
+  --color-bg-dark: #0a0a0a;
+  --color-bg-primary: #ffffff;
 
   /* Surface */
-  --color-surface-brand: #c8edd5;
-  --color-surface-brand-light: #e8f5e0;
-  --color-surface-default: #ffffff;
+  --color-surface-placeholder: #d9d9d9;
+  --color-surface-secondary: #e0e0e0;
+
+  /* Brand / Accent */
+  --color-accent-deep: #104b3a;
+  --color-accent-text: #0e4824;
+  --color-accent-pressed: #115f2f;
+  --color-accent-primary: #1fbf5a;
+
+  /* Semantic / Status */
+  --color-danger: #df0000;
+  --color-button-neutral: #2e312f;
+
+  /* Text / Foreground */
+  --color-text-primary: #ffffff;
+  --color-text-secondary: #5a5a5a;
+  --color-text-tertiary: #8a908b;
 }
 
 :root {
@@ -45,7 +46,7 @@ body,
 
 body {
   min-width: 320px;
-  background-color: #ffffff;
+  background-color: var(--color-bg-primary);
   overflow-x: hidden;
 }
 
