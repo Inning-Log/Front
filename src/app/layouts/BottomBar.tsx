@@ -1,3 +1,1 @@
-export function BottomBar() {
-    return <div>바텀바</div>
-}
+export { BottomBar } from "../../shared/ui/BottomBar";
