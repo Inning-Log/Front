@@ -1,8 +1,6 @@
 import { createBrowserRouter } from "react-router-dom";
 
 import { RootLayout } from "./layouts/RootLayout";
-import { MainLayout } from "./layouts/MainLayout";
-import { AuthLayout } from "./layouts/AuthLayout";
 
 import { LoginPage } from "../pages/Auth/LoginPage";
 import { MainPage } from "../pages/Home/MainPage";
@@ -19,29 +17,20 @@ export const router = createBrowserRouter([
   {
     element: <RootLayout />,
     children: [
+      { path: "/", element: <SplashPage /> },
+      { path: "/login", element: <LoginPage /> },
+      { path: "/onboarding", element: <OnBoardingPage /> },
+
+      { path: "/home", element: <MainPage /> },
+      { path: "/home/friends/add", element: <AddFriendPage /> },
+      { path: "/home/notifications", element: <NotificationPage /> },
       {
-        element: <AuthLayout />,
-        children: [
-          { path: "/", element: <SplashPage /> },
-          { path: "/login", element: <LoginPage /> },
-          { path: "/onboarding", element: <OnBoardingPage /> },
-        ],
+        path: "/home/notifications/settings",
+        element: <NotificationSettingPage />,
       },
-      {
-        element: <MainLayout />,
-        children: [
-          { path: "/home", element: <MainPage /> },
-          { path: "/home/friends/add", element: <AddFriendPage /> },
-          { path: "/home/notifications", element: <NotificationPage /> },
-          {
-            path: "/home/notifications/settings",
-            element: <NotificationSettingPage />,
-          },
-          { path: "/mypage", element: <MyPage /> },
-          { path: "/home/record", element: <RecordPage /> },
-          { path: "/timeline", element: <TimelinePage /> },
-        ],
-      },
+      { path: "/mypage", element: <MyPage /> },
+      { path: "/home/record", element: <RecordPage /> },
+      { path: "/timeline", element: <TimelinePage /> },
     ],
   },
 ]);
