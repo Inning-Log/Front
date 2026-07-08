@@ -15,7 +15,7 @@ export function NotificationItem({
   onDelete,
 }: NotificationItemProps) {
   return (
-    <article className="flex h-[66px] w-full max-w-[358px] items-center rounded-[37.5px] px-[14px]">
+    <article className="flex h-[66px] w-full max-w-[358px] items-center rounded-[37.5px] px-[14px] shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
       <img
         src={profileImage}
         alt=""
