@@ -35,7 +35,6 @@ export function NotificationItem({
       <button
         type="button"
         onClick={onDelete}
-        aria-label="?뚮┝ ??젣"
         className="ml-3 flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full"
       >
         <img src={deleteIcon} alt="" className="h-full w-full" />
