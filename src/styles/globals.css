@@ -61,6 +61,7 @@
   --color-text-primary: #ffffff;
   --color-text-secondary: #5a5a5a;
   --color-text-tertiary: #8a908b;
+  --color-text-placeholder: #A5AEA8;
 
   /* Font Family */
   --font-pretendard: "Pretendard", sans-serif;
@@ -125,6 +126,24 @@ img {
   font-style: normal;
   line-height: normal;
   letter-spacing: -1px;
+}
+
+.text-title {
+  font-family: var(--font-pretendard);
+  font-size: 20px;
+  font-style: normal;
+  font-weight: 600;
+  line-height: 140%;
+  letter-spacing: -0.2px;
+}
+
+.text-input {
+  font-family: var(--font-pretendard);
+  font-size: 20px;
+  font-style: normal;
+  font-weight: 500;
+  line-height: 140%;
+  letter-spacing: -0.2px;
 }
 
 /* Subtitle */

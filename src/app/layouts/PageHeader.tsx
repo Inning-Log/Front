@@ -39,7 +39,7 @@ export function PageHeader({
         <img src={backArrowIcon} alt="" className="h-[18.5px] w-[9px]" />
       </button>
 
-      <h1 className="max-w-[calc(100%-160px)] font-pretendard text-[20px] font-semibold not-italic leading-[140%] tracking-[-0.2px] text-black">
+      <h1 className="text-title max-w-[calc(100%-160px)] text-black">
         {title}
       </h1>
 
