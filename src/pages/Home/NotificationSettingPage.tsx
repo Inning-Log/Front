@@ -5,8 +5,8 @@ import { NotificationSettingItem } from "../../features/home/components/Notifica
 
 export function NotificationSettingPage() {
   const [gameNotification, setGameNotification] = useState(false);
-  const [recordNotification, setRecordNotification] = useState(true);
-  const [reactionNotification, setReactionNotification] = useState(true);
+  const [recordNotification, setRecordNotification] = useState(false);
+  const [reactionNotification, setReactionNotification] = useState(false);
 
   return (
     <main className="min-h-dvh w-full bg-bg-primary pt-[45px]">
