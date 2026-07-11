@@ -15,11 +15,11 @@ export function NotificationSettingItem({
     <div className="w-full">
       <div className="flex items-center justify-between pt-[17px] pb-[17px]">
         <div className="min-w-0 pr-[16px]">
-          <h3 className="font-pretendard text-[16px] leading-[150%] font-semibold tracking-[0.32px] text-black">
+          <h3 className="text-label-3 text-black">
             {title}
           </h3>
 
-          <p className="mt-[4px] font-pretendard text-[12px] leading-[150%] font-medium tracking-[0.24px] text-[#515151]">
+          <p className="text-caption mt-[4px] text-[#515151]">
             {description}
           </p>
         </div>
@@ -31,9 +31,7 @@ export function NotificationSettingItem({
           aria-label={`${title} ${isEnabled ? "끄기" : "켜기"}`}
           onClick={onToggle}
           className={`relative h-[29px] w-[55px] shrink-0 rounded-[14px] transition-colors duration-200 ${
-            isEnabled
-              ? "bg-accent-primary"
-              : "bg-surface-placeholder"
+            isEnabled ? "bg-accent-primary" : "bg-surface-placeholder"
           }`}
         >
           <span
