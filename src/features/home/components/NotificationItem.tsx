@@ -27,7 +27,7 @@ export function NotificationItem({
           {userId}
         </p>
 
-        <p className="text-caption mt-[4px] truncate text-text-secondary">
+        <p className="text-caption truncate text-text-secondary">
           {userName}
         </p>
       </div>
