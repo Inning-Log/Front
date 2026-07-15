@@ -2,15 +2,15 @@ import deleteIcon from "../../../assets/icons/delete.svg";
 import profileMockIcon from "../../../assets/icons/profilemock.svg";
 
 type NotificationItemProps = {
-  username: string;
-  message: string;
+  userId: string;
+  userName: string;
   profileImage?: string;
   onDelete?: () => void;
 };
 
 export function NotificationItem({
-  username,
-  message,
+  userId,
+  userName,
   profileImage = profileMockIcon,
   onDelete,
 }: NotificationItemProps) {
@@ -23,12 +23,12 @@ export function NotificationItem({
       />
 
       <div className="ml-[14px] flex min-w-0 flex-1 -translate-y-[1px] flex-col justify-center">
-        <p className="truncate font-pretendard text-[18px] font-semibold leading-normal tracking-[-0.54px]">
-          {username}
+        <p className="text-label-2 truncate text-black">
+          {userId}
         </p>
 
-        <p className="truncate font-pretendard text-[12px] font-semibold leading-normal tracking-[-0.36px] text-text-secondary">
-          {message}
+        <p className="text-caption truncate text-text-secondary">
+          {userName}
         </p>
       </div>
 
