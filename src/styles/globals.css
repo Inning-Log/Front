@@ -138,6 +138,15 @@ img {
   letter-spacing: -0.2px;
 }
 
+.text-title-2 {
+  font-family: var(--font-pretendard);
+  font-size: 24px;
+  font-weight: 500;
+  font-style: normal;
+  line-height: 140%;
+  letter-spacing: -0.24px;
+}
+
 /* Input */
 .text-input {
   font-family: var(--font-pretendard);
