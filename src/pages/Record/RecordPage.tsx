@@ -19,7 +19,7 @@ export function RecordPage() {
   const currentInning = 1;
 
   const handleClose = () => {
-    navigate(-1);
+     navigate("/home");
   };
 
   const handleCapture = () => {
