@@ -34,12 +34,17 @@ export function PageHeader({
       <button
         type="button"
         onClick={() => navigate(-1)}
+        aria-label="이전 화면으로 이동"
         className="absolute left-3 flex h-10 w-10 items-center justify-center"
       >
-        <img src={backArrowIcon} alt="" className="h-[18.5px] w-[9px]" />
+        <img
+          src={backArrowIcon}
+          alt=""
+          className="h-[18.5px] w-[9px]"
+        />
       </button>
 
-      <h1 className="text-label-1 max-w-[calc(100%-160px)] truncate text-black">
+      <h1 className="text-input max-w-[calc(100%-160px)] truncate text-black">
         {title}
       </h1>
 
@@ -48,12 +53,12 @@ export function PageHeader({
           <button
             type="button"
             onClick={handleRightClick}
-            className="text-label-4 absolute right-5 min-w-0 max-w-[100px] truncate text-text-secondary"
+            className="absolute right-5 max-w-[100px] truncate font-pretendard text-[14px] font-medium leading-[140%] tracking-[0.28px] text-text-secondary"
           >
             {rightText}
           </button>
         ) : (
-          <span className="text-label-3 absolute right-5 min-w-0 max-w-[100px] truncate text-text-secondary">
+          <span className="absolute right-5 max-w-[100px] truncate font-pretendard text-[14px] font-medium leading-[140%] tracking-[0.28px] text-text-secondary">
             {rightText}
           </span>
         ))}
