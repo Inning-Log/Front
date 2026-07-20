@@ -5,7 +5,7 @@
 /* Pretendard Medium */
 @font-face {
   font-family: "Pretendard";
-  src: url("./assets/fonts/Pretendard-Medium.woff2") format("woff2");
+  src: url("../assets/fonts/Pretendard-Medium.woff2") format("woff2");
   font-weight: 500;
   font-style: normal;
   font-display: swap;
@@ -14,7 +14,7 @@
 /* Pretendard SemiBold */
 @font-face {
   font-family: "Pretendard";
-  src: url("./assets/fonts/Pretendard-SemiBold.woff2") format("woff2");
+  src: url("../assets/fonts/Pretendard-SemiBold.woff2") format("woff2");
   font-weight: 600;
   font-style: normal;
   font-display: swap;
@@ -23,7 +23,7 @@
 /* Pretendard Bold */
 @font-face {
   font-family: "Pretendard";
-  src: url("./assets/fonts/Pretendard-Bold.woff2") format("woff2");
+  src: url("../assets/fonts/Pretendard-Bold.woff2") format("woff2");
   font-weight: 700;
   font-style: normal;
   font-display: swap;
@@ -32,7 +32,7 @@
 /* Akatab Bold */
 @font-face {
   font-family: "Akatab";
-  src: url("./assets/fonts/Akatab-Bold.ttf") format("truetype");
+  src: url("../assets/fonts/Akatab-Bold.ttf") format("truetype");
   font-weight: 700;
   font-style: normal;
   font-display: swap;
@@ -151,7 +151,7 @@ img {
 .text-input {
   font-family: var(--font-pretendard);
   font-size: 20px;
-  font-weight: 500;
+  font-weight: 600;
   font-style: normal;
   line-height: 140%;
   letter-spacing: -0.2px;

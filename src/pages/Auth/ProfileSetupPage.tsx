@@ -6,6 +6,7 @@ import { ProfileComplete } from "../../features/auth/components/ProfileComplete"
 import { ProfileId } from "../../features/auth/components/ProfileId";
 import { ProfileNickname } from "../../features/auth/components/ProfileNickname";
 import { ProfileTeam } from "../../features/auth/components/ProfileTeam";
+import { KeyboardFixedScreen } from "../../shared/ui/KeyboardFixedScreen";
 
 type ProfileSetupStep = 1 | 2 | 3 | 4;
 
@@ -18,7 +19,7 @@ export function ProfileSetupPage() {
   };
 
   return (
-    <div>
+    <KeyboardFixedScreen className="pt-[28.5px]">
       <PageHeader />
 
       <main data-step={step}>
@@ -30,6 +31,6 @@ export function ProfileSetupPage() {
 
         {step === 4 && <ProfileComplete onNext={completeProfileSetup} />}
       </main>
-    </div>
+    </KeyboardFixedScreen>
   );
 }
