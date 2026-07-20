@@ -40,7 +40,7 @@ export function PageHeader({
         <img
           src={backArrowIcon}
           alt=""
-          className="h-[18.5px] w-[9px]"
+          className="h-[25px] w-[12.5px]"
         />
       </button>
 

@@ -13,7 +13,7 @@ export function LoginPage() {
         </h1>
 
         <div className="mt-auto pb-[49px]">
-          <Button variant="black" className="h-13.75 w-full">
+          <Button variant="black">
             <img src={googleIcon} alt="" className="h-8.75 w-8.75" />
             <span className="ml-[11px] text-label-2">
               구글로 계속하기

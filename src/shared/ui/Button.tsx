@@ -20,13 +20,13 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         ref={ref}
         type={type}
         className={[
-          "flex h-[55px] w-[358px] items-center justify-center rounded-[27.5px]",
+          "flex h-[55px] w-full max-w-[358px] items-center justify-center rounded-[27.5px]",
           buttonVariants[variant],
           className,
         ].join(" ")}
         {...props}
       >
-        <span className="button-text flex h-full w-full items-center justify-center">
+        <span className="flex h-full w-full items-center justify-center">
           {children}
         </span>
       </button>
