@@ -42,6 +42,13 @@ export function useKeyboardViewportLock<T extends HTMLElement>() {
     };
 
     const preventTouchScroll = (event: TouchEvent) => {
+      if (
+        event.target instanceof HTMLElement &&
+        event.target.closest("[data-scroll-lock-allow]")
+      ) {
+        return;
+      }
+
       event.preventDefault();
     };
 
