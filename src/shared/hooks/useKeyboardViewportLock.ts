@@ -1,25 +1,66 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 
 export function useKeyboardViewportLock<T extends HTMLElement>() {
   const lockTargetRef = useRef<T>(null);
 
-  useEffect(() => {
-    const updateAppHeight = () => {
-      const height = window.visualViewport?.height ?? window.innerHeight;
-      document.documentElement.style.setProperty("--app-height", `${height}px`);
+  useLayoutEffect(() => {
+    const isEditableFocused = () => {
+      const activeElement = document.activeElement;
+
+      if (!(activeElement instanceof HTMLElement)) {
+        return false;
+      }
+
+      return (
+        activeElement.isContentEditable ||
+        activeElement.tagName === "INPUT" ||
+        activeElement.tagName === "TEXTAREA" ||
+        activeElement.tagName === "SELECT"
+      );
     };
 
-    updateAppHeight();
+    const updateAppHeight = () => {
+      const viewport = window.visualViewport;
+      const keyboardHeight = viewport
+        ? window.innerHeight - viewport.height - viewport.offsetTop
+        : 0;
+      const shouldUseKeyboardHeight = keyboardHeight > 120 && isEditableFocused();
+      const height = shouldUseKeyboardHeight
+        ? viewport?.height ?? window.innerHeight
+        : window.innerHeight;
+      const top = shouldUseKeyboardHeight ? viewport?.offsetTop ?? 0 : 0;
 
-    window.visualViewport?.addEventListener("resize", updateAppHeight);
-    window.visualViewport?.addEventListener("scroll", updateAppHeight);
-    window.addEventListener("resize", updateAppHeight);
+      document.documentElement.style.setProperty("--app-height", `${height}px`);
+      document.documentElement.style.setProperty("--app-top", `${top}px`);
+    };
+
+    const scheduleAppHeightUpdate = () => {
+      updateAppHeight();
+      window.requestAnimationFrame(updateAppHeight);
+    };
+
+    scheduleAppHeightUpdate();
+
+    window.visualViewport?.addEventListener("resize", scheduleAppHeightUpdate);
+    window.visualViewport?.addEventListener("scroll", scheduleAppHeightUpdate);
+    window.addEventListener("resize", scheduleAppHeightUpdate);
+    window.addEventListener("focusin", scheduleAppHeightUpdate);
+    window.addEventListener("focusout", scheduleAppHeightUpdate);
 
     return () => {
-      window.visualViewport?.removeEventListener("resize", updateAppHeight);
-      window.visualViewport?.removeEventListener("scroll", updateAppHeight);
-      window.removeEventListener("resize", updateAppHeight);
+      window.visualViewport?.removeEventListener(
+        "resize",
+        scheduleAppHeightUpdate,
+      );
+      window.visualViewport?.removeEventListener(
+        "scroll",
+        scheduleAppHeightUpdate,
+      );
+      window.removeEventListener("resize", scheduleAppHeightUpdate);
+      window.removeEventListener("focusin", scheduleAppHeightUpdate);
+      window.removeEventListener("focusout", scheduleAppHeightUpdate);
       document.documentElement.style.removeProperty("--app-height");
+      document.documentElement.style.removeProperty("--app-top");
     };
   }, []);
 

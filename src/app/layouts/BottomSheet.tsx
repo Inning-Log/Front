@@ -96,7 +96,7 @@ export function BottomSheet({
   return (
     <div
       ref={sheetRootRef}
-      className="fixed left-0 top-0 z-[100] h-[var(--app-height,100dvh)] w-full overflow-hidden overscroll-none bg-surface-placeholder"
+      className="fixed left-0 top-[var(--app-top,0px)] z-[100] h-[var(--app-height,100dvh)] w-full overflow-hidden overscroll-none bg-surface-placeholder"
     >
       <button
         type="button"
