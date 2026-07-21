@@ -21,7 +21,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
         className={[
           "h-[40px] w-[322px] border-0 border-b-2 border-accent-primary bg-transparent",
           "text-input text-black",
-          "placeholder:text-text-placeholder focus:outline-none",
+          "caret-accent-primary placeholder:text-text-placeholder focus:outline-none",
           className,
         ].join(" ")}
         {...props}

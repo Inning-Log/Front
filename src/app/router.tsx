@@ -3,6 +3,7 @@ import { createBrowserRouter } from "react-router-dom";
 import { RootLayout } from "./layouts/RootLayout";
 
 import { LoginPage } from "../pages/Auth/LoginPage";
+import { ProfileSetupPage } from "../pages/Auth/ProfileSetupPage";
 import { MainPage } from "../pages/Home/MainPage";
 import { AddFriendPage } from "../pages/Home/AddFriendPage";
 import { NotificationPage } from "../pages/Home/NotificationPage";
@@ -19,6 +20,7 @@ export const router = createBrowserRouter([
     children: [
       { path: "/", element: <SplashPage /> },
       { path: "/login", element: <LoginPage /> },
+      { path: "/profile-setup", element: <ProfileSetupPage /> },
       { path: "/onboarding", element: <OnBoardingPage /> },
 
       { path: "/home", element: <MainPage /> },
