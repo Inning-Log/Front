@@ -171,9 +171,9 @@ img {
 .text-body {
   font-family: var(--font-pretendard);
   font-size: 18px;
-  font-weight: 600;
+  font-weight: 500;
   font-style: normal;
-  line-height: normal;
+  line-height: 140%;
   letter-spacing: -0.18px;
 }
 
@@ -215,6 +215,14 @@ img {
 }
 
 /* Caption */
+.text-number {
+  font-family: var(--font-akatab);
+  font-size: 14px;
+  font-weight: 700;
+  font-style: normal;
+  line-height: 140%;
+}
+
 .text-caption-number {
   font-family: var(--font-akatab);
   font-size: 14px;
