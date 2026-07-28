@@ -24,22 +24,34 @@ const items: BottomBarItem[] = [
   },
 ];
 
-export function BottomBar() {
+type BottomBarProps = {
+  position?: "fixed" | "static";
+};
+
+export function BottomBar({ position = "fixed" }: BottomBarProps) {
+  const isFixed = position === "fixed";
+
   return (
-    <nav className="fixed bottom-[21px] left-1/2 z-50 -translate-x-1/2">
-      <div className="flex h-[59px] w-[232px] items-center justify-between rounded-[29.5px] bg-primary px-[7px] shadow-[0_1px_3.6px_0_rgba(0,0,0,0.25)]">
+    <nav
+      className={
+        isFixed
+          ? "fixed bottom-[9px] left-1/2 z-50 -translate-x-1/2"
+          : "mx-auto mt-[8px] w-fit"
+      }
+    >
+      <div className="flex h-[42px] w-[158px] items-center justify-between rounded-[21px] bg-white px-[4px] shadow-[0_1px_3.6px_0_rgba(0,0,0,0.25)]">
         {items.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
             className={({ isActive }) =>
               [
-                "flex h-12 w-[79px] items-center justify-center rounded-[24px]",
+                "flex h-[34px] w-[50px] items-center justify-center rounded-[17px]",
                 isActive ? "bg-surface-placeholder" : "",
               ].join(" ")
             }
           >
-            <img src={item.iconSrc} alt="" className="h-[20.466px] w-[21px]" />
+            <img src={item.iconSrc} alt="" className="h-[20px] w-[21px]" />
           </NavLink>
         ))}
       </div>
