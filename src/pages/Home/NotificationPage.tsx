@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 import { PageHeader } from "../../app/layouts/PageHeader";
-import { NotificationItem } from "../../features/home/components/NotificationItem";
+import { FriendRequestNotificationItem } from "../../features/home/components/FriendRequestNotificationItem";
 
 type NotificationTab = "request" | "game";
 
@@ -88,7 +88,7 @@ export function NotificationPage() {
       <main className="flex min-h-[calc(100dvh-151px)] flex-col items-center gap-[12px] bg-[#F5F5F5] pt-[20px]">
         {notifications.length > 0 ? (
           notifications.map((notification) => (
-            <NotificationItem
+            <FriendRequestNotificationItem
               key={notification.id}
               userId={notification.userId}
               userName={notification.userName}
