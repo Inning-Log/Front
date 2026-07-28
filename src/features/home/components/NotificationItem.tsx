@@ -20,7 +20,7 @@ export function NotificationItem({
         {category}
       </p>
 
-      <p className="text-label-4 truncate text-black">
+      <p className="text-label-3 truncate text-black mt-[3px]">
         {message}
       </p>
     </article>
