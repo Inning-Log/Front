@@ -25,7 +25,7 @@ export function InningIndicator({
               className={[
                 "flex items-center justify-center font-akatab text-[14px] font-bold leading-none",
                 isCurrent
-                  ? "h-[38px] w-[38px] rounded-full bg-[#0E4824] text-white"
+                  ? "h-[27px] w-[27px] rounded-full bg-[#0E4824] text-white"
                   : isPast
                     ? "h-[26px] w-[27px] text-black"
                     : "h-[26px] w-[27px] text-[#8A908B]",
