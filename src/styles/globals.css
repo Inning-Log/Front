@@ -1,5 +1,15 @@
 @import "tailwindcss";
 
+/* 스크롤바 숨김 */
+.scrollbar-hide {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
 /* Font Face */
 
 /* Pretendard Medium */
