@@ -1,11 +1,27 @@
 import { useState } from "react";
 
 import { PageHeader } from "../../app/layouts/PageHeader";
-import { NotificationItem } from "../../features/home/components/NotificationItem";
+import { FriendRequestNotificationItem } from "../../features/home/components/FriendRequestNotificationItem";
+import {
+  NotificationItem,
+  type NotificationCategory,
+} from "../../features/home/components/NotificationItem";
 
 type NotificationTab = "request" | "game";
 
-const requestNotifications = [
+type RequestNotification = {
+  id: number;
+  userId: string;
+  userName: string;
+};
+
+type GeneralNotification = {
+  id: number;
+  category: NotificationCategory;
+  message: string;
+};
+
+const requestNotifications: RequestNotification[] = [
   {
     id: 1,
     userId: "inning",
@@ -13,12 +29,26 @@ const requestNotifications = [
   },
 ];
 
-const gameNotifications = [
-  //아직 경기알림 컴포넌트가 없어서 나중에 제대로 추가해야함 이건 임시
+const gameNotifications: GeneralNotification[] = [
+  {
+    id: 1,
+    category: "친구 알림",
+    message: "@inning님이 댓글을 달았습니다.",
+  },
   {
     id: 2,
-    userId: "inning",
-    userName: "이닝로그",
+    category: "친구 알림",
+    message: "@inning님이 친구신청을 수락했습니다.",
+  },
+  {
+    id: 3,
+    category: "경기 알림",
+    message: "1회가 시작되었습니다!",
+  },
+  {
+    id: 4,
+    category: "기록 알림",
+    message: "9회가 끝나기 전에 기록해주세요.",
   },
 ];
 
@@ -26,10 +56,10 @@ export function NotificationPage() {
   const [activeTab, setActiveTab] =
     useState<NotificationTab>("request");
 
-  const notifications =
+  const hasNotifications =
     activeTab === "request"
-      ? requestNotifications
-      : gameNotifications;
+      ? requestNotifications.length > 0
+      : gameNotifications.length > 0;
 
   return (
     <div className="min-h-dvh w-full bg-white pt-[45px]">
@@ -54,13 +84,13 @@ export function NotificationPage() {
             "font-pretendard text-[16px] font-medium leading-6 tracking-[0.32px]",
             activeTab === "request"
               ? "text-black"
-              : "text-[#8A908B]",
+              : "text-text-tertiary",
           ].join(" ")}
         >
           신청 대기
 
           {activeTab === "request" && (
-            <span className="absolute bottom-0 left-1/2 h-[3px] w-[180px] -translate-x-1/2 rounded-full bg-[#1FBF5A]" />
+            <span className="absolute bottom-0 left-1/2 h-[3px] w-[180px] -translate-x-1/2 rounded-full bg-accent-primary" />
           )}
         </button>
 
@@ -74,31 +104,48 @@ export function NotificationPage() {
             "font-pretendard text-[16px] font-medium leading-6 tracking-[0.32px]",
             activeTab === "game"
               ? "text-black"
-              : "text-[#8A908B]",
+              : "text-text-tertiary",
           ].join(" ")}
         >
           경기 알림
 
           {activeTab === "game" && (
-            <span className="absolute bottom-0 left-1/2 h-[3px] w-[180px] -translate-x-1/2 rounded-full bg-[#1FBF5A]" />
+            <span className="absolute bottom-0 left-1/2 h-[3px] w-[180px] -translate-x-1/2 rounded-full bg-accent-primary" />
           )}
         </button>
       </div>
 
-      <main className="flex min-h-[calc(100dvh-151px)] flex-col items-center gap-[12px] bg-[#F5F5F5] pt-[20px]">
-        {notifications.length > 0 ? (
-          notifications.map((notification) => (
-            <NotificationItem
-              key={notification.id}
-              userId={notification.userId}
-              userName={notification.userName}
-              onDelete={() => {
-                console.log(`${notification.userId} 알림 삭제`);
-              }}
-            />
-          ))
+      <main className="flex min-h-[calc(100dvh-151px)] flex-col items-center gap-[8px] bg-[#F5F5F5] pt-[20px]">
+        {hasNotifications ? (
+          activeTab === "request" ? (
+            requestNotifications.map((notification) => (
+              <FriendRequestNotificationItem
+                key={notification.id}
+                userId={notification.userId}
+                userName={notification.userName}
+                onAccept={() => {
+                  console.log(
+                    `${notification.userId} 친구 신청 수락`,
+                  );
+                }}
+                onDelete={() => {
+                  console.log(
+                    `${notification.userId} 친구 신청 거절`,
+                  );
+                }}
+              />
+            ))
+          ) : (
+            gameNotifications.map((notification) => (
+              <NotificationItem
+                key={notification.id}
+                category={notification.category}
+                message={notification.message}
+              />
+            ))
+          )
         ) : (
-          <p className="pt-[40px] font-pretendard text-[14px] text-[#8A908B]">
+          <p className="pt-[40px] text-label-4 text-text-tertiary">
             {activeTab === "request"
               ? "대기 중인 신청이 없습니다."
               : "경기 알림이 없습니다."}
