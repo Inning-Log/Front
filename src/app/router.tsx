@@ -39,6 +39,12 @@ export const router = createBrowserRouter([
 
       // 친구 타임라인
       { path: "/timeline/:userId", element: <TimelinePage /> },
+
+      // 지난 경기 타임라인
+      {
+        path: "/timeline/history/:gameId",
+        element: <TimelinePage />,
+      },
     ],
   },
 ]);
