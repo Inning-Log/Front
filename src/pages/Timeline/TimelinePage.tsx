@@ -4,11 +4,12 @@ import {
   type MouseEvent,
   type PointerEvent,
 } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 
+import { BottomBar } from "../../app/layouts/BottomBar";
+import { PageHeader } from "../../app/layouts/PageHeader";
 import doosanBearsMascot from "../../assets/icons/teammascot/doosanbears.svg";
 import lgTwinsMascot from "../../assets/icons/teammascot/lgtwins.svg";
-import { PageHeader } from "../../app/layouts/PageHeader";
 import {
   InningCard,
   type InningRecord,
@@ -56,6 +57,11 @@ const inningRecords: InningRecord[] = [
   },
 ];
 
+type TimelineParams = {
+  userId?: string;
+  gameId?: string;
+};
+
 type DragState = {
   inning: number | null;
   isDragging: boolean;
@@ -65,6 +71,11 @@ type DragState = {
 
 export function TimelinePage() {
   const navigate = useNavigate();
+  const { userId, gameId } = useParams<TimelineParams>();
+
+  const isPastTimeline = Boolean(gameId);
+  const isFriendTimeline = Boolean(userId);
+  const canAddRecord = !isPastTimeline && !isFriendTimeline;
 
   const [selectedRecord, setSelectedRecord] =
     useState<InningRecord | null>(null);
@@ -97,7 +108,9 @@ export function TimelinePage() {
   const visibleInnings = Array.from(
     new Set([
       ...uploadedInnings,
-      ...(recordsByInning[currentInning] ? [] : [currentInning]),
+      ...(canAddRecord && !recordsByInning[currentInning]
+        ? [currentInning]
+        : []),
     ]),
   ).sort((a, b) => a - b);
 
@@ -226,7 +239,7 @@ export function TimelinePage() {
     <div className="min-h-dvh w-full pt-[45px]">
       <PageHeader title="타임라인" />
 
-      <TimelineProfileList />
+      {!isPastTimeline && <TimelineProfileList />}
 
       <TimelineGameScore
         homeTeamName="두산 베어스"
@@ -244,7 +257,9 @@ export function TimelinePage() {
           const records = recordsByInning[inning] ?? [];
 
           const shouldShowAddCard =
-            inning === currentInning && records.length === 0;
+            canAddRecord &&
+            inning === currentInning &&
+            records.length === 0;
 
           return (
             <section
@@ -293,6 +308,8 @@ export function TimelinePage() {
           );
         })}
       </main>
+
+      <BottomBar />
 
       <InningDetailModal
         record={selectedRecord}
