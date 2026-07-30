@@ -1,4 +1,9 @@
-import { useRef, type PointerEvent } from "react";
+import {
+  useRef,
+  useState,
+  type MouseEvent,
+  type PointerEvent,
+} from "react";
 import { useNavigate } from "react-router-dom";
 
 import doosanBearsMascot from "../../assets/icons/teammascot/doosanbears.svg";
@@ -8,6 +13,7 @@ import {
   InningCard,
   type InningRecord,
 } from "../../features/timeline/components/InningCard";
+import { InningDetailModal } from "../../features/timeline/components/InningDetailModal";
 import { TimelineGameScore } from "../../features/timeline/components/TimelineGameScore";
 import { TimelineProfileList } from "../../features/timeline/components/TimelineProfileList";
 
@@ -40,10 +46,10 @@ const inningRecords: InningRecord[] = [
     awayScore: 0,
     text: "분위기 너무 좋다!",
   },
-    {
+  {
     id: "record-4",
     inning: 3,
-    recordedAt: "19:02",
+    recordedAt: "19:42",
     homeScore: 1,
     awayScore: 0,
     text: "야르",
@@ -55,11 +61,13 @@ type DragState = {
   isDragging: boolean;
   startX: number;
   scrollLeft: number;
-  movedDistance: number;
 };
 
 export function TimelinePage() {
   const navigate = useNavigate();
+
+  const [selectedRecord, setSelectedRecord] =
+    useState<InningRecord | null>(null);
 
   const scrollRefs = useRef<Record<number, HTMLElement | null>>({});
 
@@ -68,15 +76,18 @@ export function TimelinePage() {
     isDragging: false,
     startX: 0,
     scrollLeft: 0,
-    movedDistance: 0,
   });
 
   const animationFrameRef = useRef<number | null>(null);
+  const preventClickRef = useRef(false);
 
   const recordsByInning = inningRecords.reduce<
     Partial<Record<number, InningRecord[]>>
   >((result, record) => {
-    result[record.inning] = [...(result[record.inning] ?? []), record];
+    result[record.inning] = [
+      ...(result[record.inning] ?? []),
+      record,
+    ];
 
     return result;
   }, {});
@@ -98,6 +109,14 @@ export function TimelinePage() {
     });
   };
 
+  const handleOpenRecord = (record: InningRecord) => {
+    if (preventClickRef.current) {
+      return;
+    }
+
+    setSelectedRecord(record);
+  };
+
   const handlePointerDown = (
     event: PointerEvent<HTMLElement>,
     inning: number,
@@ -108,6 +127,8 @@ export function TimelinePage() {
 
     const container = scrollRefs.current[inning];
 
+    preventClickRef.current = false;
+
     if (!container || container.scrollWidth <= container.clientWidth) {
       return;
     }
@@ -117,13 +138,10 @@ export function TimelinePage() {
       isDragging: true,
       startX: event.clientX,
       scrollLeft: container.scrollLeft,
-      movedDistance: 0,
     };
 
     container.style.scrollSnapType = "none";
     container.style.cursor = "grabbing";
-
-    container.setPointerCapture(event.pointerId);
   };
 
   const handlePointerMove = (
@@ -149,7 +167,9 @@ export function TimelinePage() {
 
     const movedDistance = event.clientX - currentDrag.startX;
 
-    dragState.current.movedDistance = Math.abs(movedDistance);
+    if (Math.abs(movedDistance) > 5) {
+      preventClickRef.current = true;
+    }
 
     if (animationFrameRef.current !== null) {
       cancelAnimationFrame(animationFrameRef.current);
@@ -181,7 +201,6 @@ export function TimelinePage() {
       isDragging: false,
       startX: 0,
       scrollLeft: 0,
-      movedDistance: 0,
     };
 
     if (!container) {
@@ -190,19 +209,17 @@ export function TimelinePage() {
 
     container.style.scrollSnapType = "x proximity";
     container.style.cursor = "grab";
-
-    if (container.hasPointerCapture(event.pointerId)) {
-      container.releasePointerCapture(event.pointerId);
-    }
   };
 
-  const handleClickCapture = (
-    event: React.MouseEvent<HTMLElement>,
-  ) => {
-    if (dragState.current.movedDistance > 5) {
-      event.preventDefault();
-      event.stopPropagation();
+  const handleClickCapture = (event: MouseEvent<HTMLElement>) => {
+    if (!preventClickRef.current) {
+      return;
     }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    preventClickRef.current = false;
   };
 
   return (
@@ -248,6 +265,11 @@ export function TimelinePage() {
               onPointerCancel={(event) =>
                 handlePointerEnd(event, inning)
               }
+              onPointerLeave={(event) => {
+                if (dragState.current.isDragging) {
+                  handlePointerEnd(event, inning);
+                }
+              }}
               onClickCapture={handleClickCapture}
               className="scrollbar-hide flex w-full min-w-0 cursor-grab snap-x snap-proximity gap-[12px] overflow-x-auto overscroll-x-contain px-[16px] select-none [touch-action:pan-x]"
             >
@@ -256,6 +278,7 @@ export function TimelinePage() {
                   key={record.id}
                   inning={inning}
                   record={record}
+                  onOpen={handleOpenRecord}
                 />
               ))}
 
@@ -270,6 +293,11 @@ export function TimelinePage() {
           );
         })}
       </main>
+
+      <InningDetailModal
+        record={selectedRecord}
+        onClose={() => setSelectedRecord(null)}
+      />
     </div>
   );
 }
