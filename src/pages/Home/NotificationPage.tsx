@@ -107,7 +107,7 @@ export function NotificationPage() {
               : "text-text-tertiary",
           ].join(" ")}
         >
-          경기 알림
+          알림
 
           {activeTab === "game" && (
             <span className="absolute bottom-0 left-1/2 h-[3px] w-[180px] -translate-x-1/2 rounded-full bg-accent-primary" />
