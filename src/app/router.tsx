@@ -4,8 +4,8 @@ import { RootLayout } from "./layouts/RootLayout";
 
 import { LoginPage } from "../pages/Auth/LoginPage";
 import { ProfileSetupPage } from "../pages/Auth/ProfileSetupPage";
-import { MainPage } from "../pages/Home/MainPage";
 import { AddFriendPage } from "../pages/Home/AddFriendPage";
+import { MainPage } from "../pages/Home/MainPage";
 import { NotificationPage } from "../pages/Home/NotificationPage";
 import { NotificationSettingPage } from "../pages/Home/NotificationSettingPage";
 import { MyPage } from "../pages/MyPage/MyPage";
@@ -30,9 +30,15 @@ export const router = createBrowserRouter([
         path: "/home/notifications/settings",
         element: <NotificationSettingPage />,
       },
-      { path: "/mypage", element: <MyPage /> },
       { path: "/home/record", element: <RecordPage /> },
+
+      { path: "/mypage", element: <MyPage /> },
+
+      // 본인 타임라인
       { path: "/timeline", element: <TimelinePage /> },
+
+      // 친구 타임라인
+      { path: "/timeline/:userId", element: <TimelinePage /> },
     ],
   },
 ]);
