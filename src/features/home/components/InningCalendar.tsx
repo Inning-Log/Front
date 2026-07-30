@@ -23,6 +23,7 @@ type InningCalendarProps = {
   month: Date;
   records: CalendarRecord[];
   onMonthChange: (month: Date) => void;
+  onRecordClick?: (record: CalendarRecord) => void;
 };
 
 const resultLabels: Record<GameResult, string> = {
@@ -43,21 +44,34 @@ export function InningCalendar({
   month,
   records,
   onMonthChange,
+  onRecordClick,
 }: InningCalendarProps) {
   const recordsByDate = useMemo(() => {
-    return records.reduce<Record<string, CalendarRecord>>((acc, record) => {
-      acc[record.date] = record;
-      return acc;
-    }, {});
+    return records.reduce<Record<string, CalendarRecord>>(
+      (result, record) => {
+        result[record.date] = record;
+        return result;
+      },
+      {},
+    );
   }, [records]);
 
   const renderDay = (props: DayProps) => {
-    const { day, modifiers, className, children, ...cellProps } = props;
+    const {
+      day,
+      modifiers,
+      className,
+      children,
+      ...cellProps
+    } = props;
+
     const date = day.date;
     const record = recordsByDate[toDateKey(date)];
+
     const isOutside = modifiers.outside;
     const isSunday = date.getDay() === 0;
     const isMonday = date.getDay() === 1;
+
     const dayNumberColor = isOutside
       ? "text-text-tertiary"
       : isSunday
@@ -65,18 +79,37 @@ export function InningCalendar({
         : "text-black";
 
     const result = record?.result ?? "win";
+    const canOpenRecord = Boolean(record && onRecordClick);
+
+    const handleRecordClick = () => {
+      if (!record) {
+        return;
+      }
+
+      onRecordClick?.(record);
+    };
 
     if (record?.emphasized) {
       return (
         <td {...cellProps} className={className}>
           <button
             type="button"
-            className="mx-auto flex h-[80px] w-[82%] max-w-[42px] flex-col items-center rounded-[21px] bg-accent-deep pt-[4px]"
+            onClick={handleRecordClick}
+            disabled={!canOpenRecord}
+            aria-label={`${toDateKey(date)} 경기 기록 보기`}
+            className={[
+              "mx-auto flex h-[80px] w-[82%] max-w-[42px] flex-col items-center rounded-[21px] bg-accent-deep pt-[4px]",
+              canOpenRecord
+                ? "cursor-pointer"
+                : "cursor-default",
+            ].join(" ")}
           >
-            <span className="text-number flex mt-[4px] h-[13px] min-w-[13px] items-center justify-center text-white">
+            <span className="text-number mt-[4px] flex h-[13px] min-w-[13px] items-center justify-center text-white">
               {date.getDate()}
             </span>
-            <span className="mt-[8px] h-[24px] w-[24px] rounded-full bg-surface-placeholder" /> {/*이 자리에 구단 마스코트*/}
+
+            <span className="mt-[8px] h-[24px] w-[24px] rounded-full bg-surface-placeholder" />
+
             <span
               className={[
                 "mt-[4px] text-caption",
@@ -85,6 +118,8 @@ export function InningCalendar({
             >
               {resultLabels[result]}
             </span>
+
+            <span className="sr-only">{children}</span>
           </button>
         </td>
       );
@@ -94,7 +129,19 @@ export function InningCalendar({
       <td {...cellProps} className={className}>
         <button
           type="button"
-          className="mx-auto flex h-[80px] w-[82%] max-w-[42px] flex-col items-center pt-[4px]"
+          onClick={handleRecordClick}
+          disabled={!canOpenRecord}
+          aria-label={
+            record
+              ? `${toDateKey(date)} 경기 기록 보기`
+              : undefined
+          }
+          className={[
+            "mx-auto flex h-[80px] w-[82%] max-w-[42px] flex-col items-center pt-[4px]",
+            canOpenRecord
+              ? "cursor-pointer"
+              : "cursor-default",
+          ].join(" ")}
         >
           <span
             className={[
@@ -107,9 +154,11 @@ export function InningCalendar({
           >
             {date.getDate()}
           </span>
-          {!isMonday && (
+
+          {record && !isMonday && (
             <>
-              <span className="mt-[5px] h-[24px] w-[24px] rounded-full bg-surface-placeholder" /> {/*이 자리에 구단 마스코트*/}
+              <span className="mt-[5px] h-[24px] w-[24px] rounded-full bg-surface-placeholder" />
+
               <span
                 className={[
                   "mt-[4px] text-caption",
@@ -120,6 +169,7 @@ export function InningCalendar({
               </span>
             </>
           )}
+
           <span className="sr-only">{children}</span>
         </button>
       </td>
@@ -140,8 +190,10 @@ export function InningCalendar({
         NextMonthButton,
       }}
       formatters={{
-        formatCaption: (captionMonth) => formatMonthLabel(captionMonth),
-        formatWeekdayName: (weekday) => weekdayLabels[weekday.getDay()],
+        formatCaption: (captionMonth) =>
+          formatMonthLabel(captionMonth),
+        formatWeekdayName: (weekday) =>
+          weekdayLabels[weekday.getDay()],
       }}
       classNames={{
         [UI.Root]: "text-number w-full",
@@ -150,8 +202,7 @@ export function InningCalendar({
         [UI.MonthCaption]: "hidden",
         [UI.MonthGrid]: "w-full table-fixed border-collapse",
         [UI.Weekdays]: "h-[21px]",
-        [UI.Weekday]:
-          "text-label-4 pb-[5px] text-center",
+        [UI.Weekday]: "text-label-4 pb-[5px] text-center",
         [UI.Weeks]: "w-full",
         [UI.Week]: "h-[85px]",
         [UI.Day]: "h-[85px] w-[14.285%] p-0 align-top",
@@ -175,7 +226,9 @@ function Weekday(props: WeekdayProps) {
   );
 }
 
-function PreviousMonthButton(props: PreviousMonthButtonProps) {
+function PreviousMonthButton(
+  props: PreviousMonthButtonProps,
+) {
   return (
     <button {...props} type="button" aria-label="이전 달">
       <img
@@ -190,21 +243,26 @@ function PreviousMonthButton(props: PreviousMonthButtonProps) {
 function NextMonthButton(props: NextMonthButtonProps) {
   return (
     <button {...props} type="button" aria-label="다음 달">
-      <img src={rightArrowIcon} alt="" className="h-[17px] w-[12px]" />
+      <img
+        src={rightArrowIcon}
+        alt=""
+        className="h-[17px] w-[12px]"
+      />
     </button>
   );
 }
 
 function formatMonthLabel(date: Date) {
-  return `${date.getFullYear()}년 ${String(date.getMonth() + 1).padStart(
-    2,
-    "0",
-  )}월`;
+  return `${date.getFullYear()}년 ${String(
+    date.getMonth() + 1,
+  ).padStart(2, "0")}월`;
 }
 
 function toDateKey(date: Date) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(
+  return `${date.getFullYear()}-${String(
+    date.getMonth() + 1,
+  ).padStart(2, "0")}-${String(date.getDate()).padStart(
     2,
     "0",
-  )}-${String(date.getDate()).padStart(2, "0")}`;
+  )}`;
 }

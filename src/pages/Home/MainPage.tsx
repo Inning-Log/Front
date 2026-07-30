@@ -27,15 +27,29 @@ export function MainPage() {
   const [month, setMonth] = useState(() => new Date(2026, 5, 1));
 
   const goToPreviousMonth = () => {
-    setMonth((currentMonth) => (
-      new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1)
-    ));
+    setMonth(
+      (currentMonth) =>
+        new Date(
+          currentMonth.getFullYear(),
+          currentMonth.getMonth() - 1,
+          1,
+        ),
+    );
   };
 
   const goToNextMonth = () => {
-    setMonth((currentMonth) => (
-      new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1)
-    ));
+    setMonth(
+      (currentMonth) =>
+        new Date(
+          currentMonth.getFullYear(),
+          currentMonth.getMonth() + 1,
+          1,
+        ),
+    );
+  };
+
+  const handleRecordDateClick = (record: CalendarRecord) => {
+    navigate(`/timeline/history/${record.date}`);
   };
 
   return (
@@ -51,6 +65,7 @@ export function MainPage() {
                 iconSrc={addFriendIcon}
                 label="친구 추가"
               />
+
               <HeaderIconLink
                 to="/home/notifications"
                 iconSrc={notificationIcon}
@@ -61,18 +76,18 @@ export function MainPage() {
         />
 
         <section className="mt-[13px] text-center">
-          <p className="text-body text-black">
-            승률
-          </p>
+          <p className="text-body text-black">승률</p>
+
           <p className="-mt-[10px] flex items-baseline justify-center gap-[2px] text-center font-akatab text-[48px] font-extrabold leading-normal tracking-[-1.44px] text-accent-deep">
             54
+
             <span className="font-akatab text-[20px] font-black leading-normal tracking-[6.8px]">
               %
             </span>
           </p>
         </section>
 
-        <div className="mb-[10px] -mt-[10px] flex h-[28px] items-center justify-between px-[5px]">
+        <div className="mb-[20px] mt-[5px] flex h-[28px] items-center justify-between px-[5px]">
           <button
             type="button"
             onClick={goToPreviousMonth}
@@ -96,7 +111,11 @@ export function MainPage() {
             aria-label="다음 달"
             className="flex h-7 w-7 items-center justify-center"
           >
-            <img src={rightArrowIcon} alt="" className="h-[17px] w-[12px]" />
+            <img
+              src={rightArrowIcon}
+              alt=""
+              className="h-[17px] w-[12px]"
+            />
           </button>
         </div>
 
@@ -104,11 +123,14 @@ export function MainPage() {
           month={month}
           records={sampleRecords}
           onMonthChange={setMonth}
+          onRecordClick={handleRecordDateClick}
         />
 
         <div className="mt-[18px] flex justify-center">
           <Button onClick={() => navigate("/home/record")}>
-            <span className="text-label-2 text-white">기록하기</span>
+            <span className="text-label-2 text-white">
+              기록하기
+            </span>
           </Button>
         </div>
       </main>
@@ -124,18 +146,30 @@ type HeaderIconLinkProps = {
   label: string;
 };
 
-function HeaderIconLink({ to, iconSrc, label }: HeaderIconLinkProps) {
+function HeaderIconLink({
+  to,
+  iconSrc,
+  label,
+}: HeaderIconLinkProps) {
   return (
-    <Link to={to} aria-label={label} className="relative block">
-      <img src={iconSrc} alt="" className="h-[22px] w-auto" />
+    <Link
+      to={to}
+      aria-label={label}
+      className="relative block"
+    >
+      <img
+        src={iconSrc}
+        alt=""
+        className="h-[22px] w-auto"
+      />
+
       <span className="absolute right-[-2px] top-[-4px] h-[7px] w-[7px] rounded-full bg-danger" />
     </Link>
   );
 }
 
 function formatMonthLabel(date: Date) {
-  return `${date.getFullYear()}년 ${String(date.getMonth() + 1).padStart(
-    2,
-    "0",
-  )}월`;
+  return `${date.getFullYear()}년 ${String(
+    date.getMonth() + 1,
+  ).padStart(2, "0")}월`;
 }
