@@ -13,6 +13,7 @@ import { OnBoardingPage } from "../pages/Onboarding/OnBoardingPage";
 import { RecordPage } from "../pages/Record/RecordPage";
 import { SplashPage } from "../pages/Splash/SplashPage";
 import { TimelinePage } from "../pages/Timeline/TimelinePage";
+import { FriendsPage } from "../pages/MyPage/FriendsPage";
 
 export const router = createBrowserRouter([
   {
@@ -33,6 +34,7 @@ export const router = createBrowserRouter([
       { path: "/home/record", element: <RecordPage /> },
 
       { path: "/mypage", element: <MyPage /> },
+      { path: "/mypage/friends", element: <FriendsPage /> },
 
       // 본인 타임라인
       { path: "/timeline", element: <TimelinePage /> },
