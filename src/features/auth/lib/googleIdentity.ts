@@ -1,4 +1,5 @@
-const GOOGLE_IDENTITY_SCRIPT_SRC = "https://accounts.google.com/gsi/client";
+const GOOGLE_IDENTITY_SCRIPT_SRC =
+  "https://accounts.google.com/gsi/client";
 
 type GoogleCredentialResponse = {
   credential?: string;
@@ -9,8 +10,8 @@ type GoogleButtonConfig = {
   theme: "outline" | "filled_blue" | "filled_black";
   size: "large" | "medium" | "small";
   shape: "rectangular" | "pill" | "circle" | "square";
-  text: "signin_with" | "signup_with" | "continue_with" | "signin";
-  width: number;
+  text?: "signin_with" | "signup_with" | "continue_with" | "signin";
+  width?: number;
   locale?: string;
 };
 
@@ -20,7 +21,10 @@ type GoogleAccounts = {
       client_id: string;
       callback: (response: GoogleCredentialResponse) => void;
     }) => void;
-    renderButton: (parent: HTMLElement, config: GoogleButtonConfig) => void;
+    renderButton: (
+      parent: HTMLElement,
+      config: GoogleButtonConfig,
+    ) => void;
     disableAutoSelect: () => void;
   };
 };
@@ -50,17 +54,34 @@ export function loadGoogleIdentityScript() {
     );
 
     if (existingScript) {
-      existingScript.addEventListener("load", () => resolve(), { once: true });
-      existingScript.addEventListener("error", () => reject(), { once: true });
+      existingScript.addEventListener("load", () => resolve(), {
+        once: true,
+      });
+
+      existingScript.addEventListener(
+        "error",
+        () => {
+          googleIdentityScriptPromise = null;
+          reject(new Error("Google 로그인 스크립트 로드 실패"));
+        },
+        { once: true },
+      );
+
       return;
     }
 
     const script = document.createElement("script");
+
     script.src = GOOGLE_IDENTITY_SCRIPT_SRC;
     script.async = true;
     script.defer = true;
     script.onload = () => resolve();
-    script.onerror = () => reject();
+
+    script.onerror = () => {
+      googleIdentityScriptPromise = null;
+      reject(new Error("Google 로그인 스크립트 로드 실패"));
+    };
+
     document.head.appendChild(script);
   });
 
@@ -72,18 +93,19 @@ export function renderGoogleLoginButton(
   onCredential: (credential: string) => void,
 ) {
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+  const googleAccounts = window.google?.accounts;
 
   if (!clientId) {
     throw new Error("Google Client ID가 설정되어 있지 않습니다.");
   }
 
-  if (!window.google?.accounts) {
+  if (!googleAccounts) {
     throw new Error("Google 로그인 스크립트를 불러오지 못했습니다.");
   }
 
-  parent.innerHTML = "";
+  parent.replaceChildren();
 
-  window.google.accounts.id.initialize({
+  googleAccounts.id.initialize({
     client_id: clientId,
     callback: (response) => {
       if (response.credential) {
@@ -92,13 +114,13 @@ export function renderGoogleLoginButton(
     },
   });
 
-  window.google.accounts.id.renderButton(parent, {
+  googleAccounts.id.renderButton(parent, {
     type: "standard",
-    theme: "filled_black",
+    theme: "outline",
     size: "large",
     shape: "pill",
     text: "continue_with",
-    width: 358,
+    width: 284,
     locale: "ko",
   });
 }
