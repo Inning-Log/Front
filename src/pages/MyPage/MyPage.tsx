@@ -4,7 +4,9 @@ import {
   useRef,
   useState,
 } from "react";
+import { useNavigate } from "react-router-dom";
 
+import { BottomBar } from "../../app/layouts/BottomBar";
 import { PageHeader } from "../../app/layouts/PageHeader";
 import cameraIcon from "../../assets/icons/camera.svg";
 import defaultProfileIcon from "../../assets/icons/defaultprofile.svg";
@@ -105,9 +107,7 @@ function ProfileItem({
 }: ProfileItemProps) {
   return (
     <div className="border-b-[1.5px] border-surface-secondary pt-[16px]">
-      <p className="text-label-3 text-black">
-        {label}
-      </p>
+      <p className="text-label-3 text-black">{label}</p>
 
       <div className="mt-[18px] px-[16px] pb-[6px]">
         <span className="text-label-3 font-medium leading-none text-text-secondary">
@@ -119,6 +119,7 @@ function ProfileItem({
 }
 
 export function MyPage() {
+  const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [profile, setProfile] =
@@ -275,6 +276,8 @@ export function MyPage() {
             수정 완료
           </button>
         </main>
+
+        <BottomBar />
       </div>
     );
   }
@@ -312,15 +315,14 @@ export function MyPage() {
                 <>
                   <button
                     type="button"
-                    onClick={() =>
-                      fileInputRef.current?.click()
-                    }
+                    onClick={() => fileInputRef.current?.click()}
                     aria-label="프로필 사진 변경"
                     className="absolute bottom-[3px] right-[3px] flex size-[28px] items-center justify-center rounded-full bg-text-secondary"
                   >
                     <img
                       src={cameraIcon}
                       alt=""
+                      aria-hidden="true"
                       className="h-[13px] w-[15px]"
                     />
                   </button>
@@ -400,14 +402,17 @@ export function MyPage() {
                 label="닉네임"
                 value={profile.nickname}
               />
+
               <ProfileItem
                 label="아이디"
                 value={profile.userId}
               />
+
               <ProfileItem
                 label="이메일"
                 value={profile.email}
               />
+
               <ProfileItem
                 label="응원 팀"
                 value={profile.favoriteTeam}
@@ -438,6 +443,7 @@ export function MyPage() {
             <div className="mt-[5px] min-h-[110px] rounded-[25px] bg-bg-primary px-[10px] shadow-[0_6px_16px_rgba(0,0,0,0.08)]">
               <button
                 type="button"
+                onClick={() => navigate("/mypage/friends")}
                 className="flex h-[58px] w-full items-center border-b-[1.5px] border-surface-secondary px-[16px] text-left text-label-3 text-black"
               >
                 친구
@@ -446,6 +452,8 @@ export function MyPage() {
           </section>
         )}
       </main>
+
+      <BottomBar />
     </div>
   );
 }
