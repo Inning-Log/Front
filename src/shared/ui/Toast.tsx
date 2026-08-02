@@ -1,13 +1,20 @@
 import { useEffect } from "react";
 
-import type { FriendRequestCompleteModalProps } from "../types/FriendRequestCompleteModal";
+type ToastProps = {
+  open: boolean;
+  message: string;
+  onClose: () => void;
+  duration?: number;
+};
 
-const FRIEND_REQUEST_COMPLETE_MODAL_MS = 1000;
+const DEFAULT_TOAST_DURATION_MS = 1000;
 
-export function FriendRequestCompleteModal({
+export function Toast({
   open,
+  message,
   onClose,
-}: FriendRequestCompleteModalProps) {
+  duration = DEFAULT_TOAST_DURATION_MS,
+}: ToastProps) {
   useEffect(() => {
     if (!open) {
       return;
@@ -15,12 +22,12 @@ export function FriendRequestCompleteModal({
 
     const timerId = window.setTimeout(() => {
       onClose();
-    }, FRIEND_REQUEST_COMPLETE_MODAL_MS);
+    }, duration);
 
     return () => {
       window.clearTimeout(timerId);
     };
-  }, [open, onClose]);
+  }, [open, onClose, duration]);
 
   if (!open) {
     return null;
@@ -31,9 +38,9 @@ export function FriendRequestCompleteModal({
       <div
         role="status"
         aria-live="polite"
-        className="flex h-[65px] w-full items-center justify-center rounded-[46.5px] bg-white text-subtitle text-black"
+        className="flex h-[65px] w-full max-w-[398px] items-center justify-center rounded-[46.5px] bg-white text-subtitle text-black"
       >
-        신청이 완료 되었습니다!
+        {message}
       </div>
     </div>
   );

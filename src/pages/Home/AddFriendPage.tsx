@@ -2,14 +2,15 @@ import { useCallback, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { BottomSheet } from "../../app/layouts/BottomSheet";
-import { FriendRequestCompleteModal } from "../../features/home/components/FriendRequestCompleteModal";
 import { FriendSearchList } from "../../features/home/components/FriendSearchList";
 import { useFriendSearch } from "../../features/home/hooks/useFriendSearch";
 import { Search } from "../../shared/ui/Search";
+import { Toast } from "../../shared/ui/Toast";
 
 export function AddFriendPage() {
   const navigate = useNavigate();
-  const [isRequestNoticeVisible, setIsRequestNoticeVisible] = useState(false);
+  const [isToastOpen, setIsToastOpen] = useState(false);
+
   const {
     keyword,
     setKeyword,
@@ -28,16 +29,18 @@ export function AddFriendPage() {
     navigate("/home", { replace: true });
   };
 
-  const closeRequestNotice = useCallback(() => {
-    setIsRequestNoticeVisible(false);
+  const closeToast = useCallback(() => {
+    setIsToastOpen(false);
   }, []);
 
-  const showRequestNotice = () => {
+  const handleFriendRequest = () => {
     if (!isFriendRequestEnabled) {
       return;
     }
 
-    setIsRequestNoticeVisible(true);
+    console.log(`${selectedUserId} 친구 신청`);
+
+    setIsToastOpen(true);
   };
 
   return (
@@ -72,7 +75,7 @@ export function AddFriendPage() {
               <button
                 type="button"
                 disabled={!isFriendRequestEnabled}
-                onClick={showRequestNotice}
+                onClick={handleFriendRequest}
                 className={[
                   "mb-[14px] mt-[12px] flex h-[40px] shrink-0 appearance-none items-center justify-center rounded-[20px] border-0 p-0 text-label-3 text-white disabled:opacity-100",
                   isFriendRequestEnabled
@@ -87,9 +90,10 @@ export function AddFriendPage() {
         </div>
       </BottomSheet>
 
-      <FriendRequestCompleteModal
-        open={isRequestNoticeVisible}
-        onClose={closeRequestNotice}
+      <Toast
+        open={isToastOpen}
+        message="신청이 완료되었습니다!"
+        onClose={closeToast}
       />
     </>
   );
