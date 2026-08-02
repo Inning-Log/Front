@@ -6,6 +6,7 @@ import {
   NotificationItem,
   type NotificationCategory,
 } from "../../features/home/components/NotificationItem";
+import { Toast } from "../../shared/ui/Toast";
 
 type NotificationTab = "request" | "game";
 
@@ -21,7 +22,12 @@ type GeneralNotification = {
   message: string;
 };
 
-const requestNotifications: RequestNotification[] = [
+type ToastState = {
+  open: boolean;
+  message: string;
+};
+
+const initialRequestNotifications: RequestNotification[] = [
   {
     id: 1,
     userId: "inning",
@@ -56,10 +62,60 @@ export function NotificationPage() {
   const [activeTab, setActiveTab] =
     useState<NotificationTab>("request");
 
+  const [requestNotifications, setRequestNotifications] = useState(
+    initialRequestNotifications,
+  );
+
+  const [toast, setToast] = useState<ToastState>({
+    open: false,
+    message: "",
+  });
+
   const hasNotifications =
     activeTab === "request"
       ? requestNotifications.length > 0
       : gameNotifications.length > 0;
+
+  const removeRequestNotification = (notificationId: number) => {
+    setRequestNotifications((previousNotifications) =>
+      previousNotifications.filter(
+        (notification) => notification.id !== notificationId,
+      ),
+    );
+  };
+
+  const handleAcceptRequest = (
+    notification: RequestNotification,
+  ) => {
+    console.log(`${notification.userId} 친구 신청 수락`);
+
+    removeRequestNotification(notification.id);
+
+    setToast({
+      open: true,
+      message: "친구 신청을 수락했습니다!",
+    });
+  };
+
+  const handleRejectRequest = (
+    notification: RequestNotification,
+  ) => {
+    console.log(`${notification.userId} 친구 신청 거절`);
+
+    removeRequestNotification(notification.id);
+
+    setToast({
+      open: true,
+      message: "친구 신청을 거절했습니다.",
+    });
+  };
+
+  const handleCloseToast = () => {
+    setToast((previousToast) => ({
+      ...previousToast,
+      open: false,
+    }));
+  };
 
   return (
     <div className="min-h-dvh w-full bg-white pt-[45px]">
@@ -123,16 +179,12 @@ export function NotificationPage() {
                 key={notification.id}
                 userId={notification.userId}
                 userName={notification.userName}
-                onAccept={() => {
-                  console.log(
-                    `${notification.userId} 친구 신청 수락`,
-                  );
-                }}
-                onDelete={() => {
-                  console.log(
-                    `${notification.userId} 친구 신청 거절`,
-                  );
-                }}
+                onAccept={() =>
+                  handleAcceptRequest(notification)
+                }
+                onDelete={() =>
+                  handleRejectRequest(notification)
+                }
               />
             ))
           ) : (
@@ -152,6 +204,12 @@ export function NotificationPage() {
           </p>
         )}
       </main>
+
+      <Toast
+        open={toast.open}
+        message={toast.message}
+        onClose={handleCloseToast}
+      />
     </div>
   );
 }
