@@ -10,6 +10,7 @@ type PageHeaderProps = {
   onRightClick?: () => void;
   rightContent?: ReactNode;
   showBackButton?: boolean;
+  onBack?: () => void;
 };
 
 export function PageHeader({
@@ -19,9 +20,19 @@ export function PageHeader({
   onRightClick,
   rightContent,
   showBackButton = true,
+  onBack,
 }: PageHeaderProps) {
   const navigate = useNavigate();
   const hasRightButton = Boolean(rightTo || onRightClick);
+
+  const handleBackClick = () => {
+    if (onBack) {
+      onBack();
+      return;
+    }
+
+    navigate(-1);
+  };
 
   const handleRightClick = () => {
     if (onRightClick) {
@@ -39,7 +50,7 @@ export function PageHeader({
       {showBackButton && (
         <button
           type="button"
-          onClick={() => navigate(-1)}
+          onClick={handleBackClick}
           aria-label="이전 화면으로 이동"
           className="absolute left-3 flex h-10 w-10 items-center justify-center"
         >
