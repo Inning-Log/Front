@@ -11,6 +11,7 @@ export type FriendSearchItemProps = {
 
 export type FriendSearchListProps = {
   users: FriendSearch[];
+  hasKeyword: boolean;
   selectedUserId: string;
   onSelectUser: (userId: string) => void;
 };

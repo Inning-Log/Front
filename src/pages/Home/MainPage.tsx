@@ -54,7 +54,7 @@ export function MainPage() {
 
   return (
     <div className="relative h-dvh overflow-hidden bg-white">
-      <main className="h-full overflow-y-auto px-[11px] pb-[72px] pt-[50px]">
+      <main className="scrollbar-hide h-full overflow-y-auto px-[11px] pb-[72px] pt-[50px]">
         <PageHeader
           title="홈"
           showBackButton={false}
