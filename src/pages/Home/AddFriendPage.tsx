@@ -67,6 +67,7 @@ export function AddFriendPage() {
 
             <FriendSearchList
               users={searchedUsers}
+              hasKeyword={keyword.trim().length > 0}
               selectedUserId={selectedUserId}
               onSelectUser={setSelectedUserId}
             />
