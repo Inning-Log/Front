@@ -1,3 +1,5 @@
+import { useNavigate } from "react-router-dom";
+
 type TimelineShareModalProps = {
   isOpen: boolean;
   onClose: () => void;
@@ -11,9 +13,16 @@ export function TimelineShareModal({
   onSaveMyVideo,
   onSaveWithFriend,
 }: TimelineShareModalProps) {
+  const navigate = useNavigate();
+
   if (!isOpen) {
     return null;
   }
+
+  const handleSaveWithFriend = () => {
+    onSaveWithFriend();
+    navigate("/timeline/save/friend");
+  };
 
   return (
     <div
@@ -48,7 +57,7 @@ export function TimelineShareModal({
 
             <button
               type="button"
-              onClick={onSaveWithFriend}
+              onClick={handleSaveWithFriend}
               className="text-label-2 flex h-[55px] w-full items-center justify-center rounded-[27.5px] bg-accent-primary text-white active:bg-accent-pressed"
             >
               친구 영상과 함께 저장
