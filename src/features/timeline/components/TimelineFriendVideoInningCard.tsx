@@ -15,8 +15,8 @@ export function TimelineVideoInningCard({
 }: TimelineVideoInningCardProps) {
   return (
     <article className="relative h-[300px] w-[358px] shrink-0 rounded-[27.5px] bg-[#626262] text-white">
-      <div className="absolute left-[14px] top-[14px] flex size-[30px] items-center justify-center rounded-full bg-white text-bg-dark">
-        <span className="font-akatab text-[18px] font-bold leading-none">
+      <div className="absolute left-[14px] top-[14px] flex size-[19px] items-center justify-center rounded-full bg-white text-bg-dark">
+        <span className="font-akatab text-[16px] font-bold leading-none">
           {inning}
         </span>
       </div>
