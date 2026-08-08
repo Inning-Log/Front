@@ -40,25 +40,36 @@ export function TimelineFriendSelectPage() {
   const [selectedFriendId, setSelectedFriendId] =
     useState<string | null>(null);
 
+  const [isSaving, setIsSaving] = useState(false);
+
   const handleSelectFriend = (userId: string) => {
+    if (isSaving) {
+      return;
+    }
+
     setSelectedFriendId((current) =>
       current === userId ? null : userId,
     );
   };
 
   const handleSaveWithFriend = () => {
-    if (!selectedFriendId) {
+    if (!selectedFriendId || isSaving) {
       return;
     }
 
-    // TODO: 선택한 친구 영상과 함께 저장 기능 연결
+    setIsSaving(true);
+
+    // TODO: 실제 영상 생성 및 저장 기능 연결
     console.log("선택된 친구:", selectedFriendId);
 
-    // 영상 생성/저장 페이지가 생기면 여기서 이동
+    // 임시 로딩 확인용
+    setTimeout(() => {
+      setIsSaving(false);
+    }, 3000);
   };
 
   return (
-    <div className="flex min-h-dvh w-full flex-col bg-bg-primary pt-[45px]">
+    <div className="relative flex min-h-dvh w-full flex-col bg-bg-primary pt-[45px]">
       <PageHeader title="친구" />
 
       {friends.length === 0 ? (
@@ -118,13 +129,26 @@ export function TimelineFriendSelectPage() {
               <button
                 type="button"
                 onClick={handleSaveWithFriend}
-                className="text-label-3 flex h-[55px] w-full items-center justify-center rounded-[27.5px] bg-accent-primary text-white active:bg-accent-pressed"
+                disabled={isSaving}
+                className="text-label-3 flex h-[55px] w-full items-center justify-center rounded-[27.5px] bg-accent-primary text-white active:bg-accent-pressed disabled:pointer-events-none disabled:opacity-60"
               >
                 함께 저장하기
               </button>
             </div>
           )}
         </>
+      )}
+
+      {isSaving && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="flex flex-col items-center rounded-[20px] bg-white px-[40px] py-[32px]">
+            <div className="size-[36px] animate-spin rounded-full border-[4px] border-surface-secondary border-t-accent-primary" />
+
+            <p className="mt-[16px] text-label-3 text-black">
+              영상 저장 중...
+            </p>
+          </div>
+        </div>
       )}
     </div>
   );
