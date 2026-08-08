@@ -1,5 +1,3 @@
-import doosanBearsMascot from "../../../assets/icons/teammascot/doosanbears.svg";
-import lgTwinsMascot from "../../../assets/icons/teammascot/lgtwins.svg";
 import type { InningRecord } from "./InningCard";
 import { TimelineGameScore } from "./TimelineGameScore";
 import { TimelineMyVideoInningCard } from "./TimelineMyVideoInningCard";
@@ -21,9 +19,7 @@ export function TimelineMyVideoTemplate({
     <div className="flex h-[844px] w-[390px] flex-col bg-white px-[16px] pt-[40px]">
       <TimelineGameScore
         homeTeamName="두산 베어스"
-        homeTeamLogo={doosanBearsMascot}
         awayTeamName="LG 트윈스"
-        awayTeamLogo={lgTwinsMascot}
         homeScore={1}
         awayScore={0}
         gameDateTime="06.03 18:30"
