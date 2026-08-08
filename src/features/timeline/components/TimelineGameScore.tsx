@@ -1,8 +1,8 @@
+import { TeamMascot } from "../../../shared/ui/TeamMascot";
+
 type TimelineGameScoreProps = {
   homeTeamName: string;
-  homeTeamLogo: string;
   awayTeamName: string;
-  awayTeamLogo: string;
   homeScore: number;
   awayScore: number;
   gameDateTime: string;
@@ -11,9 +11,7 @@ type TimelineGameScoreProps = {
 
 export function TimelineGameScore({
   homeTeamName,
-  homeTeamLogo,
   awayTeamName,
-  awayTeamLogo,
   homeScore,
   awayScore,
   gameDateTime,
@@ -21,13 +19,10 @@ export function TimelineGameScore({
 }: TimelineGameScoreProps) {
   return (
     <section className="flex w-full items-center justify-center gap-[50px] py-[14px]">
-      <div className="flex size-[50px] shrink-0 items-center justify-center">
-        <img
-          src={homeTeamLogo}
-          alt={`${homeTeamName} 로고`}
-          className="size-full object-contain"
-        />
-      </div>
+      <TeamMascot
+        teamName={homeTeamName}
+        containerSize={50}
+      />
 
       <div className="flex min-w-0 flex-col items-center text-center">
         <div className="text-title-2 flex items-center gap-[12px] text-button-neutral">
@@ -45,13 +40,10 @@ export function TimelineGameScore({
         </p>
       </div>
 
-      <div className="flex size-[50px] shrink-0 items-center justify-center">
-        <img
-          src={awayTeamLogo}
-          alt={`${awayTeamName} 로고`}
-          className="size-full object-contain"
-        />
-      </div>
+      <TeamMascot
+        teamName={awayTeamName}
+        containerSize={50}
+      />
     </section>
   );
 }
