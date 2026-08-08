@@ -8,8 +8,7 @@ import { useNavigate, useParams } from "react-router-dom";
 
 import { BottomBar } from "../../app/layouts/BottomBar";
 import { PageHeader } from "../../app/layouts/PageHeader";
-import doosanBearsMascot from "../../assets/icons/teammascot/doosanbears.svg";
-import lgTwinsMascot from "../../assets/icons/teammascot/lgtwins.svg";
+import shareIcon from "../../assets/icons/share.svg";
 import {
   InningCard,
   type InningRecord,
@@ -17,6 +16,7 @@ import {
 import { InningDetailModal } from "../../features/timeline/components/InningDetailModal";
 import { TimelineGameScore } from "../../features/timeline/components/TimelineGameScore";
 import { TimelineProfileList } from "../../features/timeline/components/TimelineProfileList";
+import { TimelineShareModal } from "../../features/timeline/components/TimelineShareModal";
 
 //현재 5회
 const currentInning = 5;
@@ -80,6 +80,9 @@ export function TimelinePage() {
   const [selectedRecord, setSelectedRecord] =
     useState<InningRecord | null>(null);
 
+  const [isShareModalOpen, setIsShareModalOpen] =
+    useState(false);
+
   const scrollRefs = useRef<Record<number, HTMLElement | null>>({});
 
   const dragState = useRef<DragState>({
@@ -128,6 +131,18 @@ export function TimelinePage() {
     }
 
     setSelectedRecord(record);
+  };
+
+  const handleSaveMyVideo = () => {
+    setIsShareModalOpen(false);
+
+    console.log("내 영상만 저장");
+  };
+
+  const handleSaveWithFriend = () => {
+    setIsShareModalOpen(false);
+
+    console.log("친구 영상과 함께 저장");
   };
 
   const handlePointerDown = (
@@ -237,15 +252,28 @@ export function TimelinePage() {
 
   return (
     <div className="min-h-dvh w-full pt-[45px]">
-      <PageHeader title="타임라인" />
+      <div className="relative">
+        <PageHeader title="타임라인" />
+
+        <button
+          type="button"
+          aria-label="영상 저장하기"
+          onClick={() => setIsShareModalOpen(true)}
+          className="absolute right-[27px] top-1/2 flex size-[15px] -translate-y-1/2 items-center justify-center"
+        >
+          <img
+            src={shareIcon}
+            alt=""
+            className="size-[24px]"
+          />
+        </button>
+      </div>
 
       {!isPastTimeline && <TimelineProfileList />}
 
       <TimelineGameScore
         homeTeamName="두산 베어스"
-        homeTeamLogo={doosanBearsMascot}
         awayTeamName="LG 트윈스"
-        awayTeamLogo={lgTwinsMascot}
         homeScore={1}
         awayScore={0}
         gameDateTime="07.29 18:30"
@@ -314,6 +342,13 @@ export function TimelinePage() {
       <InningDetailModal
         record={selectedRecord}
         onClose={() => setSelectedRecord(null)}
+      />
+
+      <TimelineShareModal
+        isOpen={isShareModalOpen}
+        onClose={() => setIsShareModalOpen(false)}
+        onSaveMyVideo={handleSaveMyVideo}
+        onSaveWithFriend={handleSaveWithFriend}
       />
     </div>
   );

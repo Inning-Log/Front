@@ -13,7 +13,10 @@ import { OnBoardingPage } from "../pages/Onboarding/OnBoardingPage";
 import { RecordPage } from "../pages/Record/RecordPage";
 import { SplashPage } from "../pages/Splash/SplashPage";
 import { TimelinePage } from "../pages/Timeline/TimelinePage";
+import { TimelineFriendSelectPage } from "../pages/Timeline/TimelineFriendSelectPage";
+import { TimelineVideoPreviewPage } from "../pages/Timeline/TimelineVideoPreviewPage";
 import { FriendsPage } from "../pages/MyPage/FriendsPage";
+
 
 export const router = createBrowserRouter([
   {
@@ -46,6 +49,14 @@ export const router = createBrowserRouter([
       {
         path: "/timeline/history/:gameId",
         element: <TimelinePage />,
+      },
+      {
+        path: "/timeline/save/friend",
+        element: <TimelineFriendSelectPage />,
+      },
+      {
+        path: "/timeline/video-preview",
+        element: <TimelineVideoPreviewPage />,
       },
     ],
   },
