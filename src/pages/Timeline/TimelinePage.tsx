@@ -9,8 +9,6 @@ import { useNavigate, useParams } from "react-router-dom";
 import { BottomBar } from "../../app/layouts/BottomBar";
 import { PageHeader } from "../../app/layouts/PageHeader";
 import shareIcon from "../../assets/icons/share.svg";
-import doosanBearsMascot from "../../assets/icons/teammascot/doosanbears.svg";
-import lgTwinsMascot from "../../assets/icons/teammascot/lgtwins.svg";
 import {
   InningCard,
   type InningRecord,
@@ -275,9 +273,7 @@ export function TimelinePage() {
 
       <TimelineGameScore
         homeTeamName="두산 베어스"
-        homeTeamLogo={doosanBearsMascot}
         awayTeamName="LG 트윈스"
-        awayTeamLogo={lgTwinsMascot}
         homeScore={1}
         awayScore={0}
         gameDateTime="07.29 18:30"
