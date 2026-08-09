@@ -65,6 +65,7 @@ export function TimelineFriendSelectPage() {
     // 임시 로딩 확인용
     setTimeout(() => {
       setIsSaving(false);
+      navigate("/timeline");
     }, 3000);
   };
 
