@@ -6,6 +6,7 @@ import friendsIcon from "../../assets/icons/friends.svg";
 import selectedCheckIcon from "../../assets/icons/selected_check.svg";
 import { FriendSearchItem } from "../../features/home/components/FriendSearchItem";
 import type { FriendSearch } from "../../features/home/types/FriendSearch";
+import { Toast } from "../../shared/ui/Toast";
 
 // API 연동 전 임시 데이터
 const friends: FriendSearch[] = [
@@ -41,6 +42,7 @@ export function TimelineFriendSelectPage() {
     useState<string | null>(null);
 
   const [isSaving, setIsSaving] = useState(false);
+  const [isToastOpen, setIsToastOpen] = useState(false);
 
   const handleSelectFriend = (userId: string) => {
     if (isSaving) {
@@ -65,13 +67,17 @@ export function TimelineFriendSelectPage() {
     // 임시 로딩 확인용
     setTimeout(() => {
       setIsSaving(false);
-      navigate("/timeline");
+      setIsToastOpen(true);
+
+      setTimeout(() => {
+        navigate("/timeline");
+      }, 1000);
     }, 3000);
   };
 
   return (
-    <div className="relative flex min-h-dvh w-full flex-col bg-bg-primary pt-[45px]">
-      <PageHeader title="친구" />
+    <div className="min-h-dvh w-full pt-[45px]">
+      <PageHeader title="친구 선택" />
 
       {friends.length === 0 ? (
         <main className="flex flex-1 items-center justify-center px-[16px]">
@@ -151,6 +157,12 @@ export function TimelineFriendSelectPage() {
           </div>
         </div>
       )}
+
+      <Toast
+        open={isToastOpen}
+        message="영상이 저장되었습니다."
+        onClose={() => setIsToastOpen(false)}
+      />
     </div>
   );
 }
