@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+import { Toast } from "../../../shared/ui/Toast";
+
 type TimelineShareModalProps = {
   isOpen: boolean;
   onClose: () => void;
@@ -11,32 +13,37 @@ type TimelineShareModalProps = {
 export function TimelineShareModal({
   isOpen,
   onClose,
-  onSaveMyVideo,
+  //onSaveMyVideo,
   onSaveWithFriend,
 }: TimelineShareModalProps) {
   const navigate = useNavigate();
 
   const [isSaving, setIsSaving] = useState(false);
 
+  const [isToastOpen, setIsToastOpen] = useState(false);
+
   if (!isOpen) {
     return null;
   }
 
-  const handleSaveMyVideo = () => {
+    const handleSaveMyVideo = () => {
     if (isSaving) {
-      return;
+    return;
     }
 
     setIsSaving(true);
 
-    onSaveMyVideo();
-
     // TODO: 실제 영상 생성 및 저장 완료 시 false 처리
     // 현재는 임시 로딩 확인용
     setTimeout(() => {
-      setIsSaving(false);
+    setIsSaving(false);
+    setIsToastOpen(true);
+
+    setTimeout(() => {
+        onClose();
+    }, 1000);
     }, 3000);
-  };
+    };
 
   const handleSaveWithFriend = () => {
     onSaveWithFriend();
@@ -100,6 +107,12 @@ export function TimelineShareModal({
           </div>
         </div>
       )}
+
+      <Toast
+        open={isToastOpen}
+        message="영상이 저장되었습니다."
+        onClose={() => setIsToastOpen(false)}
+        />
     </>
   );
 }
