@@ -62,7 +62,10 @@ export function ProfileTeam({
   teams,
 }: ProfileTeamProps) {
   const isNextEnabled =
-    selectedTeamId !== null && !isLoading && !isSubmitting;
+    selectedTeamId !== null &&
+    teams.length > 0 &&
+    !isLoading &&
+    !isSubmitting;
   const buttonLabel = isSubmitting
     ? "저장 중..."
     : isLoading

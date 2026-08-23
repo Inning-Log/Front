@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+import { ApiError } from "../../../shared/api/apiClient";
 import { getTeams } from "../../../shared/api/teamApi";
 import type { TeamSummaryResponse } from "../../../shared/types/team";
 import {
@@ -25,6 +26,20 @@ type UsernameAvailabilityStatus =
   | "error";
 
 const USERNAME_PATTERN = /^[a-zA-Z0-9._]+$/;
+
+function clearAuthStorage() {
+  localStorage.removeItem("accessToken");
+  localStorage.removeItem("tokenType");
+  localStorage.removeItem("accessTokenExpiresAt");
+}
+
+function getRequestErrorMessage(error: unknown, fallbackMessage: string) {
+  return error instanceof Error ? error.message : fallbackMessage;
+}
+
+function isApiErrorWithStatus(error: unknown, status: number) {
+  return error instanceof ApiError && error.status === status;
+}
 
 function getUsernameValidationMessage(username: string) {
   if (!username) {
@@ -115,6 +130,23 @@ export function useProfileSetup() {
     navigate("/home", { replace: true });
   }, [navigate]);
 
+  const redirectToLogin = useCallback(() => {
+    clearAuthStorage();
+    navigate("/login", { replace: true });
+  }, [navigate]);
+
+  const handleUnauthorizedError = useCallback(
+    (error: unknown) => {
+      if (!isApiErrorWithStatus(error, 401)) {
+        return false;
+      }
+
+      redirectToLogin();
+      return true;
+    },
+    [redirectToLogin],
+  );
+
   const loadTeamOptions = useCallback(async () => {
     setIsLoadingTeams(true);
     setTeamFeedbackMessage("");
@@ -128,15 +160,20 @@ export function useProfileSetup() {
         setTeamFeedbackMessage("선택할 수 있는 구단이 없습니다.");
       }
     } catch (error) {
+      if (handleUnauthorizedError(error)) {
+        return;
+      }
+
       setTeamFeedbackMessage(
-        error instanceof Error
-          ? error.message
-          : "구단 목록을 불러오지 못했습니다.",
+        getRequestErrorMessage(
+          error,
+          "구단 목록을 불러오지 못했습니다.",
+        ),
       );
     } finally {
       setIsLoadingTeams(false);
     }
-  }, []);
+  }, [handleUnauthorizedError]);
 
   const moveToOnboardingStep = useCallback(
     (nextStep: OnboardingStep) => {
@@ -174,15 +211,20 @@ export function useProfileSetup() {
       setTeamFeedbackMessage("");
       moveToOnboardingStep(response.nextStep);
     } catch (error) {
+      if (handleUnauthorizedError(error)) {
+        return;
+      }
+
       setStatusFeedbackMessage(
-        error instanceof Error
-          ? error.message
-          : "온보딩 진행 상태를 불러오지 못했습니다.",
+        getRequestErrorMessage(
+          error,
+          "온보딩 진행 상태를 불러오지 못했습니다.",
+        ),
       );
     } finally {
       setIsSyncingStatus(false);
     }
-  }, [moveToOnboardingStep]);
+  }, [handleUnauthorizedError, moveToOnboardingStep]);
 
   useEffect(() => {
     const syncStatusTimer = window.setTimeout(() => {
@@ -191,6 +233,28 @@ export function useProfileSetup() {
 
     return () => window.clearTimeout(syncStatusTimer);
   }, [syncOnboardingStatus]);
+
+  const recoverFromStepMismatch = useCallback(
+    (
+      error: unknown,
+      setFeedbackMessage: (message: string) => void,
+    ) => {
+      if (handleUnauthorizedError(error)) {
+        return true;
+      }
+
+      if (!isApiErrorWithStatus(error, 409)) {
+        return false;
+      }
+
+      setFeedbackMessage(
+        "프로필 설정 상태가 변경되어 다시 불러옵니다.",
+      );
+      void syncOnboardingStatus();
+      return true;
+    },
+    [handleUnauthorizedError, syncOnboardingStatus],
+  );
 
   const handleUsernameChange = (nextUsername: string) => {
     usernameCheckRequestIdRef.current += 1;
@@ -262,11 +326,16 @@ export function useProfileSetup() {
         return null;
       }
 
+      if (handleUnauthorizedError(error)) {
+        return null;
+      }
+
       setUsernameAvailabilityStatus("error");
       setUsernameFeedbackMessage(
-        error instanceof Error
-          ? error.message
-          : "아이디 중복 확인에 실패했습니다.",
+        getRequestErrorMessage(
+          error,
+          "아이디 중복 확인에 실패했습니다.",
+        ),
       );
       setLastCheckedUsername("");
       return null;
@@ -310,11 +379,16 @@ export function useProfileSetup() {
       setUsername(response.user?.username ?? checkedUsername);
       moveToOnboardingStep(response.nextStep);
     } catch (error) {
+      if (handleUnauthorizedError(error)) {
+        return;
+      }
+
       setUsernameAvailabilityStatus("error");
       setUsernameFeedbackMessage(
-        error instanceof Error
-          ? error.message
-          : "아이디를 저장하지 못했습니다.",
+        getRequestErrorMessage(
+          error,
+          "아이디를 저장하지 못했습니다.",
+        ),
       );
     } finally {
       setIsSubmittingUsername(false);
@@ -347,10 +421,17 @@ export function useProfileSetup() {
       setNickname(response.user?.nickname ?? trimmedNickname);
       moveToOnboardingStep(response.nextStep);
     } catch (error) {
+      if (
+        recoverFromStepMismatch(error, setNicknameFeedbackMessage)
+      ) {
+        return;
+      }
+
       setNicknameFeedbackMessage(
-        error instanceof Error
-          ? error.message
-          : "닉네임을 저장하지 못했습니다.",
+        getRequestErrorMessage(
+          error,
+          "닉네임을 저장하지 못했습니다.",
+        ),
       );
     } finally {
       setIsSubmittingNickname(false);
@@ -388,10 +469,15 @@ export function useProfileSetup() {
 
       moveToOnboardingStep(response.nextStep);
     } catch (error) {
+      if (recoverFromStepMismatch(error, setTeamFeedbackMessage)) {
+        return;
+      }
+
       setTeamFeedbackMessage(
-        error instanceof Error
-          ? error.message
-          : "응원팀을 저장하지 못했습니다.",
+        getRequestErrorMessage(
+          error,
+          "응원팀을 저장하지 못했습니다.",
+        ),
       );
     } finally {
       setIsSubmittingTeam(false);
