@@ -1,5 +1,3 @@
-import { useState } from "react";
-
 import doosanBearsMascot from "../../../assets/icons/teammascot/doosanbears.svg";
 import hanwhaEaglesMascot from "../../../assets/icons/teammascot/hanwhaeagles.svg";
 import kiaTigersMascot from "../../../assets/icons/teammascot/kiatigers.svg";
@@ -73,8 +71,16 @@ const TEAMS: Team[] = [
   },
 ];
 
-export function ProfileTeam({ onNext }: ProfileSetupStepProps) {
-  const [selectedTeamId, setSelectedTeamId] = useState("");
+type ProfileTeamProps = ProfileSetupStepProps & {
+  onSelectTeam: (teamId: string) => void;
+  selectedTeamId: string;
+};
+
+export function ProfileTeam({
+  onNext,
+  onSelectTeam,
+  selectedTeamId,
+}: ProfileTeamProps) {
   const isNextEnabled = selectedTeamId.length > 0;
 
   const handleNext = () => {
@@ -98,7 +104,7 @@ export function ProfileTeam({ onNext }: ProfileSetupStepProps) {
             name={team.name}
             mascotSrc={team.mascotSrc}
             selected={selectedTeamId === team.id}
-            onSelect={() => setSelectedTeamId(team.id)}
+            onSelect={() => onSelectTeam(team.id)}
           />
         ))}
       </div>

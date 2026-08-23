@@ -13,6 +13,9 @@ type ProfileSetupStep = 1 | 2 | 3 | 4;
 export function ProfileSetupPage() {
   const navigate = useNavigate();
   const [step, setStep] = useState<ProfileSetupStep>(1);
+  const [username, setUsername] = useState("");
+  const [nickname, setNickname] = useState("");
+  const [selectedTeamId, setSelectedTeamId] = useState("");
 
   const completeProfileSetup = () => {
     navigate("/home", { replace: true });
@@ -23,11 +26,29 @@ export function ProfileSetupPage() {
       <PageHeader />
 
       <main data-step={step}>
-        {step === 1 && <ProfileId onNext={() => setStep(2)} />}
+        {step === 1 && (
+          <ProfileId
+            value={username}
+            onChange={setUsername}
+            onNext={() => setStep(2)}
+          />
+        )}
 
-        {step === 2 && <ProfileNickname onNext={() => setStep(3)} />}
+        {step === 2 && (
+          <ProfileNickname
+            value={nickname}
+            onChange={setNickname}
+            onNext={() => setStep(3)}
+          />
+        )}
 
-        {step === 3 && <ProfileTeam onNext={() => setStep(4)} />}
+        {step === 3 && (
+          <ProfileTeam
+            selectedTeamId={selectedTeamId}
+            onSelectTeam={setSelectedTeamId}
+            onNext={() => setStep(4)}
+          />
+        )}
 
         {step === 4 && <ProfileComplete onNext={completeProfileSetup} />}
       </main>

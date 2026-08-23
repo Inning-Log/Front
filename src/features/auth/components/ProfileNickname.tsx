@@ -1,14 +1,20 @@
-import { useState } from "react";
-
 import { Button } from "../../../shared/ui/Button";
 import { Input } from "../../../shared/ui/Input";
 import type { ProfileSetupStepProps } from "../types/ProfileSetupStepProps";
 
-export function ProfileNickname({ onNext }: ProfileSetupStepProps) {
-  const [nickname, setNickname] = useState("");
-  const isNextEnabled = nickname.trim().length > 0;
+type ProfileNicknameProps = ProfileSetupStepProps & {
+  onChange: (value: string) => void;
+  value: string;
+};
 
-  const handleNext = () => { 
+export function ProfileNickname({
+  onChange,
+  onNext,
+  value,
+}: ProfileNicknameProps) {
+  const isNextEnabled = value.trim().length > 0;
+
+  const handleNext = () => {
     if (!isNextEnabled) {
       return;
     }
@@ -24,8 +30,8 @@ export function ProfileNickname({ onNext }: ProfileSetupStepProps) {
 
       <div className="mt-[35px]">
         <Input
-          value={nickname}
-          onChange={(event) => setNickname(event.target.value)}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
           placeholder="닉네임 입력"
           aria-label="닉네임 입력"
           autoComplete="off"

@@ -1,14 +1,16 @@
-import { useState } from "react";
-
 import { Button } from "../../../shared/ui/Button";
 import { Input } from "../../../shared/ui/Input";
 import type { ProfileSetupStepProps } from "../types/ProfileSetupStepProps";
 
-export function ProfileId({ onNext }: ProfileSetupStepProps) {
-  const [profileId, setProfileId] = useState("");
-  const isNextEnabled = profileId.trim().length > 0;
+type ProfileIdProps = ProfileSetupStepProps & {
+  onChange: (value: string) => void;
+  value: string;
+};
 
-  const handleNext = () => { //중복 여부 ui는 백엔드 api 연동하면서 만들어야함
+export function ProfileId({ onChange, onNext, value }: ProfileIdProps) {
+  const isNextEnabled = value.trim().length > 0;
+
+  const handleNext = () => {
     if (!isNextEnabled) {
       return;
     }
@@ -24,8 +26,8 @@ export function ProfileId({ onNext }: ProfileSetupStepProps) {
 
       <div className="mt-[35px]">
         <Input
-          value={profileId}
-          onChange={(event) => setProfileId(event.target.value)}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
           placeholder="아이디 입력"
           aria-label="아이디 입력"
           autoComplete="off"
