@@ -2,13 +2,33 @@ import { Button } from "../../../shared/ui/Button";
 import { Input } from "../../../shared/ui/Input";
 import type { ProfileSetupStepProps } from "../types/ProfileSetupStepProps";
 
-type ProfileIdProps = ProfileSetupStepProps & {
+export type ProfileIdProps = ProfileSetupStepProps & {
+  feedbackMessage?: string;
+  feedbackTone?: "error" | "neutral" | "success";
+  isChecking?: boolean;
+  isSubmitting?: boolean;
+  onBlur?: () => void;
   onChange: (value: string) => void;
   value: string;
 };
 
-export function ProfileId({ onChange, onNext, value }: ProfileIdProps) {
-  const isNextEnabled = value.trim().length > 0;
+export function ProfileId({
+  feedbackMessage = "",
+  feedbackTone = "neutral",
+  isChecking = false,
+  isSubmitting = false,
+  onBlur,
+  onChange,
+  onNext,
+  value,
+}: ProfileIdProps) {
+  const isBusy = isChecking || isSubmitting;
+  const isNextEnabled = value.trim().length > 0 && !isBusy;
+  const buttonLabel = isSubmitting
+    ? "저장 중..."
+    : isChecking
+      ? "확인 중..."
+      : "다음으로";
 
   const handleNext = () => {
     if (!isNextEnabled) {
@@ -27,12 +47,30 @@ export function ProfileId({ onChange, onNext, value }: ProfileIdProps) {
       <div className="mt-[35px]">
         <Input
           value={value}
+          disabled={isSubmitting}
+          onBlur={onBlur}
           onChange={(event) => onChange(event.target.value)}
           placeholder="아이디 입력"
           aria-label="아이디 입력"
           autoComplete="off"
           className="w-full"
         />
+
+        {feedbackMessage && (
+          <p
+            aria-live="polite"
+            className={[
+              "mt-[8px] px-[2px] text-caption",
+              feedbackTone === "success"
+                ? "text-accent-primary"
+                : feedbackTone === "error"
+                  ? "text-danger"
+                  : "text-text-secondary",
+            ].join(" ")}
+          >
+            {feedbackMessage}
+          </p>
+        )}
       </div>
 
       <Button
@@ -43,7 +81,7 @@ export function ProfileId({ onChange, onNext, value }: ProfileIdProps) {
           isNextEnabled ? "" : "opacity-60",
         ].join(" ")}
       >
-        <span className="text-label-2 text-white">다음으로</span>
+        <span className="text-label-2 text-white">{buttonLabel}</span>
       </Button>
     </section>
   );

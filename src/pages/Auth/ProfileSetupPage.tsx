@@ -1,56 +1,34 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-
 import { PageHeader } from "../../app/layouts/PageHeader";
 import { ProfileComplete } from "../../features/auth/components/ProfileComplete";
 import { ProfileId } from "../../features/auth/components/ProfileId";
 import { ProfileNickname } from "../../features/auth/components/ProfileNickname";
 import { ProfileTeam } from "../../features/auth/components/ProfileTeam";
+import { useProfileSetup } from "../../features/auth/hooks/useProfileSetup";
 import { KeyboardFixedScreen } from "../../shared/ui/KeyboardFixedScreen";
 
-type ProfileSetupStep = 1 | 2 | 3 | 4;
-
 export function ProfileSetupPage() {
-  const navigate = useNavigate();
-  const [step, setStep] = useState<ProfileSetupStep>(1);
-  const [username, setUsername] = useState("");
-  const [nickname, setNickname] = useState("");
-  const [selectedTeamId, setSelectedTeamId] = useState("");
-
-  const completeProfileSetup = () => {
-    navigate("/home", { replace: true });
-  };
+  const profileSetup = useProfileSetup();
 
   return (
     <KeyboardFixedScreen className="pt-[28.5px]">
       <PageHeader />
 
-      <main data-step={step}>
-        {step === 1 && (
-          <ProfileId
-            value={username}
-            onChange={setUsername}
-            onNext={() => setStep(2)}
-          />
+      <main data-step={profileSetup.step}>
+        {profileSetup.step === 1 && (
+          <ProfileId {...profileSetup.usernameStepProps} />
         )}
 
-        {step === 2 && (
-          <ProfileNickname
-            value={nickname}
-            onChange={setNickname}
-            onNext={() => setStep(3)}
-          />
+        {profileSetup.step === 2 && (
+          <ProfileNickname {...profileSetup.nicknameStepProps} />
         )}
 
-        {step === 3 && (
-          <ProfileTeam
-            selectedTeamId={selectedTeamId}
-            onSelectTeam={setSelectedTeamId}
-            onNext={() => setStep(4)}
-          />
+        {profileSetup.step === 3 && (
+          <ProfileTeam {...profileSetup.teamStepProps} />
         )}
 
-        {step === 4 && <ProfileComplete onNext={completeProfileSetup} />}
+        {profileSetup.step === 4 && (
+          <ProfileComplete onNext={profileSetup.completeProfileSetup} />
+        )}
       </main>
     </KeyboardFixedScreen>
   );
