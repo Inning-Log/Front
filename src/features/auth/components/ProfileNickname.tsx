@@ -2,17 +2,22 @@ import { Button } from "../../../shared/ui/Button";
 import { Input } from "../../../shared/ui/Input";
 import type { ProfileSetupStepProps } from "../types/ProfileSetupStepProps";
 
-type ProfileNicknameProps = ProfileSetupStepProps & {
+export type ProfileNicknameProps = ProfileSetupStepProps & {
+  feedbackMessage?: string;
+  isSubmitting?: boolean;
   onChange: (value: string) => void;
   value: string;
 };
 
 export function ProfileNickname({
+  feedbackMessage = "",
+  isSubmitting = false,
   onChange,
   onNext,
   value,
 }: ProfileNicknameProps) {
-  const isNextEnabled = value.trim().length > 0;
+  const isNextEnabled = value.trim().length > 0 && !isSubmitting;
+  const buttonLabel = isSubmitting ? "저장 중..." : "다음으로";
 
   const handleNext = () => {
     if (!isNextEnabled) {
@@ -31,12 +36,22 @@ export function ProfileNickname({
       <div className="mt-[35px]">
         <Input
           value={value}
+          disabled={isSubmitting}
           onChange={(event) => onChange(event.target.value)}
           placeholder="닉네임 입력"
           aria-label="닉네임 입력"
           autoComplete="off"
           className="w-full"
         />
+
+        {feedbackMessage && (
+          <p
+            aria-live="polite"
+            className="mt-[8px] px-[2px] text-caption text-danger"
+          >
+            {feedbackMessage}
+          </p>
+        )}
       </div>
 
       <Button
@@ -47,7 +62,7 @@ export function ProfileNickname({
           isNextEnabled ? "" : "opacity-60",
         ].join(" ")}
       >
-        <span className="text-label-2 text-white">다음으로</span>
+        <span className="text-label-2 text-white">{buttonLabel}</span>
       </Button>
     </section>
   );

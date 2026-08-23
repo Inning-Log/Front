@@ -3,9 +3,11 @@ import { useNavigate } from "react-router-dom";
 
 import {
   checkUsernameAvailability,
+  setupNickname,
   setupUsername,
 } from "../api/onboardingApi";
 import type { ProfileIdProps } from "../components/ProfileId";
+import type { ProfileNicknameProps } from "../components/ProfileNickname";
 import type { OnboardingStep } from "../types/onboarding";
 
 type ProfileSetupStep = 1 | 2 | 3 | 4;
@@ -30,6 +32,18 @@ function getUsernameValidationMessage(username: string) {
 
   if (!USERNAME_PATTERN.test(username)) {
     return "영문, 숫자, 마침표, 밑줄만 사용할 수 있어요.";
+  }
+
+  return "";
+}
+
+function getNicknameValidationMessage(nickname: string) {
+  if (!nickname) {
+    return "닉네임을 입력해주세요.";
+  }
+
+  if (nickname.length > 80) {
+    return "닉네임은 80자 이내로 입력해주세요.";
   }
 
   return "";
@@ -77,6 +91,10 @@ export function useProfileSetup() {
     useState("");
   const [lastCheckedUsername, setLastCheckedUsername] = useState("");
   const [isSubmittingUsername, setIsSubmittingUsername] =
+    useState(false);
+  const [nicknameFeedbackMessage, setNicknameFeedbackMessage] =
+    useState("");
+  const [isSubmittingNickname, setIsSubmittingNickname] =
     useState(false);
 
   const completeProfileSetup = () => {
@@ -221,13 +239,51 @@ export function useProfileSetup() {
     }
   };
 
+  const handleNicknameChange = (nextNickname: string) => {
+    setNickname(nextNickname);
+
+    if (nicknameFeedbackMessage) {
+      setNicknameFeedbackMessage("");
+    }
+  };
+
+  const handleNicknameNext = async () => {
+    const trimmedNickname = nickname.trim();
+    const validationMessage =
+      getNicknameValidationMessage(trimmedNickname);
+
+    if (validationMessage) {
+      setNicknameFeedbackMessage(validationMessage);
+      return;
+    }
+
+    setIsSubmittingNickname(true);
+    setNicknameFeedbackMessage("");
+
+    try {
+      const response = await setupNickname(trimmedNickname);
+      setNickname(response.user?.nickname ?? trimmedNickname);
+      moveToOnboardingStep(response.nextStep);
+    } catch (error) {
+      setNicknameFeedbackMessage(
+        error instanceof Error
+          ? error.message
+          : "닉네임을 저장하지 못했습니다.",
+      );
+    } finally {
+      setIsSubmittingNickname(false);
+    }
+  };
+
   return {
     completeProfileSetup,
     nicknameStepProps: {
-      onChange: setNickname,
-      onNext: () => setStep(3),
+      feedbackMessage: nicknameFeedbackMessage,
+      isSubmitting: isSubmittingNickname,
+      onChange: handleNicknameChange,
+      onNext: handleNicknameNext,
       value: nickname,
-    },
+    } satisfies ProfileNicknameProps,
     step,
     teamStepProps: {
       onNext: () => setStep(4),
