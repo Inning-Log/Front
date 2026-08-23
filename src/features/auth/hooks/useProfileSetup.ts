@@ -1,10 +1,11 @@
-import { useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { getTeams } from "../../../shared/api/teamApi";
 import type { TeamSummaryResponse } from "../../../shared/types/team";
 import {
   checkUsernameAvailability,
+  getOnboardingStatus,
   selectFavoriteTeam,
   setupNickname,
   setupUsername,
@@ -106,27 +107,15 @@ export function useProfileSetup() {
   const [teamFeedbackMessage, setTeamFeedbackMessage] = useState("");
   const [isLoadingTeams, setIsLoadingTeams] = useState(false);
   const [isSubmittingTeam, setIsSubmittingTeam] = useState(false);
+  const [isSyncingStatus, setIsSyncingStatus] = useState(true);
+  const [statusFeedbackMessage, setStatusFeedbackMessage] =
+    useState("");
 
-  const completeProfileSetup = () => {
+  const completeProfileSetup = useCallback(() => {
     navigate("/home", { replace: true });
-  };
+  }, [navigate]);
 
-  const moveToOnboardingStep = (nextStep: OnboardingStep) => {
-    if (nextStep === "COMPLETED") {
-      completeProfileSetup();
-      return;
-    }
-
-    const nextProfileSetupStep = getProfileSetupStep(nextStep);
-
-    setStep(nextProfileSetupStep);
-
-    if (nextProfileSetupStep === 3 && teams.length === 0) {
-      void loadTeamOptions();
-    }
-  };
-
-  const loadTeamOptions = async () => {
+  const loadTeamOptions = useCallback(async () => {
     setIsLoadingTeams(true);
     setTeamFeedbackMessage("");
 
@@ -147,7 +136,61 @@ export function useProfileSetup() {
     } finally {
       setIsLoadingTeams(false);
     }
-  };
+  }, []);
+
+  const moveToOnboardingStep = useCallback(
+    (nextStep: OnboardingStep) => {
+      if (nextStep === "COMPLETED") {
+        completeProfileSetup();
+        return;
+      }
+
+      const nextProfileSetupStep = getProfileSetupStep(nextStep);
+
+      setStep(nextProfileSetupStep);
+
+      if (nextProfileSetupStep === 3) {
+        void loadTeamOptions();
+      }
+    },
+    [completeProfileSetup, loadTeamOptions],
+  );
+
+  const syncOnboardingStatus = useCallback(async () => {
+    setIsSyncingStatus(true);
+    setStatusFeedbackMessage("");
+
+    try {
+      const response = await getOnboardingStatus();
+      const savedUsername = response.user?.username ?? "";
+
+      setUsername(savedUsername);
+      setNickname(response.user?.nickname ?? "");
+      setSelectedTeamId(response.user?.favoriteTeamId ?? null);
+      setLastCheckedUsername(savedUsername);
+      setUsernameAvailabilityStatus("idle");
+      setUsernameFeedbackMessage("");
+      setNicknameFeedbackMessage("");
+      setTeamFeedbackMessage("");
+      moveToOnboardingStep(response.nextStep);
+    } catch (error) {
+      setStatusFeedbackMessage(
+        error instanceof Error
+          ? error.message
+          : "온보딩 진행 상태를 불러오지 못했습니다.",
+      );
+    } finally {
+      setIsSyncingStatus(false);
+    }
+  }, [moveToOnboardingStep]);
+
+  useEffect(() => {
+    const syncStatusTimer = window.setTimeout(() => {
+      void syncOnboardingStatus();
+    }, 0);
+
+    return () => window.clearTimeout(syncStatusTimer);
+  }, [syncOnboardingStatus]);
 
   const handleUsernameChange = (nextUsername: string) => {
     usernameCheckRequestIdRef.current += 1;
@@ -357,6 +400,7 @@ export function useProfileSetup() {
 
   return {
     completeProfileSetup,
+    isSyncingStatus,
     nicknameStepProps: {
       feedbackMessage: nicknameFeedbackMessage,
       isSubmitting: isSubmittingNickname,
@@ -365,6 +409,8 @@ export function useProfileSetup() {
       value: nickname,
     } satisfies ProfileNicknameProps,
     step,
+    statusFeedbackMessage,
+    syncOnboardingStatus,
     teamStepProps: {
       feedbackMessage: teamFeedbackMessage,
       isLoading: isLoadingTeams,
