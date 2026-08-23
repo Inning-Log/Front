@@ -1,4 +1,5 @@
 import type { UserResponse } from "./auth";
+export type { TeamSummaryResponse } from "../../../shared/types/team";
 
 export type OnboardingStep =
   | "USERNAME"
@@ -27,16 +28,6 @@ export type FavoriteTeamSelectionRequest = {
 export type UsernameAvailabilityResponse = {
   username: string;
   available: boolean;
-};
-
-export type TeamSummaryResponse = {
-  id: number;
-  teamCode: string;
-  name: string;
-  shortName: string;
-  logoUrl?: string;
-  primaryColor?: string;
-  displayOrder: number;
 };
 
 export type OnboardingErrorResponse = {
