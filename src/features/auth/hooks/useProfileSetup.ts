@@ -1,13 +1,17 @@
 import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+import { getTeams } from "../../../shared/api/teamApi";
+import type { TeamSummaryResponse } from "../../../shared/types/team";
 import {
   checkUsernameAvailability,
+  selectFavoriteTeam,
   setupNickname,
   setupUsername,
 } from "../api/onboardingApi";
 import type { ProfileIdProps } from "../components/ProfileId";
 import type { ProfileNicknameProps } from "../components/ProfileNickname";
+import type { ProfileTeamProps } from "../components/ProfileTeam";
 import type { OnboardingStep } from "../types/onboarding";
 
 type ProfileSetupStep = 1 | 2 | 3 | 4;
@@ -84,7 +88,10 @@ export function useProfileSetup() {
   const [step, setStep] = useState<ProfileSetupStep>(1);
   const [username, setUsername] = useState("");
   const [nickname, setNickname] = useState("");
-  const [selectedTeamId, setSelectedTeamId] = useState("");
+  const [selectedTeamId, setSelectedTeamId] = useState<
+    number | null
+  >(null);
+  const [teams, setTeams] = useState<TeamSummaryResponse[]>([]);
   const [usernameAvailabilityStatus, setUsernameAvailabilityStatus] =
     useState<UsernameAvailabilityStatus>("idle");
   const [usernameFeedbackMessage, setUsernameFeedbackMessage] =
@@ -96,6 +103,9 @@ export function useProfileSetup() {
     useState("");
   const [isSubmittingNickname, setIsSubmittingNickname] =
     useState(false);
+  const [teamFeedbackMessage, setTeamFeedbackMessage] = useState("");
+  const [isLoadingTeams, setIsLoadingTeams] = useState(false);
+  const [isSubmittingTeam, setIsSubmittingTeam] = useState(false);
 
   const completeProfileSetup = () => {
     navigate("/home", { replace: true });
@@ -107,7 +117,36 @@ export function useProfileSetup() {
       return;
     }
 
-    setStep(getProfileSetupStep(nextStep));
+    const nextProfileSetupStep = getProfileSetupStep(nextStep);
+
+    setStep(nextProfileSetupStep);
+
+    if (nextProfileSetupStep === 3 && teams.length === 0) {
+      void loadTeamOptions();
+    }
+  };
+
+  const loadTeamOptions = async () => {
+    setIsLoadingTeams(true);
+    setTeamFeedbackMessage("");
+
+    try {
+      const teamOptions = await getTeams();
+
+      setTeams(teamOptions);
+
+      if (teamOptions.length === 0) {
+        setTeamFeedbackMessage("선택할 수 있는 구단이 없습니다.");
+      }
+    } catch (error) {
+      setTeamFeedbackMessage(
+        error instanceof Error
+          ? error.message
+          : "구단 목록을 불러오지 못했습니다.",
+      );
+    } finally {
+      setIsLoadingTeams(false);
+    }
   };
 
   const handleUsernameChange = (nextUsername: string) => {
@@ -275,6 +314,47 @@ export function useProfileSetup() {
     }
   };
 
+  const handleTeamSelect = (teamId: number) => {
+    setSelectedTeamId(teamId);
+
+    if (teamFeedbackMessage) {
+      setTeamFeedbackMessage("");
+    }
+  };
+
+  const handleFavoriteTeamNext = async () => {
+    if (selectedTeamId === null) {
+      setTeamFeedbackMessage("응원팀을 선택해주세요.");
+      return;
+    }
+
+    setIsSubmittingTeam(true);
+    setTeamFeedbackMessage("");
+
+    try {
+      const response = await selectFavoriteTeam(selectedTeamId);
+
+      setSelectedTeamId(
+        response.user?.favoriteTeamId ?? selectedTeamId,
+      );
+
+      if (response.nextStep === "COMPLETED") {
+        setStep(4);
+        return;
+      }
+
+      moveToOnboardingStep(response.nextStep);
+    } catch (error) {
+      setTeamFeedbackMessage(
+        error instanceof Error
+          ? error.message
+          : "응원팀을 저장하지 못했습니다.",
+      );
+    } finally {
+      setIsSubmittingTeam(false);
+    }
+  };
+
   return {
     completeProfileSetup,
     nicknameStepProps: {
@@ -286,10 +366,15 @@ export function useProfileSetup() {
     } satisfies ProfileNicknameProps,
     step,
     teamStepProps: {
-      onNext: () => setStep(4),
-      onSelectTeam: setSelectedTeamId,
+      feedbackMessage: teamFeedbackMessage,
+      isLoading: isLoadingTeams,
+      isSubmitting: isSubmittingTeam,
+      onNext: handleFavoriteTeamNext,
+      onRetryLoadTeams: loadTeamOptions,
+      onSelectTeam: handleTeamSelect,
       selectedTeamId,
-    },
+      teams,
+    } satisfies ProfileTeamProps,
     usernameStepProps: {
       feedbackMessage: usernameFeedbackMessage,
       feedbackTone: getUsernameFeedbackTone(
