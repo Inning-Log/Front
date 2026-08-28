@@ -10,6 +10,7 @@ import { BottomBar } from "../../app/layouts/BottomBar";
 import { PageHeader } from "../../app/layouts/PageHeader";
 import cameraIcon from "../../assets/icons/camera.svg";
 import defaultProfileIcon from "../../assets/icons/defaultprofile.svg";
+import { getMyPage } from "../../features/mypage/api/mypage";
 import {
   KBO_TEAMS,
   type TeamName,
@@ -38,16 +39,10 @@ type ProfileItemProps = {
   value: string;
 };
 
-const duplicatedUserIds = [
-  "baseball",
-  "inning",
-  "inninglog1",
-];
-
-const initialProfile: ProfileForm = {
-  nickname: "이닝로그",
-  userId: "inninglog",
-  email: "inninglog@gmail.com",
+const emptyProfile: ProfileForm = {
+  nickname: "",
+  userId: "",
+  email: "",
   favoriteTeam: "KIA 타이거즈",
   profileImage: defaultProfileIcon,
 };
@@ -123,15 +118,50 @@ export function MyPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [profile, setProfile] =
-    useState<ProfileForm>(initialProfile);
+    useState<ProfileForm>(emptyProfile);
   const [form, setForm] =
-    useState<ProfileForm>(initialProfile);
+    useState<ProfileForm>(emptyProfile);
+
+  const [isLoading, setIsLoading] = useState(true);
+
   const [isEditing, setIsEditing] = useState(false);
   const [isSelectingTeam, setIsSelectingTeam] =
     useState(false);
+
   const [userIdStatus, setUserIdStatus] = useState<
     "idle" | "success" | "error"
   >("idle");
+
+  useEffect(() => {
+    const fetchMyPage = async () => {
+      try {
+        setIsLoading(true);
+
+        const data = await getMyPage();
+
+        const profileData: ProfileForm = {
+          nickname: data.nickname,
+          userId: data.username,
+          email: data.email,
+          favoriteTeam: data.favoriteTeam.name as TeamName,
+          profileImage:
+            data.profileImageUrl || defaultProfileIcon,
+        };
+
+        setProfile(profileData);
+        setForm(profileData);
+      } catch (error) {
+        console.error(
+          "마이페이지 조회 중 오류가 발생했습니다.",
+          error,
+        );
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchMyPage();
+  }, []);
 
   useEffect(() => {
     const trimmedUserId = form.userId.trim();
@@ -146,15 +176,8 @@ export function MyPage() {
       return;
     }
 
-    const timer = window.setTimeout(() => {
-      const isDuplicated = duplicatedUserIds.includes(
-        trimmedUserId.toLowerCase(),
-      );
-
-      setUserIdStatus(isDuplicated ? "error" : "success");
-    }, 400);
-
-    return () => window.clearTimeout(timer);
+    // TODO: 아이디 중복 확인 API 연동
+    setUserIdStatus("idle");
   }, [form.userId, isEditing, profile.userId]);
 
   const handleStartEditing = () => {
@@ -182,6 +205,7 @@ export function MyPage() {
       return;
     }
 
+    // TODO: 프로필 수정 API 연동
     setProfile({
       ...form,
       nickname: trimmedNickname,
@@ -221,10 +245,20 @@ export function MyPage() {
 
   const idMessage =
     userIdStatus === "error"
-      ? "중복된 아이디입니다."
+      ? "사용할 수 없는 아이디입니다."
       : userIdStatus === "success"
         ? "사용 가능한 아이디입니다."
         : undefined;
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-dvh w-full items-center justify-center bg-[#F1F2F1]">
+        <p className="text-label-3 text-text-secondary">
+          프로필을 불러오는 중입니다.
+        </p>
+      </div>
+    );
+  }
 
   if (isSelectingTeam) {
     return (
@@ -247,7 +281,9 @@ export function MyPage() {
                   <button
                     key={team.name}
                     type="button"
-                    onClick={() => handleSelectTeam(team.name)}
+                    onClick={() =>
+                      handleSelectTeam(team.name)
+                    }
                     className={[
                       "flex h-[64px] w-full items-center rounded-[32px]",
                       "px-[18px] text-left text-label-1 text-black",
@@ -315,7 +351,9 @@ export function MyPage() {
                 <>
                   <button
                     type="button"
-                    onClick={() => fileInputRef.current?.click()}
+                    onClick={() =>
+                      fileInputRef.current?.click()
+                    }
                     aria-label="프로필 사진 변경"
                     className="absolute bottom-[3px] right-[3px] flex size-[28px] items-center justify-center rounded-full bg-text-secondary"
                   >
@@ -443,7 +481,9 @@ export function MyPage() {
             <div className="mt-[5px] min-h-[110px] rounded-[25px] bg-bg-primary px-[10px] shadow-[0_6px_16px_rgba(0,0,0,0.08)]">
               <button
                 type="button"
-                onClick={() => navigate("/mypage/friends")}
+                onClick={() =>
+                  navigate("/mypage/friends")
+                }
                 className="flex h-[58px] w-full items-center border-b-[1.5px] border-surface-secondary px-[16px] text-left text-label-3 text-black"
               >
                 친구
