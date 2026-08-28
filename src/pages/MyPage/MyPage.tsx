@@ -584,10 +584,11 @@ export function MyPage() {
             <div className="relative size-[133px] shrink-0">
               <div className="size-full overflow-hidden rounded-full">
                 <img
-                  src={
-                    displayedProfile.profileImage
-                  }
+                  src={displayedProfile.profileImage}
                   alt={`${displayedProfile.nickname} 프로필`}
+                  onError={(event) => {
+                    event.currentTarget.src = defaultProfileIcon;
+                  }}
                   className="block h-full w-full object-cover object-center"
                 />
               </div>
