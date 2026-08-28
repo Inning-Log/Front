@@ -31,6 +31,10 @@ export type UpdateProfileImageRequest = {
   profileImageUrl: string | null;
 };
 
+export type UpdateFavoriteTeamRequest = {
+  favoriteTeamId: number;
+};
+
 function getAuthorizationHeader() {
   const accessToken = localStorage.getItem("accessToken");
 
@@ -180,6 +184,48 @@ export async function updateProfileImage(
 
     throw new Error(
       "프로필 이미지 변경에 실패했습니다.",
+    );
+  }
+
+  return response.json();
+}
+
+export async function updateFavoriteTeam(
+  favoriteTeamId: number,
+): Promise<MyPageResponse> {
+  const response = await fetch(
+    "/api/mypage/favorite-team",
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        ...getAuthorizationHeader(),
+      },
+      body: JSON.stringify({
+        favoriteTeamId,
+      }),
+    },
+  );
+
+  if (!response.ok) {
+    if (response.status === 400) {
+      throw new Error(
+        "응원 팀 ID가 올바르지 않습니다.",
+      );
+    }
+
+    if (response.status === 401) {
+      throw new Error("로그인이 필요합니다.");
+    }
+
+    if (response.status === 404) {
+      throw new Error(
+        "사용자 또는 응원 팀을 찾을 수 없습니다.",
+      );
+    }
+
+    throw new Error(
+      "응원 팀 변경에 실패했습니다.",
     );
   }
 
