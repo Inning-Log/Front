@@ -10,7 +10,10 @@ import { BottomBar } from "../../app/layouts/BottomBar";
 import { PageHeader } from "../../app/layouts/PageHeader";
 import cameraIcon from "../../assets/icons/camera.svg";
 import defaultProfileIcon from "../../assets/icons/defaultprofile.svg";
-import { getMyPage } from "../../features/mypage/api/mypage";
+import {
+  checkUsernameAvailability,
+  getMyPage,
+} from "../../features/mypage/api/mypage";
 import {
   KBO_TEAMS,
   type TeamName,
@@ -119,18 +122,23 @@ export function MyPage() {
 
   const [profile, setProfile] =
     useState<ProfileForm>(emptyProfile);
+
   const [form, setForm] =
     useState<ProfileForm>(emptyProfile);
 
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] =
+    useState(true);
 
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditing, setIsEditing] =
+    useState(false);
+
   const [isSelectingTeam, setIsSelectingTeam] =
     useState(false);
 
-  const [userIdStatus, setUserIdStatus] = useState<
-    "idle" | "success" | "error"
-  >("idle");
+  const [userIdStatus, setUserIdStatus] =
+    useState<"idle" | "success" | "error">(
+      "idle",
+    );
 
   useEffect(() => {
     const fetchMyPage = async () => {
@@ -143,9 +151,11 @@ export function MyPage() {
           nickname: data.nickname,
           userId: data.username,
           email: data.email,
-          favoriteTeam: data.favoriteTeam.name as TeamName,
+          favoriteTeam:
+            data.favoriteTeam.name as TeamName,
           profileImage:
-            data.profileImageUrl || defaultProfileIcon,
+            data.profileImageUrl ||
+            defaultProfileIcon,
         };
 
         setProfile(profileData);
@@ -160,25 +170,66 @@ export function MyPage() {
       }
     };
 
-    fetchMyPage();
+    void fetchMyPage();
   }, []);
 
   useEffect(() => {
     const trimmedUserId = form.userId.trim();
 
-    if (!isEditing || trimmedUserId === profile.userId) {
+    if (!isEditing) {
       setUserIdStatus("idle");
       return;
     }
 
-    if (!/^[a-zA-Z0-9_]{4,20}$/.test(trimmedUserId)) {
+    if (trimmedUserId === profile.userId) {
+      setUserIdStatus("idle");
+      return;
+    }
+
+    if (
+      !/^[a-zA-Z0-9._]{4,20}$/.test(
+        trimmedUserId,
+      )
+    ) {
       setUserIdStatus("error");
       return;
     }
 
-    // TODO: 아이디 중복 확인 API 연동
     setUserIdStatus("idle");
-  }, [form.userId, isEditing, profile.userId]);
+
+    const timer = window.setTimeout(() => {
+      const checkAvailability = async () => {
+        try {
+          const data =
+            await checkUsernameAvailability(
+              trimmedUserId,
+            );
+
+          setUserIdStatus(
+            data.available
+              ? "success"
+              : "error",
+          );
+        } catch (error) {
+          console.error(
+            "아이디 중복 확인 중 오류가 발생했습니다.",
+            error,
+          );
+
+          setUserIdStatus("error");
+        }
+      };
+
+      void checkAvailability();
+    }, 400);
+
+    return () =>
+      window.clearTimeout(timer);
+  }, [
+    form.userId,
+    isEditing,
+    profile.userId,
+  ]);
 
   const handleStartEditing = () => {
     setForm(profile);
@@ -194,13 +245,20 @@ export function MyPage() {
   };
 
   const handleCompleteEditing = () => {
-    const trimmedNickname = form.nickname.trim();
-    const trimmedUserId = form.userId.trim();
+    const trimmedNickname =
+      form.nickname.trim();
+
+    const trimmedUserId =
+      form.userId.trim();
+
+    const isUserIdChanged =
+      trimmedUserId !== profile.userId;
 
     if (
       !trimmedNickname ||
       !trimmedUserId ||
-      userIdStatus === "error"
+      (isUserIdChanged &&
+        userIdStatus !== "success")
     ) {
       return;
     }
@@ -220,13 +278,15 @@ export function MyPage() {
   const handleProfileImageChange = (
     event: ChangeEvent<HTMLInputElement>,
   ) => {
-    const imageFile = event.target.files?.[0];
+    const imageFile =
+      event.target.files?.[0];
 
     if (!imageFile) {
       return;
     }
 
-    const imageUrl = URL.createObjectURL(imageFile);
+    const imageUrl =
+      URL.createObjectURL(imageFile);
 
     setForm((previous) => ({
       ...previous,
@@ -236,19 +296,26 @@ export function MyPage() {
     event.target.value = "";
   };
 
-  const handleSelectTeam = (teamName: TeamName) => {
+  const handleSelectTeam = (
+    teamName: TeamName,
+  ) => {
     setForm((previous) => ({
       ...previous,
       favoriteTeam: teamName,
     }));
   };
 
+  const isUserIdChanged =
+    form.userId.trim() !== profile.userId;
+
   const idMessage =
-    userIdStatus === "error"
-      ? "사용할 수 없는 아이디입니다."
-      : userIdStatus === "success"
-        ? "사용 가능한 아이디입니다."
-        : undefined;
+    !isUserIdChanged
+      ? undefined
+      : userIdStatus === "error"
+        ? "사용할 수 없는 아이디입니다."
+        : userIdStatus === "success"
+          ? "사용 가능한 아이디입니다."
+          : undefined;
 
   if (isLoading) {
     return (
@@ -266,7 +333,9 @@ export function MyPage() {
         <div className="bg-[#F1F2F1] pt-[45px]">
           <PageHeader
             title="프로필 수정"
-            onBack={() => setIsSelectingTeam(false)}
+            onBack={() =>
+              setIsSelectingTeam(false)
+            }
           />
         </div>
 
@@ -275,19 +344,24 @@ export function MyPage() {
             <div className="rounded-[35px] bg-surface-secondary px-[16px] py-[12px]">
               {KBO_TEAMS.map((team) => {
                 const isSelected =
-                  form.favoriteTeam === team.name;
+                  form.favoriteTeam ===
+                  team.name;
 
                 return (
                   <button
                     key={team.name}
                     type="button"
                     onClick={() =>
-                      handleSelectTeam(team.name)
+                      handleSelectTeam(
+                        team.name,
+                      )
                     }
                     className={[
                       "flex h-[64px] w-full items-center rounded-[32px]",
                       "px-[18px] text-left text-label-1 text-black",
-                      isSelected ? "bg-bg-primary" : "",
+                      isSelected
+                        ? "bg-bg-primary"
+                        : "",
                     ].join(" ")}
                   >
                     <TeamMascot
@@ -306,7 +380,9 @@ export function MyPage() {
 
           <button
             type="button"
-            onClick={() => setIsSelectingTeam(false)}
+            onClick={() =>
+              setIsSelectingTeam(false)
+            }
             className="mt-[28px] h-[61px] w-full rounded-[31px] bg-accent-primary button-text text-white"
           >
             수정 완료
@@ -318,19 +394,36 @@ export function MyPage() {
     );
   }
 
-  const displayedProfile = isEditing ? form : profile;
+  const displayedProfile =
+    isEditing ? form : profile;
+
+  const isCompleteDisabled =
+    !form.nickname.trim() ||
+    !form.userId.trim() ||
+    (isUserIdChanged &&
+      userIdStatus !== "success");
 
   return (
     <div className="min-h-dvh w-full bg-[#F1F2F1] pb-[110px]">
       <div className="bg-[#F1F2F1] pt-[45px]">
         <PageHeader
-          title={isEditing ? "프로필 수정" : "마이페이지"}
-          rightText={isEditing ? "" : "수정"}
+          title={
+            isEditing
+              ? "프로필 수정"
+              : "마이페이지"
+          }
+          rightText={
+            isEditing ? "" : "수정"
+          }
           onRightClick={
-            isEditing ? undefined : handleStartEditing
+            isEditing
+              ? undefined
+              : handleStartEditing
           }
           onBack={
-            isEditing ? handleCancelEditing : undefined
+            isEditing
+              ? handleCancelEditing
+              : undefined
           }
         />
       </div>
@@ -341,7 +434,9 @@ export function MyPage() {
             <div className="relative size-[133px] shrink-0">
               <div className="size-full overflow-hidden rounded-full">
                 <img
-                  src={displayedProfile.profileImage}
+                  src={
+                    displayedProfile.profileImage
+                  }
                   alt={`${displayedProfile.nickname} 프로필`}
                   className="block h-full w-full object-cover object-center"
                 />
@@ -369,7 +464,9 @@ export function MyPage() {
                     ref={fileInputRef}
                     type="file"
                     accept="image/*"
-                    onChange={handleProfileImageChange}
+                    onChange={
+                      handleProfileImageChange
+                    }
                     className="hidden"
                   />
                 </>
@@ -383,10 +480,12 @@ export function MyPage() {
                 label="닉네임"
                 value={form.nickname}
                 onChange={(nickname) =>
-                  setForm((previous) => ({
-                    ...previous,
-                    nickname,
-                  }))
+                  setForm(
+                    (previous) => ({
+                      ...previous,
+                      nickname,
+                    }),
+                  )
                 }
               />
 
@@ -395,15 +494,18 @@ export function MyPage() {
                 value={form.userId}
                 message={idMessage}
                 messageType={
-                  userIdStatus === "success"
+                  userIdStatus ===
+                  "success"
                     ? "success"
                     : "error"
                 }
                 onChange={(userId) =>
-                  setForm((previous) => ({
-                    ...previous,
-                    userId,
-                  }))
+                  setForm(
+                    (previous) => ({
+                      ...previous,
+                      userId,
+                    }),
+                  )
                 }
               />
 
@@ -415,7 +517,9 @@ export function MyPage() {
 
               <button
                 type="button"
-                onClick={() => setIsSelectingTeam(true)}
+                onClick={() =>
+                  setIsSelectingTeam(true)
+                }
                 className="w-full border-b-[1.5px] border-surface-secondary pt-[16px] text-left"
               >
                 <p className="text-label-3 text-black">
@@ -462,11 +566,11 @@ export function MyPage() {
         {isEditing ? (
           <button
             type="button"
-            onClick={handleCompleteEditing}
+            onClick={
+              handleCompleteEditing
+            }
             disabled={
-              !form.nickname.trim() ||
-              !form.userId.trim() ||
-              userIdStatus === "error"
+              isCompleteDisabled
             }
             className="mt-[91px] h-[61px] w-full rounded-[31px] bg-accent-primary button-text text-white disabled:cursor-not-allowed disabled:opacity-50"
           >
@@ -482,7 +586,9 @@ export function MyPage() {
               <button
                 type="button"
                 onClick={() =>
-                  navigate("/mypage/friends")
+                  navigate(
+                    "/mypage/friends",
+                  )
                 }
                 className="flex h-[58px] w-full items-center border-b-[1.5px] border-surface-secondary px-[16px] text-left text-label-3 text-black"
               >
