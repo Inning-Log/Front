@@ -27,6 +27,10 @@ export type UpdateProfileRequest = {
   nickname: string;
 };
 
+export type UpdateProfileImageRequest = {
+  profileImageUrl: string | null;
+};
+
 function getAuthorizationHeader() {
   const accessToken = localStorage.getItem("accessToken");
 
@@ -134,6 +138,48 @@ export async function updateMyProfile(
 
     throw new Error(
       "프로필 수정에 실패했습니다.",
+    );
+  }
+
+  return response.json();
+}
+
+export async function updateProfileImage(
+  profileImageUrl: string | null,
+): Promise<MyPageResponse> {
+  const response = await fetch(
+    "/api/mypage/profile-image",
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        ...getAuthorizationHeader(),
+      },
+      body: JSON.stringify({
+        profileImageUrl,
+      }),
+    },
+  );
+
+  if (!response.ok) {
+    if (response.status === 400) {
+      throw new Error(
+        "프로필 이미지 URL은 500자를 초과할 수 없습니다.",
+      );
+    }
+
+    if (response.status === 401) {
+      throw new Error("로그인이 필요합니다.");
+    }
+
+    if (response.status === 404) {
+      throw new Error(
+        "사용자 정보를 찾을 수 없습니다.",
+      );
+    }
+
+    throw new Error(
+      "프로필 이미지 변경에 실패했습니다.",
     );
   }
 

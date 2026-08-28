@@ -14,6 +14,7 @@ import {
   checkUsernameAvailability,
   getMyPage,
   updateMyProfile,
+  updateProfileImage,
 } from "../../features/mypage/api/mypage";
 import {
   KBO_TEAMS,
@@ -123,8 +124,12 @@ function ProfileItem({
 
 export function MyPage() {
   const navigate = useNavigate();
+
   const fileInputRef =
     useRef<HTMLInputElement>(null);
+
+  const previewImageUrlRef =
+    useRef<string | null>(null);
 
   const [profile, setProfile] =
     useState<ProfileForm>(emptyProfile);
@@ -148,6 +153,9 @@ export function MyPage() {
     updateErrorMessage,
     setUpdateErrorMessage,
   ] = useState("");
+
+  const [selectedProfileImageFile, setSelectedProfileImageFile] =
+    useState<File | null>(null);
 
   const [userIdStatus, setUserIdStatus] =
     useState<
@@ -186,6 +194,16 @@ export function MyPage() {
     };
 
     void fetchMyPage();
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (previewImageUrlRef.current) {
+        URL.revokeObjectURL(
+          previewImageUrlRef.current,
+        );
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -250,15 +268,31 @@ export function MyPage() {
     profile.userId,
   ]);
 
+  const clearPreviewImage = () => {
+    if (previewImageUrlRef.current) {
+      URL.revokeObjectURL(
+        previewImageUrlRef.current,
+      );
+
+      previewImageUrlRef.current = null;
+    }
+  };
+
   const handleStartEditing = () => {
+    clearPreviewImage();
+
     setForm(profile);
+    setSelectedProfileImageFile(null);
     setUserIdStatus("idle");
     setUpdateErrorMessage("");
     setIsEditing(true);
   };
 
   const handleCancelEditing = () => {
+    clearPreviewImage();
+
     setForm(profile);
+    setSelectedProfileImageFile(null);
     setUserIdStatus("idle");
     setUpdateErrorMessage("");
     setIsSelectingTeam(false);
@@ -274,8 +308,7 @@ export function MyPage() {
         form.userId.trim();
 
       const isUserIdChanged =
-        trimmedUserId !==
-        profile.userId;
+        trimmedUserId !== profile.userId;
 
       if (
         !trimmedNickname ||
@@ -290,11 +323,47 @@ export function MyPage() {
         setIsUpdating(true);
         setUpdateErrorMessage("");
 
-        const updatedProfile =
+        let updatedProfile =
           await updateMyProfile({
             username: trimmedUserId,
             nickname: trimmedNickname,
           });
+
+        /*
+         * PUT /api/mypage/profile-image는
+         * 이미지 파일이 아닌 이미지 URL을 받는 API입니다.
+         *
+         * 현재 file input으로 선택한 파일은 blob: URL만 생성되므로
+         * 서버에 저장할 수 없습니다.
+         *
+         * 별도의 이미지 업로드 API가 연결된 이후,
+         * 해당 API에서 반환받은 URL을 아래
+         * updateProfileImage(imageUrl)에 전달하면 됩니다.
+         */
+        if (selectedProfileImageFile) {
+          setUpdateErrorMessage(
+            "이미지 파일 업로드 API 연동이 필요합니다.",
+          );
+
+          return;
+        }
+
+        const isProfileImageChanged =
+          form.profileImage !==
+          profile.profileImage;
+
+        if (
+          isProfileImageChanged &&
+          !form.profileImage.startsWith("blob:")
+        ) {
+          updatedProfile =
+            await updateProfileImage(
+              form.profileImage ===
+                defaultProfileIcon
+                ? null
+                : form.profileImage,
+            );
+        }
 
         const profileData: ProfileForm = {
           nickname:
@@ -313,8 +382,11 @@ export function MyPage() {
             defaultProfileIcon,
         };
 
+        clearPreviewImage();
+
         setProfile(profileData);
         setForm(profileData);
+        setSelectedProfileImageFile(null);
 
         setUserIdStatus("idle");
         setIsSelectingTeam(false);
@@ -346,8 +418,17 @@ export function MyPage() {
       return;
     }
 
+    clearPreviewImage();
+
     const imageUrl =
       URL.createObjectURL(imageFile);
+
+    previewImageUrlRef.current =
+      imageUrl;
+
+    setSelectedProfileImageFile(
+      imageFile,
+    );
 
     setForm((previous) => ({
       ...previous,
@@ -404,41 +485,45 @@ export function MyPage() {
         <main className="px-[20px] pt-[16px]">
           <section className="rounded-[31px] bg-bg-primary pb-[24px] pt-[76px]">
             <div className="rounded-[35px] bg-surface-secondary px-[16px] py-[12px]">
-              {KBO_TEAMS.map((team) => {
-                const isSelected =
-                  form.favoriteTeam ===
-                  team.name;
+              {KBO_TEAMS.map(
+                (team) => {
+                  const isSelected =
+                    form.favoriteTeam ===
+                    team.name;
 
-                return (
-                  <button
-                    key={team.name}
-                    type="button"
-                    onClick={() =>
-                      handleSelectTeam(
-                        team.name,
-                      )
-                    }
-                    className={[
-                      "flex h-[64px] w-full items-center rounded-[32px]",
-                      "px-[18px] text-left text-label-1 text-black",
-                      isSelected
-                        ? "bg-bg-primary"
-                        : "",
-                    ].join(" ")}
-                  >
-                    <TeamMascot
-                      team={team}
-                      containerSize={52}
-                      className="mr-[16px]"
-                      decorative
-                    />
+                  return (
+                    <button
+                      key={team.name}
+                      type="button"
+                      onClick={() =>
+                        handleSelectTeam(
+                          team.name,
+                        )
+                      }
+                      className={[
+                        "flex h-[64px] w-full items-center rounded-[32px]",
+                        "px-[18px] text-left text-label-1 text-black",
+                        isSelected
+                          ? "bg-bg-primary"
+                          : "",
+                      ].join(" ")}
+                    >
+                      <TeamMascot
+                        team={team}
+                        containerSize={
+                          52
+                        }
+                        className="mr-[16px]"
+                        decorative
+                      />
 
-                    <span>
-                      {team.name}
-                    </span>
-                  </button>
-                );
-              })}
+                      <span>
+                        {team.name}
+                      </span>
+                    </button>
+                  );
+                },
+              )}
             </div>
           </section>
 
