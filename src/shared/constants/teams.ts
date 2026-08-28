@@ -22,6 +22,7 @@ export type TeamName =
   | "키움 히어로즈";
 
 export type Team = {
+  id: number | null;
   name: TeamName;
   icon: string;
   mascotSize: {
@@ -32,6 +33,7 @@ export type Team = {
 
 export const KBO_TEAMS: Team[] = [
   {
+    id: null,
     name: "LG 트윈스",
     icon: lgTwinsIcon,
     mascotSize: {
@@ -40,6 +42,7 @@ export const KBO_TEAMS: Team[] = [
     },
   },
   {
+    id: null,
     name: "한화 이글스",
     icon: hanwhaEaglesIcon,
     mascotSize: {
@@ -48,6 +51,7 @@ export const KBO_TEAMS: Team[] = [
     },
   },
   {
+    id: null,
     name: "SSG 랜더스",
     icon: ssgLandersIcon,
     mascotSize: {
@@ -56,6 +60,7 @@ export const KBO_TEAMS: Team[] = [
     },
   },
   {
+    id: null,
     name: "삼성 라이온즈",
     icon: samsungLionsIcon,
     mascotSize: {
@@ -64,6 +69,7 @@ export const KBO_TEAMS: Team[] = [
     },
   },
   {
+    id: null,
     name: "NC 다이노스",
     icon: ncDinosIcon,
     mascotSize: {
@@ -72,6 +78,7 @@ export const KBO_TEAMS: Team[] = [
     },
   },
   {
+    id: null,
     name: "KT 위즈",
     icon: ktWizIcon,
     mascotSize: {
@@ -80,6 +87,7 @@ export const KBO_TEAMS: Team[] = [
     },
   },
   {
+    id: null,
     name: "롯데 자이언츠",
     icon: lotteGiantsIcon,
     mascotSize: {
@@ -88,6 +96,7 @@ export const KBO_TEAMS: Team[] = [
     },
   },
   {
+    id: null,
     name: "KIA 타이거즈",
     icon: kiaTigersIcon,
     mascotSize: {
@@ -96,6 +105,7 @@ export const KBO_TEAMS: Team[] = [
     },
   },
   {
+    id: null,
     name: "두산 베어스",
     icon: doosanBearsIcon,
     mascotSize: {
@@ -104,6 +114,7 @@ export const KBO_TEAMS: Team[] = [
     },
   },
   {
+    id: null,
     name: "키움 히어로즈",
     icon: kiwoomHeroesIcon,
     mascotSize: {
@@ -114,5 +125,7 @@ export const KBO_TEAMS: Team[] = [
 ];
 
 export function getTeamByName(teamName: string) {
-  return KBO_TEAMS.find((team) => team.name === teamName);
+  return KBO_TEAMS.find(
+    (team) => team.name === teamName,
+  );
 }
