@@ -17,17 +17,13 @@ import {
   updateMyProfile,
   updateProfileImage,
 } from "../../features/mypage/api/mypage";
-import {
-  KBO_TEAMS,
-  type TeamName,
-} from "../../shared/constants/teams";
+import { KBO_TEAMS } from "../../shared/constants/teams";
 import { TeamMascot } from "../../shared/ui/TeamMascot";
 
 type ProfileForm = {
   nickname: string;
   userId: string;
   email: string;
-  favoriteTeam: TeamName;
   favoriteTeamId: number | null;
   profileImage: string;
 };
@@ -50,7 +46,6 @@ const emptyProfile: ProfileForm = {
   nickname: "",
   userId: "",
   email: "",
-  favoriteTeam: "KIA 타이거즈",
   favoriteTeamId: null,
   profileImage: defaultProfileIcon,
 };
@@ -178,9 +173,6 @@ export function MyPage() {
           nickname: data.nickname,
           userId: data.username,
           email: data.email,
-          favoriteTeam:
-            (data.favoriteTeam?.name as TeamName) ??
-            emptyProfile.favoriteTeam,
           favoriteTeamId:
             data.favoriteTeam?.id ?? null,
           profileImage:
@@ -317,9 +309,17 @@ export function MyPage() {
       const isUserIdChanged =
         trimmedUserId !== profile.userId;
 
+      const isNicknameChanged =
+        trimmedNickname !==
+        profile.nickname;
+
       const isFavoriteTeamChanged =
         form.favoriteTeamId !==
         profile.favoriteTeamId;
+
+      const isProfileImageChanged =
+        form.profileImage !==
+        profile.profileImage;
 
       if (
         !trimmedNickname ||
@@ -329,17 +329,7 @@ export function MyPage() {
       ) {
         return;
       }
-
-      try {
-        setIsUpdating(true);
-        setUpdateErrorMessage("");
-
-        let updatedProfile =
-          await updateMyProfile({
-            username: trimmedUserId,
-            nickname: trimmedNickname,
-          });
-
+      
         /*
          * PUT /api/mypage/profile-image는
          * 이미지 파일이 아닌 이미지 URL을 받는 API입니다.
@@ -351,10 +341,37 @@ export function MyPage() {
          * 해당 API에서 반환받은 URL을 아래
          * updateProfileImage(imageUrl)에 전달하면 됩니다.
          */
-          if (isFavoriteTeamChanged) {
-          if (form.favoriteTeamId === null) {
+
+      if (selectedProfileImageFile) {
+        setUpdateErrorMessage(
+          "이미지 파일 업로드 API 연동이 필요합니다.",
+        );
+        return;
+      }
+
+      try {
+        setIsUpdating(true);
+        setUpdateErrorMessage("");
+
+        let updatedProfile = null;
+
+        if (
+          isNicknameChanged ||
+          isUserIdChanged
+        ) {
+          updatedProfile =
+            await updateMyProfile({
+              username: trimmedUserId,
+              nickname: trimmedNickname,
+            });
+        }
+
+        if (isFavoriteTeamChanged) {
+          if (
+            form.favoriteTeamId === null
+          ) {
             throw new Error(
-              "응원 팀 ID를 확인할 수 없습니다.",
+              "응원 팀을 선택해 주세요.",
             );
           }
 
@@ -364,21 +381,11 @@ export function MyPage() {
             );
         }
 
-        if (selectedProfileImageFile) {
-          setUpdateErrorMessage(
-            "이미지 파일 업로드 API 연동이 필요합니다.",
-          );
-
-          return;
-        }
-
-        const isProfileImageChanged =
-          form.profileImage !==
-          profile.profileImage;
-
         if (
           isProfileImageChanged &&
-          !form.profileImage.startsWith("blob:")
+          !form.profileImage.startsWith(
+            "blob:",
+          )
         ) {
           updatedProfile =
             await updateProfileImage(
@@ -389,6 +396,15 @@ export function MyPage() {
             );
         }
 
+        if (!updatedProfile) {
+          setUserIdStatus("idle");
+          setIsSelectingTeam(false);
+          setIsEditing(false);
+          return;
+        }
+
+        
+
         const profileData: ProfileForm = {
           nickname:
             updatedProfile.nickname,
@@ -396,12 +412,9 @@ export function MyPage() {
             updatedProfile.username,
           email:
             updatedProfile.email,
-          favoriteTeam:
-            (updatedProfile.favoriteTeam
-              ?.name as TeamName) ??
-            form.favoriteTeam,
           favoriteTeamId:
-            updatedProfile.favoriteTeam?.id ??
+            updatedProfile.favoriteTeam
+              ?.id ??
             form.favoriteTeamId,
           profileImage:
             updatedProfile.profileImageUrl ||
@@ -466,12 +479,10 @@ export function MyPage() {
   };
 
   const handleSelectTeam = (
-    teamName: TeamName,
-    teamId: number | null,
+    teamId: number,
   ) => {
     setForm((previous) => ({
       ...previous,
-      favoriteTeam: teamName,
       favoriteTeamId: teamId,
     }));
   };
@@ -488,6 +499,19 @@ export function MyPage() {
         : userIdStatus === "success"
           ? "사용 가능한 아이디입니다."
           : undefined;
+
+  const selectedFormTeam =
+    KBO_TEAMS.find(
+      (team) =>
+        team.id === form.favoriteTeamId,
+    );
+
+  const selectedProfileTeam =
+    KBO_TEAMS.find(
+      (team) =>
+        team.id ===
+        profile.favoriteTeamId,
+    );
 
   if (isLoading) {
     return (
@@ -516,16 +540,15 @@ export function MyPage() {
             <div className="rounded-[35px] bg-surface-secondary px-[16px] py-[12px]">
               {KBO_TEAMS.map((team) => {
                 const isSelected =
-                  form.favoriteTeam ===
-                  team.name;
+                  form.favoriteTeamId ===
+                  team.id;
 
                 return (
                   <button
-                    key={team.name}
+                    key={team.id}
                     type="button"
                     onClick={() =>
                       handleSelectTeam(
-                        team.name,
                         team.id,
                       )
                     }
@@ -674,7 +697,8 @@ export function MyPage() {
                 value={form.userId}
                 message={idMessage}
                 messageType={
-                  userIdStatus === "success"
+                  userIdStatus ===
+                  "success"
                     ? "success"
                     : "error"
                 }
@@ -707,9 +731,8 @@ export function MyPage() {
 
                 <div className="mt-[18px] flex items-center justify-between px-[10px] pb-[6px]">
                   <span className="text-label-3 font-medium leading-none text-text-secondary">
-                    {
-                      form.favoriteTeam
-                    }
+                    {selectedFormTeam?.name ??
+                      "선택 안 함"}
                   </span>
 
                   <span
@@ -721,7 +744,9 @@ export function MyPage() {
 
               {updateErrorMessage && (
                 <p className="mt-[16px] text-center text-caption text-danger">
-                  {updateErrorMessage}
+                  {
+                    updateErrorMessage
+                  }
                 </p>
               )}
             </>
@@ -745,7 +770,9 @@ export function MyPage() {
               <ProfileItem
                 label="응원 팀"
                 value={
-                  profile.favoriteTeam
+                  selectedProfileTeam
+                    ?.name ??
+                  "선택 안 함"
                 }
               />
             </>
