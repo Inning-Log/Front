@@ -336,7 +336,7 @@ export function MyPage() {
          * 현재 file input으로 선택한 파일은 blob: URL만 생성되므로
          * 서버에 저장할 수 없습니다.
          *
-         * 별도의 이미지 업로드 API가 연결된 이후,
+         * 별도의 이미지 업로드 API가 연결된 이후
          * 해당 API에서 반환받은 URL을 아래
          * updateProfileImage(imageUrl)에 전달하면 됩니다.
          */
