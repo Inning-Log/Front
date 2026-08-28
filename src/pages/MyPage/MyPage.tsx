@@ -13,6 +13,7 @@ import defaultProfileIcon from "../../assets/icons/defaultprofile.svg";
 import {
   checkUsernameAvailability,
   getMyPage,
+  updateFavoriteTeam,
   updateMyProfile,
   updateProfileImage,
 } from "../../features/mypage/api/mypage";
@@ -27,6 +28,7 @@ type ProfileForm = {
   userId: string;
   email: string;
   favoriteTeam: TeamName;
+  favoriteTeamId: number | null;
   profileImage: string;
 };
 
@@ -49,6 +51,7 @@ const emptyProfile: ProfileForm = {
   userId: "",
   email: "",
   favoriteTeam: "KIA 타이거즈",
+  favoriteTeamId: null,
   profileImage: defaultProfileIcon,
 };
 
@@ -154,8 +157,10 @@ export function MyPage() {
     setUpdateErrorMessage,
   ] = useState("");
 
-  const [selectedProfileImageFile, setSelectedProfileImageFile] =
-    useState<File | null>(null);
+  const [
+    selectedProfileImageFile,
+    setSelectedProfileImageFile,
+  ] = useState<File | null>(null);
 
   const [userIdStatus, setUserIdStatus] =
     useState<
@@ -176,6 +181,8 @@ export function MyPage() {
           favoriteTeam:
             (data.favoriteTeam?.name as TeamName) ??
             emptyProfile.favoriteTeam,
+          favoriteTeamId:
+            data.favoriteTeam?.id ?? null,
           profileImage:
             data.profileImageUrl ||
             defaultProfileIcon,
@@ -310,6 +317,10 @@ export function MyPage() {
       const isUserIdChanged =
         trimmedUserId !== profile.userId;
 
+      const isFavoriteTeamChanged =
+        form.favoriteTeamId !==
+        profile.favoriteTeamId;
+
       if (
         !trimmedNickname ||
         !trimmedUserId ||
@@ -340,6 +351,19 @@ export function MyPage() {
          * 해당 API에서 반환받은 URL을 아래
          * updateProfileImage(imageUrl)에 전달하면 됩니다.
          */
+          if (isFavoriteTeamChanged) {
+          if (form.favoriteTeamId === null) {
+            throw new Error(
+              "응원 팀 ID를 확인할 수 없습니다.",
+            );
+          }
+
+          updatedProfile =
+            await updateFavoriteTeam(
+              form.favoriteTeamId,
+            );
+        }
+
         if (selectedProfileImageFile) {
           setUpdateErrorMessage(
             "이미지 파일 업로드 API 연동이 필요합니다.",
@@ -375,7 +399,10 @@ export function MyPage() {
           favoriteTeam:
             (updatedProfile.favoriteTeam
               ?.name as TeamName) ??
-            profile.favoriteTeam,
+            form.favoriteTeam,
+          favoriteTeamId:
+            updatedProfile.favoriteTeam?.id ??
+            form.favoriteTeamId,
           profileImage:
             updatedProfile.profileImageUrl ||
             profile.profileImage ||
@@ -440,10 +467,12 @@ export function MyPage() {
 
   const handleSelectTeam = (
     teamName: TeamName,
+    teamId: number | null,
   ) => {
     setForm((previous) => ({
       ...previous,
       favoriteTeam: teamName,
+      favoriteTeamId: teamId,
     }));
   };
 
@@ -485,45 +514,42 @@ export function MyPage() {
         <main className="px-[20px] pt-[16px]">
           <section className="rounded-[31px] bg-bg-primary pb-[24px] pt-[76px]">
             <div className="rounded-[35px] bg-surface-secondary px-[16px] py-[12px]">
-              {KBO_TEAMS.map(
-                (team) => {
-                  const isSelected =
-                    form.favoriteTeam ===
-                    team.name;
+              {KBO_TEAMS.map((team) => {
+                const isSelected =
+                  form.favoriteTeam ===
+                  team.name;
 
-                  return (
-                    <button
-                      key={team.name}
-                      type="button"
-                      onClick={() =>
-                        handleSelectTeam(
-                          team.name,
-                        )
-                      }
-                      className={[
-                        "flex h-[64px] w-full items-center rounded-[32px]",
-                        "px-[18px] text-left text-label-1 text-black",
-                        isSelected
-                          ? "bg-bg-primary"
-                          : "",
-                      ].join(" ")}
-                    >
-                      <TeamMascot
-                        team={team}
-                        containerSize={
-                          52
-                        }
-                        className="mr-[16px]"
-                        decorative
-                      />
+                return (
+                  <button
+                    key={team.name}
+                    type="button"
+                    onClick={() =>
+                      handleSelectTeam(
+                        team.name,
+                        team.id,
+                      )
+                    }
+                    className={[
+                      "flex h-[64px] w-full items-center rounded-[32px]",
+                      "px-[18px] text-left text-label-1 text-black",
+                      isSelected
+                        ? "bg-bg-primary"
+                        : "",
+                    ].join(" ")}
+                  >
+                    <TeamMascot
+                      team={team}
+                      containerSize={52}
+                      className="mr-[16px]"
+                      decorative
+                    />
 
-                      <span>
-                        {team.name}
-                      </span>
-                    </button>
-                  );
-                },
-              )}
+                    <span>
+                      {team.name}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           </section>
 
@@ -584,10 +610,13 @@ export function MyPage() {
             <div className="relative size-[133px] shrink-0">
               <div className="size-full overflow-hidden rounded-full">
                 <img
-                  src={displayedProfile.profileImage}
+                  src={
+                    displayedProfile.profileImage
+                  }
                   alt={`${displayedProfile.nickname} 프로필`}
                   onError={(event) => {
-                    event.currentTarget.src = defaultProfileIcon;
+                    event.currentTarget.src =
+                      defaultProfileIcon;
                   }}
                   className="block h-full w-full object-cover object-center"
                 />
@@ -645,8 +674,7 @@ export function MyPage() {
                 value={form.userId}
                 message={idMessage}
                 messageType={
-                  userIdStatus ===
-                  "success"
+                  userIdStatus === "success"
                     ? "success"
                     : "error"
                 }
