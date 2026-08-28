@@ -13,6 +13,7 @@ import defaultProfileIcon from "../../assets/icons/defaultprofile.svg";
 import {
   checkUsernameAvailability,
   getMyPage,
+  updateMyProfile,
 } from "../../features/mypage/api/mypage";
 import {
   KBO_TEAMS,
@@ -67,7 +68,9 @@ function ProfileInput({
           type="text"
           value={value}
           disabled={disabled}
-          onChange={(event) => onChange?.(event.target.value)}
+          onChange={(event) =>
+            onChange?.(event.target.value)
+          }
           className={[
             "mt-[14px] block w-full bg-transparent px-[10px]",
             "pb-[6px] text-label-3 font-medium leading-none outline-none",
@@ -105,7 +108,9 @@ function ProfileItem({
 }: ProfileItemProps) {
   return (
     <div className="border-b-[1.5px] border-surface-secondary pt-[16px]">
-      <p className="text-label-3 text-black">{label}</p>
+      <p className="text-label-3 text-black">
+        {label}
+      </p>
 
       <div className="mt-[18px] px-[16px] pb-[6px]">
         <span className="text-label-3 font-medium leading-none text-text-secondary">
@@ -118,7 +123,8 @@ function ProfileItem({
 
 export function MyPage() {
   const navigate = useNavigate();
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef =
+    useRef<HTMLInputElement>(null);
 
   const [profile, setProfile] =
     useState<ProfileForm>(emptyProfile);
@@ -135,10 +141,18 @@ export function MyPage() {
   const [isSelectingTeam, setIsSelectingTeam] =
     useState(false);
 
+  const [isUpdating, setIsUpdating] =
+    useState(false);
+
+  const [
+    updateErrorMessage,
+    setUpdateErrorMessage,
+  ] = useState("");
+
   const [userIdStatus, setUserIdStatus] =
-    useState<"idle" | "success" | "error">(
-      "idle",
-    );
+    useState<
+      "idle" | "success" | "error"
+    >("idle");
 
   useEffect(() => {
     const fetchMyPage = async () => {
@@ -152,7 +166,8 @@ export function MyPage() {
           userId: data.username,
           email: data.email,
           favoriteTeam:
-            data.favoriteTeam.name as TeamName,
+            (data.favoriteTeam?.name as TeamName) ??
+            emptyProfile.favoriteTeam,
           profileImage:
             data.profileImageUrl ||
             defaultProfileIcon,
@@ -174,14 +189,17 @@ export function MyPage() {
   }, []);
 
   useEffect(() => {
-    const trimmedUserId = form.userId.trim();
+    const trimmedUserId =
+      form.userId.trim();
 
     if (!isEditing) {
       setUserIdStatus("idle");
       return;
     }
 
-    if (trimmedUserId === profile.userId) {
+    if (
+      trimmedUserId === profile.userId
+    ) {
       setUserIdStatus("idle");
       return;
     }
@@ -198,27 +216,28 @@ export function MyPage() {
     setUserIdStatus("idle");
 
     const timer = window.setTimeout(() => {
-      const checkAvailability = async () => {
-        try {
-          const data =
-            await checkUsernameAvailability(
-              trimmedUserId,
+      const checkAvailability =
+        async () => {
+          try {
+            const data =
+              await checkUsernameAvailability(
+                trimmedUserId,
+              );
+
+            setUserIdStatus(
+              data.available
+                ? "success"
+                : "error",
+            );
+          } catch (error) {
+            console.error(
+              "아이디 중복 확인 중 오류가 발생했습니다.",
+              error,
             );
 
-          setUserIdStatus(
-            data.available
-              ? "success"
-              : "error",
-          );
-        } catch (error) {
-          console.error(
-            "아이디 중복 확인 중 오류가 발생했습니다.",
-            error,
-          );
-
-          setUserIdStatus("error");
-        }
-      };
+            setUserIdStatus("error");
+          }
+        };
 
       void checkAvailability();
     }, 400);
@@ -234,46 +253,88 @@ export function MyPage() {
   const handleStartEditing = () => {
     setForm(profile);
     setUserIdStatus("idle");
+    setUpdateErrorMessage("");
     setIsEditing(true);
   };
 
   const handleCancelEditing = () => {
     setForm(profile);
     setUserIdStatus("idle");
+    setUpdateErrorMessage("");
     setIsSelectingTeam(false);
     setIsEditing(false);
   };
 
-  const handleCompleteEditing = () => {
-    const trimmedNickname =
-      form.nickname.trim();
+  const handleCompleteEditing =
+    async () => {
+      const trimmedNickname =
+        form.nickname.trim();
 
-    const trimmedUserId =
-      form.userId.trim();
+      const trimmedUserId =
+        form.userId.trim();
 
-    const isUserIdChanged =
-      trimmedUserId !== profile.userId;
+      const isUserIdChanged =
+        trimmedUserId !==
+        profile.userId;
 
-    if (
-      !trimmedNickname ||
-      !trimmedUserId ||
-      (isUserIdChanged &&
-        userIdStatus !== "success")
-    ) {
-      return;
-    }
+      if (
+        !trimmedNickname ||
+        !trimmedUserId ||
+        (isUserIdChanged &&
+          userIdStatus !== "success")
+      ) {
+        return;
+      }
 
-    // TODO: 프로필 수정 API 연동
-    setProfile({
-      ...form,
-      nickname: trimmedNickname,
-      userId: trimmedUserId,
-    });
+      try {
+        setIsUpdating(true);
+        setUpdateErrorMessage("");
 
-    setUserIdStatus("idle");
-    setIsSelectingTeam(false);
-    setIsEditing(false);
-  };
+        const updatedProfile =
+          await updateMyProfile({
+            username: trimmedUserId,
+            nickname: trimmedNickname,
+          });
+
+        const profileData: ProfileForm = {
+          nickname:
+            updatedProfile.nickname,
+          userId:
+            updatedProfile.username,
+          email:
+            updatedProfile.email,
+          favoriteTeam:
+            (updatedProfile.favoriteTeam
+              ?.name as TeamName) ??
+            profile.favoriteTeam,
+          profileImage:
+            updatedProfile.profileImageUrl ||
+            profile.profileImage ||
+            defaultProfileIcon,
+        };
+
+        setProfile(profileData);
+        setForm(profileData);
+
+        setUserIdStatus("idle");
+        setIsSelectingTeam(false);
+        setIsEditing(false);
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "프로필 수정에 실패했습니다.";
+
+        setUpdateErrorMessage(message);
+
+        console.error(
+          "프로필 수정 중 오류가 발생했습니다.",
+          error,
+        );
+      } finally {
+        setIsUpdating(false);
+      }
+    };
 
   const handleProfileImageChange = (
     event: ChangeEvent<HTMLInputElement>,
@@ -306,7 +367,8 @@ export function MyPage() {
   };
 
   const isUserIdChanged =
-    form.userId.trim() !== profile.userId;
+    form.userId.trim() !==
+    profile.userId;
 
   const idMessage =
     !isUserIdChanged
@@ -371,7 +433,9 @@ export function MyPage() {
                       decorative
                     />
 
-                    <span>{team.name}</span>
+                    <span>
+                      {team.name}
+                    </span>
                   </button>
                 );
               })}
@@ -398,6 +462,7 @@ export function MyPage() {
     isEditing ? form : profile;
 
   const isCompleteDisabled =
+    isUpdating ||
     !form.nickname.trim() ||
     !form.userId.trim() ||
     (isUserIdChanged &&
@@ -528,7 +593,9 @@ export function MyPage() {
 
                 <div className="mt-[18px] flex items-center justify-between px-[10px] pb-[6px]">
                   <span className="text-label-3 font-medium leading-none text-text-secondary">
-                    {form.favoriteTeam}
+                    {
+                      form.favoriteTeam
+                    }
                   </span>
 
                   <span
@@ -537,6 +604,12 @@ export function MyPage() {
                   />
                 </div>
               </button>
+
+              {updateErrorMessage && (
+                <p className="mt-[16px] text-center text-caption text-danger">
+                  {updateErrorMessage}
+                </p>
+              )}
             </>
           ) : (
             <>
@@ -557,7 +630,9 @@ export function MyPage() {
 
               <ProfileItem
                 label="응원 팀"
-                value={profile.favoriteTeam}
+                value={
+                  profile.favoriteTeam
+                }
               />
             </>
           )}
@@ -566,15 +641,17 @@ export function MyPage() {
         {isEditing ? (
           <button
             type="button"
-            onClick={
-              handleCompleteEditing
-            }
+            onClick={() => {
+              void handleCompleteEditing();
+            }}
             disabled={
               isCompleteDisabled
             }
             className="mt-[91px] h-[61px] w-full rounded-[31px] bg-accent-primary button-text text-white disabled:cursor-not-allowed disabled:opacity-50"
           >
-            수정 완료
+            {isUpdating
+              ? "수정 중..."
+              : "수정 완료"}
           </button>
         ) : (
           <section className="mt-[10px]">
