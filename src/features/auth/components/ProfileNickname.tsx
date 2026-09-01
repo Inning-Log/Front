@@ -1,14 +1,25 @@
-import { useState } from "react";
-
 import { Button } from "../../../shared/ui/Button";
 import { Input } from "../../../shared/ui/Input";
 import type { ProfileSetupStepProps } from "../types/ProfileSetupStepProps";
 
-export function ProfileNickname({ onNext }: ProfileSetupStepProps) {
-  const [nickname, setNickname] = useState("");
-  const isNextEnabled = nickname.trim().length > 0;
+export type ProfileNicknameProps = ProfileSetupStepProps & {
+  feedbackMessage?: string;
+  isSubmitting?: boolean;
+  onChange: (value: string) => void;
+  value: string;
+};
 
-  const handleNext = () => { 
+export function ProfileNickname({
+  feedbackMessage = "",
+  isSubmitting = false,
+  onChange,
+  onNext,
+  value,
+}: ProfileNicknameProps) {
+  const isNextEnabled = value.trim().length > 0 && !isSubmitting;
+  const buttonLabel = isSubmitting ? "저장 중..." : "다음으로";
+
+  const handleNext = () => {
     if (!isNextEnabled) {
       return;
     }
@@ -24,13 +35,23 @@ export function ProfileNickname({ onNext }: ProfileSetupStepProps) {
 
       <div className="mt-[35px]">
         <Input
-          value={nickname}
-          onChange={(event) => setNickname(event.target.value)}
+          value={value}
+          disabled={isSubmitting}
+          onChange={(event) => onChange(event.target.value)}
           placeholder="닉네임 입력"
           aria-label="닉네임 입력"
           autoComplete="off"
           className="w-full"
         />
+
+        {feedbackMessage && (
+          <p
+            aria-live="polite"
+            className="mt-[8px] px-[2px] text-caption text-danger"
+          >
+            {feedbackMessage}
+          </p>
+        )}
       </div>
 
       <Button
@@ -41,7 +62,7 @@ export function ProfileNickname({ onNext }: ProfileSetupStepProps) {
           isNextEnabled ? "" : "opacity-60",
         ].join(" ")}
       >
-        <span className="text-label-2 text-white">다음으로</span>
+        <span className="text-label-2 text-white">{buttonLabel}</span>
       </Button>
     </section>
   );
