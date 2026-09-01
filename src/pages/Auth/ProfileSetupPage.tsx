@@ -1,35 +1,51 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-
 import { PageHeader } from "../../app/layouts/PageHeader";
 import { ProfileComplete } from "../../features/auth/components/ProfileComplete";
 import { ProfileId } from "../../features/auth/components/ProfileId";
 import { ProfileNickname } from "../../features/auth/components/ProfileNickname";
+import { ProfileSetupStatus } from "../../features/auth/components/ProfileSetupStatus";
 import { ProfileTeam } from "../../features/auth/components/ProfileTeam";
+import { useProfileSetup } from "../../features/auth/hooks/useProfileSetup";
 import { KeyboardFixedScreen } from "../../shared/ui/KeyboardFixedScreen";
 
-type ProfileSetupStep = 1 | 2 | 3 | 4;
-
 export function ProfileSetupPage() {
-  const navigate = useNavigate();
-  const [step, setStep] = useState<ProfileSetupStep>(1);
-
-  const completeProfileSetup = () => {
-    navigate("/home", { replace: true });
-  };
+  const profileSetup = useProfileSetup();
+  const canRenderStep =
+    !profileSetup.isSyncingStatus &&
+    profileSetup.statusFeedbackMessage.length === 0;
 
   return (
     <KeyboardFixedScreen className="pt-[28.5px]">
       <PageHeader />
 
-      <main data-step={step}>
-        {step === 1 && <ProfileId onNext={() => setStep(2)} />}
+      <main data-step={profileSetup.step}>
+        {profileSetup.isSyncingStatus && (
+          <ProfileSetupStatus message="프로필 설정 정보를 불러오는 중..." />
+        )}
 
-        {step === 2 && <ProfileNickname onNext={() => setStep(3)} />}
+        {!profileSetup.isSyncingStatus &&
+          profileSetup.statusFeedbackMessage && (
+            <ProfileSetupStatus
+              message={profileSetup.statusFeedbackMessage}
+              actionLabel="다시 시도"
+              onAction={profileSetup.syncOnboardingStatus}
+            />
+          )}
 
-        {step === 3 && <ProfileTeam onNext={() => setStep(4)} />}
+        {canRenderStep && profileSetup.step === 1 && (
+          <ProfileId {...profileSetup.usernameStepProps} />
+        )}
 
-        {step === 4 && <ProfileComplete onNext={completeProfileSetup} />}
+        {canRenderStep && profileSetup.step === 2 && (
+          <ProfileNickname {...profileSetup.nicknameStepProps} />
+        )}
+
+        {canRenderStep && profileSetup.step === 3 && (
+          <ProfileTeam {...profileSetup.teamStepProps} />
+        )}
+
+        {canRenderStep && profileSetup.step === 4 && (
+          <ProfileComplete onNext={profileSetup.completeProfileSetup} />
+        )}
       </main>
     </KeyboardFixedScreen>
   );
