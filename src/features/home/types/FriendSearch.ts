@@ -1,6 +1,15 @@
+import type { FriendRelationshipStatus } from "../../friends/types/friend";
+
 export type FriendSearch = {
   id: string;
   name: string;
+};
+
+export type FriendSearchResult = FriendSearch & {
+  userId: number;
+  profileImageUrl: string | null;
+  relationshipStatus: FriendRelationshipStatus;
+  friendshipId: number | null;
 };
 
 export type FriendSearchItemProps = {
