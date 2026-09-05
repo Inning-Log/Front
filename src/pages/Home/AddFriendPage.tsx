@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { BottomSheet } from "../../app/layouts/BottomSheet";
+import { sendFriendRequest } from "../../features/friends/api/friendsApi";
 import { FriendSearchList } from "../../features/home/components/FriendSearchList";
 import { useFriendSearch } from "../../features/home/hooks/useFriendSearch";
 import { Search } from "../../shared/ui/Search";
@@ -10,6 +11,8 @@ import { Toast } from "../../shared/ui/Toast";
 export function AddFriendPage() {
   const navigate = useNavigate();
   const [isToastOpen, setIsToastOpen] = useState(false);
+  const [isRequesting, setIsRequesting] = useState(false);
+  const [requestErrorMessage, setRequestErrorMessage] = useState("");
 
   const {
     keyword,
@@ -19,7 +22,9 @@ export function AddFriendPage() {
     searchedUsers,
     isSearching,
     searchErrorMessage,
+    selectedUser,
     isFriendRequestEnabled,
+    markFriendRequestSent,
   } = useFriendSearch();
 
   const closePage = () => {
@@ -35,14 +40,43 @@ export function AddFriendPage() {
     setIsToastOpen(false);
   }, []);
 
-  const handleFriendRequest = () => {
-    if (!isFriendRequestEnabled) {
+  const handleKeywordChange = (nextKeyword: string) => {
+    setKeyword(nextKeyword);
+    setRequestErrorMessage("");
+  };
+
+  const handleSelectUser = (userId: string) => {
+    setSelectedUserId(userId);
+    setRequestErrorMessage("");
+  };
+
+  const handleFriendRequest = async () => {
+    if (
+      !isFriendRequestEnabled ||
+      !selectedUser ||
+      isRequesting
+    ) {
       return;
     }
 
-    console.log(`${selectedUserId} 친구 신청`);
+    try {
+      setIsRequesting(true);
+      setRequestErrorMessage("");
 
-    setIsToastOpen(true);
+      const friendship = await sendFriendRequest(selectedUser.userId);
+
+      markFriendRequestSent(selectedUser.id, friendship.id);
+      setIsToastOpen(true);
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "친구 신청에 실패했습니다.";
+
+      setRequestErrorMessage(message);
+    } finally {
+      setIsRequesting(false);
+    }
   };
 
   return (
@@ -60,7 +94,9 @@ export function AddFriendPage() {
           <section className="mt-[12px] flex min-h-0 flex-1 flex-col px-[10px]">
             <Search
               value={keyword}
-              onChange={(event) => setKeyword(event.target.value)}
+              onChange={(event) =>
+                handleKeywordChange(event.target.value)
+              }
               placeholder="아이디로 검색하기"
               aria-label="아이디로 검색하기"
               autoComplete="off"
@@ -73,22 +109,32 @@ export function AddFriendPage() {
               isLoading={isSearching}
               errorMessage={searchErrorMessage}
               selectedUserId={selectedUserId}
-              onSelectUser={setSelectedUserId}
+              onSelectUser={handleSelectUser}
             />
+
+            {requestErrorMessage && (
+              <p className="mt-[8px] shrink-0 px-[10px] text-center text-caption text-danger">
+                {requestErrorMessage}
+              </p>
+            )}
 
             {searchedUsers.length > 0 && (
               <button
                 type="button"
-                disabled={!isFriendRequestEnabled}
-                onClick={handleFriendRequest}
+                disabled={
+                  !isFriendRequestEnabled || isRequesting
+                }
+                onClick={() => {
+                  void handleFriendRequest();
+                }}
                 className={[
                   "mb-[14px] mt-[12px] flex h-[40px] shrink-0 appearance-none items-center justify-center rounded-[20px] border-0 p-0 text-label-3 text-white disabled:opacity-100",
-                  isFriendRequestEnabled
+                  isFriendRequestEnabled && !isRequesting
                     ? "bg-accent-primary"
                     : "bg-surface-secondary",
                 ].join(" ")}
               >
-                친구 신청하기
+                {isRequesting ? "신청 중..." : "친구 신청하기"}
               </button>
             )}
           </section>

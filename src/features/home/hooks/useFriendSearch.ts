@@ -107,6 +107,26 @@ export function useFriendSearch() {
     setSelectedUserId("");
   };
 
+  const markFriendRequestSent = (
+    userId: string,
+    friendshipId: number,
+  ) => {
+    setSearchedUsers((currentUsers) =>
+      currentUsers.map((user) =>
+        user.id === userId
+          ? {
+              ...user,
+              friendshipId,
+              relationshipStatus: "REQUEST_SENT",
+            }
+          : user,
+      ),
+    );
+    setSelectedUserId((currentUserId) =>
+      currentUserId === userId ? "" : currentUserId,
+    );
+  };
+
   const selectedUser = searchedUsers.find((user) => user.id === selectedUserId);
   const isFriendRequestEnabled =
     selectedUser?.relationshipStatus === "NONE";
@@ -121,5 +141,6 @@ export function useFriendSearch() {
     isSearching,
     searchErrorMessage,
     isFriendRequestEnabled,
+    markFriendRequestSent,
   };
 }
