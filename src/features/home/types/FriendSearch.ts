@@ -3,13 +3,17 @@ import type { FriendRelationshipStatus } from "../../friends/types/friend";
 export type FriendSearch = {
   id: string;
   name: string;
+  friendshipId?: number | null;
+  profileImageUrl?: string | null;
+  relationshipStatus?: FriendRelationshipStatus;
+  userId?: number;
 };
 
 export type FriendSearchResult = FriendSearch & {
-  userId: number;
+  friendshipId: number | null;
   profileImageUrl: string | null;
   relationshipStatus: FriendRelationshipStatus;
-  friendshipId: number | null;
+  userId: number;
 };
 
 export type FriendSearchItemProps = {
@@ -19,8 +23,10 @@ export type FriendSearchItemProps = {
 };
 
 export type FriendSearchListProps = {
-  users: FriendSearch[];
+  errorMessage?: string;
   hasKeyword: boolean;
+  isLoading?: boolean;
   selectedUserId: string;
   onSelectUser: (userId: string) => void;
+  users: FriendSearch[];
 };

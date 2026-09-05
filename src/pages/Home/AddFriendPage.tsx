@@ -17,6 +17,8 @@ export function AddFriendPage() {
     selectedUserId,
     setSelectedUserId,
     searchedUsers,
+    isSearching,
+    searchErrorMessage,
     isFriendRequestEnabled,
   } = useFriendSearch();
 
@@ -68,6 +70,8 @@ export function AddFriendPage() {
             <FriendSearchList
               users={searchedUsers}
               hasKeyword={keyword.trim().length > 0}
+              isLoading={isSearching}
+              errorMessage={searchErrorMessage}
               selectedUserId={selectedUserId}
               onSelectUser={setSelectedUserId}
             />

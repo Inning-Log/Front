@@ -108,7 +108,8 @@ export function useFriendSearch() {
   };
 
   const selectedUser = searchedUsers.find((user) => user.id === selectedUserId);
-  const isFriendRequestEnabled = Boolean(selectedUser);
+  const isFriendRequestEnabled =
+    selectedUser?.relationshipStatus === "NONE";
 
   return {
     keyword,
