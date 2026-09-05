@@ -4,12 +4,14 @@ import { useNavigate } from "react-router-dom";
 import { PageHeader } from "../../app/layouts/PageHeader";
 import friendsIcon from "../../assets/icons/friends.svg";
 import selectedCheckIcon from "../../assets/icons/selected_check.svg";
-import { FriendSearchItem } from "../../features/home/components/FriendSearchItem";
-import type { FriendSearch } from "../../features/home/types/FriendSearch";
+import {
+  TimelineFriendSelectItem,
+  type TimelineSelectableFriend,
+} from "../../features/timeline/components/TimelineFriendSelectItem";
 import { Toast } from "../../shared/ui/Toast";
 
 // API 연동 전 임시 데이터
-const friends: FriendSearch[] = [
+const friends: TimelineSelectableFriend[] = [
   {
     id: "baseball_love",
     name: "야구팬",
@@ -33,7 +35,7 @@ const friends: FriendSearch[] = [
 ];
 
 // 친구가 없는 화면 확인용
-// const friends: FriendSearch[] = [];
+// const friends: TimelineSelectableFriend[] = [];
 
 export function TimelineFriendSelectPage() {
   const navigate = useNavigate();
@@ -111,9 +113,9 @@ export function TimelineFriendSelectPage() {
                     key={friend.id}
                     className="relative"
                   >
-                    <FriendSearchItem
-                      user={friend}
-                      selected={false}
+                    <TimelineFriendSelectItem
+                      friend={friend}
+                      disabled={isSaving}
                       onSelect={handleSelectFriend}
                     />
 

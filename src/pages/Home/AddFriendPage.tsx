@@ -3,8 +3,8 @@ import { useNavigate } from "react-router-dom";
 
 import { BottomSheet } from "../../app/layouts/BottomSheet";
 import { sendFriendRequest } from "../../features/friends/api/friendsApi";
-import { FriendSearchList } from "../../features/home/components/FriendSearchList";
-import { useFriendSearch } from "../../features/home/hooks/useFriendSearch";
+import { FriendSearchList } from "../../features/friends/components/FriendSearchList";
+import { useFriendSearch } from "../../features/friends/hooks/useFriendSearch";
 import { Search } from "../../shared/ui/Search";
 import { Toast } from "../../shared/ui/Toast";
 

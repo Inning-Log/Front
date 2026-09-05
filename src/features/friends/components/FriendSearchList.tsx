@@ -1,7 +1,7 @@
-import { FriendSearchItem } from "./FriendSearchItem";
-import type { FriendSearchListProps } from "../types/FriendSearch";
 import searchIcon from "../../../assets/icons/search.svg";
 import searchNoIcon from "../../../assets/icons/searchno.svg";
+import type { FriendSearchListProps } from "../types/friendSearch";
+import { FriendSearchItem } from "./FriendSearchItem";
 
 export function FriendSearchList({
   errorMessage,
@@ -37,7 +37,11 @@ export function FriendSearchList({
         <img
           src={hasKeyword ? searchNoIcon : searchIcon}
           alt=""
-          className={hasKeyword ? "h-[55px] w-[65px]" : "h-[48px] w-[47px]"}
+          className={
+            hasKeyword
+              ? "h-[55px] w-[65px]"
+              : "h-[48px] w-[47px]"
+          }
         />
       </div>
     );

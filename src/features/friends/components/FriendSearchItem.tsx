@@ -1,5 +1,5 @@
-import type { FriendRelationshipStatus } from "../../friends/types/friend";
-import type { FriendSearchItemProps } from "../types/FriendSearch";
+import type { FriendRelationshipStatus } from "../types/friend";
+import type { FriendSearchItemProps } from "../types/friendSearch";
 
 const RELATIONSHIP_STATUS_LABELS: Record<
   FriendRelationshipStatus,

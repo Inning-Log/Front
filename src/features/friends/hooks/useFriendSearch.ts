@@ -1,24 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 
-import { searchUsers } from "../../friends/api/friendsApi";
-import type { UserSearchResponse } from "../../friends/types/friend";
-import type { FriendSearchResult } from "../types/FriendSearch";
-
-const SEARCH_DELAY_MS = 400;
-const USERNAME_PATTERN = /^[a-zA-Z0-9._]+$/;
-
-function mapUserSearchResult(
-  result: UserSearchResponse,
-): FriendSearchResult {
-  return {
-    id: result.user.username,
-    name: result.user.nickname,
-    userId: result.user.id,
-    profileImageUrl: result.user.profileImageUrl,
-    relationshipStatus: result.relationshipStatus,
-    friendshipId: result.friendshipId,
-  };
-}
+import { searchUsers } from "../api/friendsApi";
+import type { FriendSearchResult } from "../types/friendSearch";
+import {
+  canSendFriendRequest,
+  FRIEND_SEARCH_DELAY_MS,
+  getFriendSearchValidationMessage,
+  mapUserSearchResult,
+} from "../utils/friendSearch";
 
 export function useFriendSearch() {
   const searchRequestIdRef = useRef(0);
@@ -37,6 +26,9 @@ export function useFriendSearch() {
 
     const timer = window.setTimeout(() => {
       const fetchUsers = async () => {
+        const validationMessage =
+          getFriendSearchValidationMessage(normalizedKeyword);
+
         if (!normalizedKeyword) {
           setSearchedUsers([]);
           setSelectedUserId("");
@@ -45,15 +37,10 @@ export function useFriendSearch() {
           return;
         }
 
-        if (
-          normalizedKeyword.length > 30 ||
-          !USERNAME_PATTERN.test(normalizedKeyword)
-        ) {
+        if (validationMessage) {
           setSearchedUsers([]);
           setSelectedUserId("");
-          setSearchErrorMessage(
-            "영문, 숫자, 마침표, 밑줄만 사용할 수 있어요.",
-          );
+          setSearchErrorMessage(validationMessage);
           setIsSearching(false);
           return;
         }
@@ -97,7 +84,7 @@ export function useFriendSearch() {
       };
 
       void fetchUsers();
-    }, SEARCH_DELAY_MS);
+    }, FRIEND_SEARCH_DELAY_MS);
 
     return () => window.clearTimeout(timer);
   }, [normalizedKeyword]);
@@ -127,9 +114,10 @@ export function useFriendSearch() {
     );
   };
 
-  const selectedUser = searchedUsers.find((user) => user.id === selectedUserId);
-  const isFriendRequestEnabled =
-    selectedUser?.relationshipStatus === "NONE";
+  const selectedUser = searchedUsers.find(
+    (user) => user.id === selectedUserId,
+  );
+  const isFriendRequestEnabled = canSendFriendRequest(selectedUser);
 
   return {
     keyword,

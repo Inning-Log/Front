@@ -1,4 +1,4 @@
-import type { FriendRelationshipStatus } from "../../friends/types/friend";
+import type { FriendRelationshipStatus } from "./friend";
 
 export type FriendSearch = {
   id: string;
