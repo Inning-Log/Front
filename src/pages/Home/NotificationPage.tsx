@@ -2,6 +2,10 @@ import { useEffect, useState } from "react";
 
 import { PageHeader } from "../../app/layouts/PageHeader";
 import {
+  acceptFriendRequest,
+  rejectFriendRequest,
+} from "../../features/friends/api/friendsApi";
+import {
   getNotifications,
   readNotification,
 } from "../../features/home/api/notificationApi";
@@ -62,11 +66,13 @@ export function NotificationPage() {
   }, []);
 
   const requestNotifications = notifications.filter(
-    (notification) => notification.type === "FRIEND_REQUEST",
+    (notification) =>
+      notification.type === "FRIEND_REQUEST",
   );
 
   const generalNotifications = notifications.filter(
-    (notification) => notification.type !== "FRIEND_REQUEST",
+    (notification) =>
+      notification.type !== "FRIEND_REQUEST",
   );
 
   const hasNotifications =
@@ -77,41 +83,68 @@ export function NotificationPage() {
   const removeNotification = (notificationId: number) => {
     setNotifications((previousNotifications) =>
       previousNotifications.filter(
-        (notification) => notification.id !== notificationId,
+        (notification) =>
+          notification.id !== notificationId,
       ),
     );
   };
 
-  const handleAcceptRequest = (
+  const handleAcceptRequest = async (
     notification: NotificationResponse,
   ) => {
-    /*
-     * TODO:
-     * 친구 신청 수락 API 연동 필요
-     */
+    const friendshipId = Number(
+      notification.data.friendshipId,
+    );
 
-    removeNotification(notification.id);
+    if (!friendshipId) {
+      console.error(
+        "친구 관계 ID를 확인할 수 없습니다.",
+        notification,
+      );
+      return;
+    }
 
-    setToast({
-      open: true,
-      message: "친구 신청을 수락했습니다!",
-    });
+    try {
+      await acceptFriendRequest(friendshipId);
+
+      removeNotification(notification.id);
+
+      setToast({
+        open: true,
+        message: "친구 신청을 수락했습니다!",
+      });
+    } catch (error) {
+      console.error("친구 신청 수락 실패:", error);
+    }
   };
 
-  const handleRejectRequest = (
+  const handleRejectRequest = async (
     notification: NotificationResponse,
   ) => {
-    /*
-     * TODO:
-     * 친구 신청 거절 API 연동 필요
-     */
+    const friendshipId = Number(
+      notification.data.friendshipId,
+    );
 
-    removeNotification(notification.id);
+    if (!friendshipId) {
+      console.error(
+        "친구 관계 ID를 확인할 수 없습니다.",
+        notification,
+      );
+      return;
+    }
 
-    setToast({
-      open: true,
-      message: "친구 신청을 거절했습니다.",
-    });
+    try {
+      await rejectFriendRequest(friendshipId);
+
+      removeNotification(notification.id);
+
+      setToast({
+        open: true,
+        message: "친구 신청을 거절했습니다.",
+      });
+    } catch (error) {
+      console.error("친구 신청 거절 실패:", error);
+    }
   };
 
   const handleNotificationClick = async (
@@ -206,16 +239,18 @@ export function NotificationPage() {
             requestNotifications.map((notification) => (
               <FriendRequestNotificationItem
                 key={notification.id}
-                userId={notification.data.userId ?? ""}
+                userId={
+                  notification.data.userId ?? ""
+                }
                 userName={
                   notification.data.userName ??
                   notification.title
                 }
                 onAccept={() =>
-                  handleAcceptRequest(notification)
+                  void handleAcceptRequest(notification)
                 }
                 onDelete={() =>
-                  handleRejectRequest(notification)
+                  void handleRejectRequest(notification)
                 }
               />
             ))
@@ -225,12 +260,16 @@ export function NotificationPage() {
                 key={notification.id}
                 type="button"
                 onClick={() =>
-                  void handleNotificationClick(notification)
+                  void handleNotificationClick(
+                    notification,
+                  )
                 }
                 className="w-full"
               >
                 <NotificationItem
-                  category={getNotificationCategory(notification)}
+                  category={getNotificationCategory(
+                    notification,
+                  )}
                   message={notification.body}
                 />
               </button>
