@@ -1,5 +1,6 @@
 import {
   type ChangeEvent,
+  useCallback,
   useEffect,
   useRef,
   useState,
@@ -17,6 +18,9 @@ import {
   updateMyProfile,
   updateProfileImage,
 } from "../../features/mypage/api/mypage";
+import {
+  ApiError,
+} from "../../shared/api/apiClient";
 import { KBO_TEAMS } from "../../shared/constants/teams";
 import { TeamMascot } from "../../shared/ui/TeamMascot";
 
@@ -42,6 +46,15 @@ type ProfileItemProps = {
   value: string;
 };
 
+type UserIdStatus =
+  | "idle"
+  | "checking"
+  | "success"
+  | "error";
+
+const USERNAME_PATTERN =
+  /^[a-zA-Z0-9._]+$/;
+
 const emptyProfile: ProfileForm = {
   nickname: "",
   userId: "",
@@ -49,6 +62,32 @@ const emptyProfile: ProfileForm = {
   favoriteTeamId: null,
   profileImage: defaultProfileIcon,
 };
+
+function clearAuthStorage() {
+  localStorage.removeItem("accessToken");
+  localStorage.removeItem("tokenType");
+  localStorage.removeItem(
+    "accessTokenExpiresAt",
+  );
+}
+
+function getUsernameValidationMessage(
+  username: string,
+) {
+  if (!username) {
+    return "아이디를 입력해주세요.";
+  }
+
+  if (username.length > 30) {
+    return "아이디는 30자 이내로 입력해주세요.";
+  }
+
+  if (!USERNAME_PATTERN.test(username)) {
+    return "영문, 숫자, 마침표, 밑줄만 사용할 수 있어요.";
+  }
+
+  return "";
+}
 
 function ProfileInput({
   label,
@@ -129,6 +168,9 @@ export function MyPage() {
   const previewImageUrlRef =
     useRef<string | null>(null);
 
+  const usernameCheckRequestIdRef =
+    useRef(0);
+
   const [profile, setProfile] =
     useState<ProfileForm>(emptyProfile);
 
@@ -138,11 +180,16 @@ export function MyPage() {
   const [isLoading, setIsLoading] =
     useState(true);
 
+  const [loadErrorMessage, setLoadErrorMessage] =
+    useState("");
+
   const [isEditing, setIsEditing] =
     useState(false);
 
-  const [isSelectingTeam, setIsSelectingTeam] =
-    useState(false);
+  const [
+    isSelectingTeam,
+    setIsSelectingTeam,
+  ] = useState(false);
 
   const [isUpdating, setIsUpdating] =
     useState(false);
@@ -157,17 +204,33 @@ export function MyPage() {
     setSelectedProfileImageFile,
   ] = useState<File | null>(null);
 
-  const [userIdStatus, setUserIdStatus] =
-    useState<
-      "idle" | "success" | "error"
-    >("idle");
+  const [
+    userIdStatus,
+    setUserIdStatus,
+  ] = useState<UserIdStatus>("idle");
 
-  useEffect(() => {
-    const fetchMyPage = async () => {
+  const [
+    userIdFeedbackMessage,
+    setUserIdFeedbackMessage,
+  ] = useState("");
+
+  const redirectToLogin =
+    useCallback(() => {
+      clearAuthStorage();
+
+      navigate("/login", {
+        replace: true,
+      });
+    }, [navigate]);
+
+  const loadMyPage =
+    useCallback(async () => {
+      setIsLoading(true);
+      setLoadErrorMessage("");
+
       try {
-        setIsLoading(true);
-
-        const data = await getMyPage();
+        const data =
+          await getMyPage();
 
         const profileData: ProfileForm = {
           nickname: data.nickname,
@@ -183,21 +246,39 @@ export function MyPage() {
         setProfile(profileData);
         setForm(profileData);
       } catch (error) {
-        console.error(
-          "마이페이지 조회 중 오류가 발생했습니다.",
-          error,
+        if (
+          error instanceof ApiError &&
+          error.status === 401
+        ) {
+          redirectToLogin();
+          return;
+        }
+
+        setLoadErrorMessage(
+          error instanceof Error
+            ? error.message
+            : "마이페이지 정보를 불러오지 못했습니다.",
         );
       } finally {
         setIsLoading(false);
       }
-    };
+    }, [redirectToLogin]);
 
-    void fetchMyPage();
-  }, []);
+  useEffect(() => {
+    const timer =
+      window.setTimeout(() => {
+        void loadMyPage();
+      }, 0);
+
+    return () =>
+      window.clearTimeout(timer);
+  }, [loadMyPage]);
 
   useEffect(() => {
     return () => {
-      if (previewImageUrlRef.current) {
+      if (
+        previewImageUrlRef.current
+      ) {
         URL.revokeObjectURL(
           previewImageUrlRef.current,
         );
@@ -206,58 +287,101 @@ export function MyPage() {
   }, []);
 
   useEffect(() => {
+    if (!isEditing) {
+      return;
+    }
+
     const trimmedUserId =
       form.userId.trim();
 
-    if (!isEditing) {
-      setUserIdStatus("idle");
-      return;
-    }
-
     if (
-      trimmedUserId === profile.userId
+      trimmedUserId ===
+      profile.userId
     ) {
-      setUserIdStatus("idle");
       return;
     }
 
-    if (
-      !/^[a-zA-Z0-9._]{4,20}$/.test(
+    const validationMessage =
+      getUsernameValidationMessage(
         trimmedUserId,
-      )
-    ) {
-      setUserIdStatus("error");
+      );
+
+    if (validationMessage) {
       return;
     }
 
-    setUserIdStatus("idle");
+    const timer =
+      window.setTimeout(() => {
+        const checkAvailability =
+          async () => {
+            const requestId =
+              usernameCheckRequestIdRef
+                .current + 1;
 
-    const timer = window.setTimeout(() => {
-      const checkAvailability =
-        async () => {
-          try {
-            const data =
-              await checkUsernameAvailability(
-                trimmedUserId,
-              );
+            usernameCheckRequestIdRef.current =
+              requestId;
 
             setUserIdStatus(
-              data.available
-                ? "success"
-                : "error",
-            );
-          } catch (error) {
-            console.error(
-              "아이디 중복 확인 중 오류가 발생했습니다.",
-              error,
+              "checking",
             );
 
-            setUserIdStatus("error");
-          }
-        };
+            try {
+              const data =
+                await checkUsernameAvailability(
+                  trimmedUserId,
+                );
 
-      void checkAvailability();
-    }, 400);
+              if (
+                requestId !==
+                usernameCheckRequestIdRef
+                  .current
+              ) {
+                return;
+              }
+
+              setUserIdStatus(
+                data.available
+                  ? "success"
+                  : "error",
+              );
+
+              setUserIdFeedbackMessage(
+                data.available
+                  ? "사용 가능한 아이디입니다."
+                  : "이미 사용 중인 아이디입니다.",
+              );
+            } catch (error) {
+              if (
+                requestId !==
+                usernameCheckRequestIdRef
+                  .current
+              ) {
+                return;
+              }
+
+              if (
+                error instanceof
+                  ApiError &&
+                error.status === 401
+              ) {
+                redirectToLogin();
+                return;
+              }
+
+              setUserIdStatus(
+                "error",
+              );
+
+              setUserIdFeedbackMessage(
+                error instanceof Error
+                  ? error.message
+                  : "아이디 중복 확인에 실패했습니다.",
+              );
+            }
+          };
+
+        void checkAvailability();
+      }, 400);
 
     return () =>
       window.clearTimeout(timer);
@@ -265,37 +389,99 @@ export function MyPage() {
     form.userId,
     isEditing,
     profile.userId,
+    redirectToLogin,
   ]);
 
   const clearPreviewImage = () => {
-    if (previewImageUrlRef.current) {
+    if (
+      previewImageUrlRef.current
+    ) {
       URL.revokeObjectURL(
         previewImageUrlRef.current,
       );
 
-      previewImageUrlRef.current = null;
+      previewImageUrlRef.current =
+        null;
     }
   };
 
   const handleStartEditing = () => {
     clearPreviewImage();
 
+    usernameCheckRequestIdRef.current +=
+      1;
+
     setForm(profile);
-    setSelectedProfileImageFile(null);
+
+    setSelectedProfileImageFile(
+      null,
+    );
+
     setUserIdStatus("idle");
+    setUserIdFeedbackMessage("");
     setUpdateErrorMessage("");
+
     setIsEditing(true);
   };
 
   const handleCancelEditing = () => {
     clearPreviewImage();
 
+    usernameCheckRequestIdRef.current +=
+      1;
+
     setForm(profile);
-    setSelectedProfileImageFile(null);
+
+    setSelectedProfileImageFile(
+      null,
+    );
+
     setUserIdStatus("idle");
+    setUserIdFeedbackMessage("");
     setUpdateErrorMessage("");
+
     setIsSelectingTeam(false);
     setIsEditing(false);
+  };
+
+  const handleUserIdChange = (
+    userId: string,
+  ) => {
+    usernameCheckRequestIdRef.current +=
+      1;
+
+    setForm((previous) => ({
+      ...previous,
+      userId,
+    }));
+
+    const trimmedUserId =
+      userId.trim();
+
+    if (
+      trimmedUserId ===
+      profile.userId
+    ) {
+      setUserIdStatus("idle");
+      setUserIdFeedbackMessage("");
+      return;
+    }
+
+    const validationMessage =
+      getUsernameValidationMessage(
+        trimmedUserId,
+      );
+
+    if (validationMessage) {
+      setUserIdStatus("error");
+      setUserIdFeedbackMessage(
+        validationMessage,
+      );
+      return;
+    }
+
+    setUserIdStatus("idle");
+    setUserIdFeedbackMessage("");
   };
 
   const handleCompleteEditing =
@@ -307,7 +493,8 @@ export function MyPage() {
         form.userId.trim();
 
       const isUserIdChanged =
-        trimmedUserId !== profile.userId;
+        trimmedUserId !==
+        profile.userId;
 
       const isNicknameChanged =
         trimmedNickname !==
@@ -321,31 +508,36 @@ export function MyPage() {
         form.profileImage !==
         profile.profileImage;
 
+      const validationMessage =
+        getUsernameValidationMessage(
+          trimmedUserId,
+        );
+
       if (
         !trimmedNickname ||
-        !trimmedUserId ||
+        validationMessage ||
         (isUserIdChanged &&
           userIdStatus !== "success")
       ) {
         return;
       }
-      
-        /*
-         * PUT /api/mypage/profile-image는
-         * 이미지 파일이 아닌 이미지 URL을 받는 API입니다.
-         *
-         * 현재 file input으로 선택한 파일은 blob: URL만 생성되므로
-         * 서버에 저장할 수 없습니다.
-         *
-         * 별도의 이미지 업로드 API가 연결된 이후
-         * 해당 API에서 반환받은 URL을 아래
-         * updateProfileImage(imageUrl)에 전달하면 됩니다.
-         */
 
+      /*
+       * PUT /api/mypage/profile-image는
+       * 이미지 파일이 아닌 이미지 URL을 받는 API입니다.
+       *
+       * 현재 file input으로 선택한 파일은 blob: URL만 생성되므로
+       * 서버에 저장할 수 없습니다.
+       *
+       * 별도의 이미지 업로드 API가 연결된 이후
+       * 해당 API에서 반환받은 URL을
+       * updateProfileImage(imageUrl)에 전달하면 됩니다.
+       */
       if (selectedProfileImageFile) {
         setUpdateErrorMessage(
           "이미지 파일 업로드 API 연동이 필요합니다.",
         );
+
         return;
       }
 
@@ -361,14 +553,19 @@ export function MyPage() {
         ) {
           updatedProfile =
             await updateMyProfile({
-              username: trimmedUserId,
-              nickname: trimmedNickname,
+              username:
+                trimmedUserId,
+              nickname:
+                trimmedNickname,
             });
         }
 
-        if (isFavoriteTeamChanged) {
+        if (
+          isFavoriteTeamChanged
+        ) {
           if (
-            form.favoriteTeamId === null
+            form.favoriteTeamId ===
+            null
           ) {
             throw new Error(
               "응원 팀을 선택해 주세요.",
@@ -398,46 +595,61 @@ export function MyPage() {
 
         if (!updatedProfile) {
           setUserIdStatus("idle");
+          setUserIdFeedbackMessage("");
           setIsSelectingTeam(false);
           setIsEditing(false);
           return;
         }
 
-        
-
-        const profileData: ProfileForm = {
-          nickname:
-            updatedProfile.nickname,
-          userId:
-            updatedProfile.username,
-          email:
-            updatedProfile.email,
-          favoriteTeamId:
-            updatedProfile.favoriteTeam
-              ?.id ??
-            form.favoriteTeamId,
-          profileImage:
-            updatedProfile.profileImageUrl ||
-            profile.profileImage ||
-            defaultProfileIcon,
-        };
+        const profileData: ProfileForm =
+          {
+            nickname:
+              updatedProfile.nickname,
+            userId:
+              updatedProfile.username,
+            email:
+              updatedProfile.email,
+            favoriteTeamId:
+              updatedProfile
+                .favoriteTeam?.id ??
+              form.favoriteTeamId,
+            profileImage:
+              updatedProfile
+                .profileImageUrl ||
+              profile.profileImage ||
+              defaultProfileIcon,
+          };
 
         clearPreviewImage();
 
         setProfile(profileData);
         setForm(profileData);
-        setSelectedProfileImageFile(null);
+
+        setSelectedProfileImageFile(
+          null,
+        );
 
         setUserIdStatus("idle");
+        setUserIdFeedbackMessage("");
         setIsSelectingTeam(false);
         setIsEditing(false);
       } catch (error) {
+        if (
+          error instanceof ApiError &&
+          error.status === 401
+        ) {
+          redirectToLogin();
+          return;
+        }
+
         const message =
           error instanceof Error
             ? error.message
             : "프로필 수정에 실패했습니다.";
 
-        setUpdateErrorMessage(message);
+        setUpdateErrorMessage(
+          message,
+        );
 
         console.error(
           "프로필 수정 중 오류가 발생했습니다.",
@@ -461,7 +673,9 @@ export function MyPage() {
     clearPreviewImage();
 
     const imageUrl =
-      URL.createObjectURL(imageFile);
+      URL.createObjectURL(
+        imageFile,
+      );
 
     previewImageUrlRef.current =
       imageUrl;
@@ -491,19 +705,11 @@ export function MyPage() {
     form.userId.trim() !==
     profile.userId;
 
-  const idMessage =
-    !isUserIdChanged
-      ? undefined
-      : userIdStatus === "error"
-        ? "사용할 수 없는 아이디입니다."
-        : userIdStatus === "success"
-          ? "사용 가능한 아이디입니다."
-          : undefined;
-
   const selectedFormTeam =
     KBO_TEAMS.find(
       (team) =>
-        team.id === form.favoriteTeamId,
+        team.id ===
+        form.favoriteTeamId,
     );
 
   const selectedProfileTeam =
@@ -523,6 +729,36 @@ export function MyPage() {
     );
   }
 
+  if (loadErrorMessage) {
+    return (
+      <div className="flex min-h-dvh w-full flex-col bg-[#F1F2F1]">
+        <div className="bg-[#F1F2F1] pt-[45px]">
+          <PageHeader
+            title="마이페이지"
+          />
+        </div>
+
+        <main className="flex flex-1 flex-col items-center justify-center px-[16px]">
+          <p className="text-center text-label-3 text-text-secondary">
+            {loadErrorMessage}
+          </p>
+
+          <button
+            type="button"
+            onClick={() => {
+              void loadMyPage();
+            }}
+            className="mt-[20px] rounded-[24px] bg-accent-primary px-[28px] py-[12px] text-label-3 text-white"
+          >
+            다시 시도
+          </button>
+        </main>
+
+        <BottomBar />
+      </div>
+    );
+  }
+
   if (isSelectingTeam) {
     return (
       <div className="min-h-dvh w-full bg-[#F1F2F1] pb-[110px]">
@@ -530,7 +766,9 @@ export function MyPage() {
           <PageHeader
             title="프로필 수정"
             onBack={() =>
-              setIsSelectingTeam(false)
+              setIsSelectingTeam(
+                false,
+              )
             }
           />
         </div>
@@ -538,48 +776,54 @@ export function MyPage() {
         <main className="px-[20px] pt-[16px]">
           <section className="rounded-[31px] bg-bg-primary pb-[24px] pt-[76px]">
             <div className="rounded-[35px] bg-surface-secondary px-[16px] py-[12px]">
-              {KBO_TEAMS.map((team) => {
-                const isSelected =
-                  form.favoriteTeamId ===
-                  team.id;
+              {KBO_TEAMS.map(
+                (team) => {
+                  const isSelected =
+                    form.favoriteTeamId ===
+                    team.id;
 
-                return (
-                  <button
-                    key={team.id}
-                    type="button"
-                    onClick={() =>
-                      handleSelectTeam(
-                        team.id,
-                      )
-                    }
-                    className={[
-                      "flex h-[64px] w-full items-center rounded-[32px]",
-                      "px-[18px] text-left text-label-1 text-black",
-                      isSelected
-                        ? "bg-bg-primary"
-                        : "",
-                    ].join(" ")}
-                  >
-                    <TeamMascot
-                      team={team}
-                      containerSize={52}
-                      className="mr-[16px]"
-                      decorative
-                    />
+                  return (
+                    <button
+                      key={team.id}
+                      type="button"
+                      onClick={() =>
+                        handleSelectTeam(
+                          team.id,
+                        )
+                      }
+                      className={[
+                        "flex h-[64px] w-full items-center rounded-[32px]",
+                        "px-[18px] text-left text-label-1 text-black",
+                        isSelected
+                          ? "bg-bg-primary"
+                          : "",
+                      ].join(" ")}
+                    >
+                      <TeamMascot
+                        team={team}
+                        containerSize={
+                          52
+                        }
+                        className="mr-[16px]"
+                        decorative
+                      />
 
-                    <span>
-                      {team.name}
-                    </span>
-                  </button>
-                );
-              })}
+                      <span>
+                        {team.name}
+                      </span>
+                    </button>
+                  );
+                },
+              )}
             </div>
           </section>
 
           <button
             type="button"
             onClick={() =>
-              setIsSelectingTeam(false)
+              setIsSelectingTeam(
+                false,
+              )
             }
             className="mt-[28px] h-[61px] w-full rounded-[31px] bg-accent-primary button-text text-white"
           >
@@ -593,7 +837,9 @@ export function MyPage() {
   }
 
   const displayedProfile =
-    isEditing ? form : profile;
+    isEditing
+      ? form
+      : profile;
 
   const isCompleteDisabled =
     isUpdating ||
@@ -634,7 +880,8 @@ export function MyPage() {
               <div className="size-full overflow-hidden rounded-full">
                 <img
                   src={
-                    displayedProfile.profileImage
+                    displayedProfile
+                      .profileImage
                   }
                   alt={`${displayedProfile.nickname} 프로필`}
                   onError={(event) => {
@@ -656,7 +903,9 @@ export function MyPage() {
                     className="absolute bottom-[3px] right-[3px] flex size-[28px] items-center justify-center rounded-full bg-text-secondary"
                   >
                     <img
-                      src={cameraIcon}
+                      src={
+                        cameraIcon
+                      }
                       alt=""
                       aria-hidden="true"
                       className="h-[13px] w-[15px]"
@@ -681,8 +930,12 @@ export function MyPage() {
             <>
               <ProfileInput
                 label="닉네임"
-                value={form.nickname}
-                onChange={(nickname) =>
+                value={
+                  form.nickname
+                }
+                onChange={(
+                  nickname,
+                ) =>
                   setForm(
                     (previous) => ({
                       ...previous,
@@ -695,20 +948,18 @@ export function MyPage() {
               <ProfileInput
                 label="아이디"
                 value={form.userId}
-                message={idMessage}
+                message={
+                  userIdFeedbackMessage ||
+                  undefined
+                }
                 messageType={
                   userIdStatus ===
                   "success"
                     ? "success"
                     : "error"
                 }
-                onChange={(userId) =>
-                  setForm(
-                    (previous) => ({
-                      ...previous,
-                      userId,
-                    }),
-                  )
+                onChange={
+                  handleUserIdChange
                 }
               />
 
@@ -721,7 +972,9 @@ export function MyPage() {
               <button
                 type="button"
                 onClick={() =>
-                  setIsSelectingTeam(true)
+                  setIsSelectingTeam(
+                    true,
+                  )
                 }
                 className="w-full border-b-[1.5px] border-surface-secondary pt-[16px] text-left"
               >
@@ -731,7 +984,8 @@ export function MyPage() {
 
                 <div className="mt-[18px] flex items-center justify-between px-[10px] pb-[6px]">
                   <span className="text-label-3 font-medium leading-none text-text-secondary">
-                    {selectedFormTeam?.name ??
+                    {selectedFormTeam
+                      ?.name ??
                       "선택 안 함"}
                   </span>
 
@@ -754,17 +1008,23 @@ export function MyPage() {
             <>
               <ProfileItem
                 label="닉네임"
-                value={profile.nickname}
+                value={
+                  profile.nickname
+                }
               />
 
               <ProfileItem
                 label="아이디"
-                value={profile.userId}
+                value={
+                  profile.userId
+                }
               />
 
               <ProfileItem
                 label="이메일"
-                value={profile.email}
+                value={
+                  profile.email
+                }
               />
 
               <ProfileItem
