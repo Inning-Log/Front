@@ -1,3 +1,5 @@
+import { apiClient } from "../../../shared/api/apiClient";
+
 export type FavoriteTeam = {
   id: number;
   teamCode: string;
@@ -35,199 +37,76 @@ export type UpdateFavoriteTeamRequest = {
   favoriteTeamId: number;
 };
 
-function getAuthorizationHeader() {
-  const accessToken = localStorage.getItem("accessToken");
-
-  return {
-    Authorization: `Bearer ${accessToken}`,
-  };
-}
-
-export async function getMyPage(): Promise<MyPageResponse> {
-  const response = await fetch("/api/mypage", {
+export function getMyPage() {
+  return apiClient<MyPageResponse>("/mypage", {
     method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-      ...getAuthorizationHeader(),
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(
+    fallbackErrorMessage:
       "마이페이지 정보를 불러오지 못했습니다.",
-    );
-  }
-
-  return response.json();
+  });
 }
 
-export async function checkUsernameAvailability(
+export function checkUsernameAvailability(
   username: string,
-): Promise<UsernameAvailabilityResponse> {
-  const response = await fetch(
-    `/api/mypage/username-availability?username=${encodeURIComponent(
-      username,
-    )}`,
+) {
+  return apiClient<UsernameAvailabilityResponse>(
+    "/mypage/username-availability",
     {
       method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        ...getAuthorizationHeader(),
+      params: {
+        username,
       },
+      fallbackErrorMessage:
+        "아이디 중복 확인에 실패했습니다.",
     },
   );
-
-  if (!response.ok) {
-    if (response.status === 400) {
-      throw new Error(
-        "아이디 형식 또는 길이가 올바르지 않습니다.",
-      );
-    }
-
-    if (response.status === 401) {
-      throw new Error("로그인이 필요합니다.");
-    }
-
-    if (response.status === 404) {
-      throw new Error(
-        "사용자 정보를 찾을 수 없습니다.",
-      );
-    }
-
-    throw new Error(
-      "아이디 중복 확인에 실패했습니다.",
-    );
-  }
-
-  return response.json();
 }
 
-export async function updateMyProfile(
+export function updateMyProfile(
   data: UpdateProfileRequest,
-): Promise<MyPageResponse> {
-  const response = await fetch(
-    "/api/mypage/profile",
+) {
+  return apiClient<MyPageResponse>(
+    "/mypage/profile",
     {
       method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        ...getAuthorizationHeader(),
-      },
-      body: JSON.stringify(data),
+      body: data,
+      fallbackErrorMessage:
+        "프로필 수정에 실패했습니다.",
     },
   );
-
-  if (!response.ok) {
-    if (response.status === 400) {
-      throw new Error(
-        "아이디 또는 닉네임 형식이 올바르지 않습니다.",
-      );
-    }
-
-    if (response.status === 401) {
-      throw new Error("로그인이 필요합니다.");
-    }
-
-    if (response.status === 404) {
-      throw new Error(
-        "사용자 정보를 찾을 수 없습니다.",
-      );
-    }
-
-    if (response.status === 409) {
-      throw new Error(
-        "이미 사용 중인 아이디입니다.",
-      );
-    }
-
-    throw new Error(
-      "프로필 수정에 실패했습니다.",
-    );
-  }
-
-  return response.json();
 }
 
-export async function updateProfileImage(
+export function updateProfileImage(
   profileImageUrl: string | null,
-): Promise<MyPageResponse> {
-  const response = await fetch(
-    "/api/mypage/profile-image",
+) {
+  const data: UpdateProfileImageRequest = {
+    profileImageUrl,
+  };
+
+  return apiClient<MyPageResponse>(
+    "/mypage/profile-image",
     {
       method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        ...getAuthorizationHeader(),
-      },
-      body: JSON.stringify({
-        profileImageUrl,
-      }),
+      body: data,
+      fallbackErrorMessage:
+        "프로필 이미지 변경에 실패했습니다.",
     },
   );
-
-  if (!response.ok) {
-    if (response.status === 400) {
-      throw new Error(
-        "프로필 이미지 URL은 500자를 초과할 수 없습니다.",
-      );
-    }
-
-    if (response.status === 401) {
-      throw new Error("로그인이 필요합니다.");
-    }
-
-    if (response.status === 404) {
-      throw new Error(
-        "사용자 정보를 찾을 수 없습니다.",
-      );
-    }
-
-    throw new Error(
-      "프로필 이미지 변경에 실패했습니다.",
-    );
-  }
-
-  return response.json();
 }
 
-export async function updateFavoriteTeam(
+export function updateFavoriteTeam(
   favoriteTeamId: number,
-): Promise<MyPageResponse> {
-  const response = await fetch(
-    "/api/mypage/favorite-team",
+) {
+  const data: UpdateFavoriteTeamRequest = {
+    favoriteTeamId,
+  };
+
+  return apiClient<MyPageResponse>(
+    "/mypage/favorite-team",
     {
       method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        ...getAuthorizationHeader(),
-      },
-      body: JSON.stringify({
-        favoriteTeamId,
-      }),
+      body: data,
+      fallbackErrorMessage:
+        "응원 팀 변경에 실패했습니다.",
     },
   );
-
-  if (!response.ok) {
-    if (response.status === 400) {
-      throw new Error(
-        "응원 팀 ID가 올바르지 않습니다.",
-      );
-    }
-
-    if (response.status === 401) {
-      throw new Error("로그인이 필요합니다.");
-    }
-
-    if (response.status === 404) {
-      throw new Error(
-        "사용자 또는 응원 팀을 찾을 수 없습니다.",
-      );
-    }
-
-    throw new Error(
-      "응원 팀 변경에 실패했습니다.",
-    );
-  }
-
-  return response.json();
 }
