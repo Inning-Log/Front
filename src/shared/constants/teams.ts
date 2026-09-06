@@ -33,7 +33,7 @@ export type Team = {
 
 export const KBO_TEAMS: Team[] = [
   {
-    id: 1,
+    id: 2,
     name: "LG 트윈스",
     icon: lgTwinsIcon,
     mascotSize: {
@@ -42,7 +42,7 @@ export const KBO_TEAMS: Team[] = [
     },
   },
   {
-    id: 8,
+    id: 7,
     name: "한화 이글스",
     icon: hanwhaEaglesIcon,
     mascotSize: {
@@ -51,7 +51,7 @@ export const KBO_TEAMS: Team[] = [
     },
   },
   {
-    id: 3,
+    id: 9,
     name: "SSG 랜더스",
     icon: ssgLandersIcon,
     mascotSize: {
@@ -69,7 +69,7 @@ export const KBO_TEAMS: Team[] = [
     },
   },
   {
-    id: 6,
+    id: 1,
     name: "NC 다이노스",
     icon: ncDinosIcon,
     mascotSize: {
@@ -78,7 +78,7 @@ export const KBO_TEAMS: Team[] = [
     },
   },
   {
-    id: 7,
+    id: 4,
     name: "KT 위즈",
     icon: ktWizIcon,
     mascotSize: {
@@ -87,7 +87,7 @@ export const KBO_TEAMS: Team[] = [
     },
   },
   {
-    id: 9,
+    id: 10,
     name: "롯데 자이언츠",
     icon: lotteGiantsIcon,
     mascotSize: {
@@ -96,7 +96,7 @@ export const KBO_TEAMS: Team[] = [
     },
   },
   {
-    id: 4,
+    id: 8,
     name: "KIA 타이거즈",
     icon: kiaTigersIcon,
     mascotSize: {
@@ -105,7 +105,7 @@ export const KBO_TEAMS: Team[] = [
     },
   },
   {
-    id: 2,
+    id: 3,
     name: "두산 베어스",
     icon: doosanBearsIcon,
     mascotSize: {
@@ -114,7 +114,7 @@ export const KBO_TEAMS: Team[] = [
     },
   },
   {
-    id: 10,
+    id: 6,
     name: "키움 히어로즈",
     icon: kiwoomHeroesIcon,
     mascotSize: {
