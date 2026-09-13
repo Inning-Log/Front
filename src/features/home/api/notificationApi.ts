@@ -3,8 +3,12 @@ import { apiClient } from "../../../shared/api/apiClient";
 import type {
   NotificationListResponse,
   NotificationSettingsResponse,
+  PushRegistrationRequest,
+  PushRegistrationResponse,
   UpdateNotificationSettingsRequest,
 } from "../types/notification";
+
+
 
 export function getNotificationSettings() {
   return apiClient<NotificationSettingsResponse>("/api/notification-settings", {
@@ -46,4 +50,34 @@ export function readNotification(notificationId: number) {
     method: "PATCH",
     fallbackErrorMessage: "알림 읽음 처리에 실패했습니다.",
   });
+}
+
+export function registerPushNotification(
+  request: PushRegistrationRequest,
+) {
+  return apiClient<PushRegistrationResponse>(
+    "/notifications/push-registration",
+    {
+      method: "PUT",
+      body: request,
+      fallbackErrorMessage:
+        "푸시 알림 기기 등록에 실패했습니다.",
+    },
+  );
+}
+
+export function unregisterPushNotification(
+  installationId: string,
+) {
+  return apiClient<void>(
+    "/notifications/push-registration",
+    {
+      method: "DELETE",
+      params: {
+        installationId,
+      },
+      fallbackErrorMessage:
+        "푸시 알림 기기 해제에 실패했습니다.",
+    },
+  );
 }
