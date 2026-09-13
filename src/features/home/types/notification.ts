@@ -26,3 +26,16 @@ export type NotificationListResponse = {
   hasNext: boolean;
   unreadCount: number;
 };
+
+export type PushRegistrationRequest = {
+  platform: "WEB";
+  installationId: string;
+};
+
+export type PushRegistrationResponse = {
+  id: number;
+  platform: string;
+  installationId: string;
+  enabled: boolean;
+  lastSeenAt: string;
+};
