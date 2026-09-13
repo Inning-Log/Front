@@ -1,6 +1,6 @@
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
+import react from "@vitejs/plugin-react";
+import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig({
@@ -12,11 +12,25 @@ export default defineConfig({
       },
     },
   },
+
   plugins: [
     react(),
     tailwindcss(),
+
     VitePWA({
       registerType: "autoUpdate",
+
+      strategies: "injectManifest",
+      srcDir: "src",
+      filename: "firebase-messaging-sw.ts",
+
+      // Service Worker는 registerServiceWorker.ts에서 직접 등록
+      injectRegister: false,
+
+      devOptions: {
+        enabled: true,
+        type: "module",
+      },
 
       manifest: {
         name: "이닝로그",
@@ -45,8 +59,10 @@ export default defineConfig({
         ],
       },
 
-      workbox: {
-        cleanupOutdatedCaches: true,
+      injectManifest: {
+        globPatterns: [
+          "**/*.{js,css,html,ico,png,svg,webp}",
+        ],
       },
     }),
   ],
