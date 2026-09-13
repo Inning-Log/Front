@@ -6,7 +6,11 @@ export async function syncPushUserContext(
   }
 
   const registration =
-    await navigator.serviceWorker.ready;
+    await navigator.serviceWorker.getRegistration();
+
+  if (!registration) {
+    return;
+  }
 
   const message = {
     type: "SET_CURRENT_USER_ID",
@@ -15,10 +19,10 @@ export async function syncPushUserContext(
   };
 
   registration.active?.postMessage(message);
+  registration.waiting?.postMessage(message);
+  registration.installing?.postMessage(message);
 
-  if (navigator.serviceWorker.controller) {
-    navigator.serviceWorker.controller.postMessage(
-      message,
-    );
-  }
+  navigator.serviceWorker.controller?.postMessage(
+    message,
+  );
 }
