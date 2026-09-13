@@ -5,21 +5,28 @@ export async function registerFirebaseServiceWorker() {
     );
   }
 
-  const params = new URLSearchParams({
-    apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-    storageBucket:
-      import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-    messagingSenderId:
-      import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-    appId: import.meta.env.VITE_FIREBASE_APP_ID,
-  });
+  const existingRegistration =
+    await navigator.serviceWorker.getRegistration("/");
 
-  return navigator.serviceWorker.register(
-    `/firebase-messaging-sw.js?${params.toString()}`,
-    {
-      scope: "/",
-    },
-  );
+  if (existingRegistration) {
+    return existingRegistration;
+  }
+
+  const isProduction =
+    import.meta.env.MODE === "production";
+
+  const registration =
+    await navigator.serviceWorker.register(
+      isProduction
+        ? "/firebase-messaging-sw.js"
+        : "/dev-sw.js?dev-sw",
+      {
+        scope: "/",
+        type: isProduction
+          ? "classic"
+          : "module",
+      },
+    );
+
+  return registration;
 }
