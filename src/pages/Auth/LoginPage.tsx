@@ -4,9 +4,9 @@ import { useNavigate } from "react-router-dom";
 
 import { PageHeader } from "../../app/layouts/PageHeader";
 import { loginWithGoogle } from "../../features/auth/api/authApi";
+import { updateNotificationSettings } from "../../features/home/api/notificationApi";
 import { registerPushInstallation } from "../../shared/firebase/pushRegistration";
 import { requestNotificationPermission } from "../../shared/firebase/requestNotificationPermission";
-
 import { saveCurrentUserId } from "../../shared/firebase/pushUserStorage";
 import { syncPushUserContext } from "../../shared/firebase/pushUserContext";
 
@@ -63,15 +63,40 @@ export function LoginPage() {
 
       void (async () => {
         try {
-          const permissionGranted =
-            await requestNotificationPermission();
+          if (loginResponse.isNewUser) {
+            const permissionGranted =
+              await requestNotificationPermission();
 
-          if (permissionGranted) {
+            if (permissionGranted) {
+              await registerPushInstallation();
+
+              await updateNotificationSettings({
+                gameProgressEnabled: true,
+                recordReminderEnabled: true,
+                socialReactionEnabled: true,
+              });
+
+              return;
+            }
+
+            await updateNotificationSettings({
+              gameProgressEnabled: false,
+              recordReminderEnabled: false,
+              socialReactionEnabled: false,
+            });
+
+            return;
+          }
+
+          if (
+            "Notification" in window &&
+            Notification.permission === "granted"
+          ) {
             await registerPushInstallation();
           }
         } catch (error) {
           console.error(
-            "푸시 알림 등록 실패:",
+            "푸시 알림 초기 설정 실패:",
             error,
           );
         }
