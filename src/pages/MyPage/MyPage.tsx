@@ -13,7 +13,6 @@ import cameraIcon from "../../assets/icons/camera.svg";
 import defaultProfileIcon from "../../assets/icons/defaultprofile.svg";
 import { logout } from "../../features/auth/api/authApi";
 import { unregisterPushNotification } from "../../features/home/api/notificationApi";
-import { getPushInstallationId } from "../../shared/firebase/pushInstallationStorage";
 import {
   checkUsernameAvailability,
   getMyPage,
@@ -21,14 +20,11 @@ import {
   updateMyProfile,
   updateProfileImage,
 } from "../../features/mypage/api/mypage";
-import {
-  ApiError,
-} from "../../shared/api/apiClient";
+import { ApiError } from "../../shared/api/apiClient";
+import { clearAuthSession } from "../../shared/auth/clearAuthSession";
 import { KBO_TEAMS } from "../../shared/constants/teams";
+import { getPushInstallationId } from "../../shared/firebase/pushInstallationStorage";
 import { TeamMascot } from "../../shared/ui/TeamMascot";
-
-import { clearCurrentUserId } from "../../shared/firebase/pushUserStorage";
-import { syncPushUserContext } from "../../shared/firebase/pushUserContext";
 
 type ProfileForm = {
   nickname: string;
@@ -58,8 +54,7 @@ type UserIdStatus =
   | "success"
   | "error";
 
-const USERNAME_PATTERN =
-  /^[a-zA-Z0-9._]+$/;
+const USERNAME_PATTERN = /^[a-zA-Z0-9._]+$/;
 
 const emptyProfile: ProfileForm = {
   nickname: "",
@@ -68,14 +63,6 @@ const emptyProfile: ProfileForm = {
   favoriteTeamId: null,
   profileImage: defaultProfileIcon,
 };
-
-function clearAuthStorage() {
-  localStorage.removeItem("accessToken");
-  localStorage.removeItem("tokenType");
-  localStorage.removeItem(
-    "accessTokenExpiresAt",
-  );
-}
 
 function getUsernameValidationMessage(
   username: string,
@@ -229,8 +216,8 @@ export function MyPage() {
   ] = useState("");
 
   const redirectToLogin =
-    useCallback(() => {
-      clearAuthStorage();
+    useCallback(async () => {
+      await clearAuthSession();
 
       navigate("/login", {
         replace: true,
@@ -264,7 +251,7 @@ export function MyPage() {
           error instanceof ApiError &&
           error.status === 401
         ) {
-          redirectToLogin();
+          await redirectToLogin();
           return;
         }
 
@@ -374,11 +361,10 @@ export function MyPage() {
               }
 
               if (
-                error instanceof
-                  ApiError &&
+                error instanceof ApiError &&
                 error.status === 401
               ) {
-                redirectToLogin();
+                await redirectToLogin();
                 return;
               }
 
@@ -615,24 +601,23 @@ export function MyPage() {
           return;
         }
 
-        const profileData: ProfileForm =
-          {
-            nickname:
-              updatedProfile.nickname,
-            userId:
-              updatedProfile.username,
-            email:
-              updatedProfile.email,
-            favoriteTeamId:
-              updatedProfile
-                .favoriteTeam?.id ??
-              form.favoriteTeamId,
-            profileImage:
-              updatedProfile
-                .profileImageUrl ||
-              profile.profileImage ||
-              defaultProfileIcon,
-          };
+        const profileData: ProfileForm = {
+          nickname:
+            updatedProfile.nickname,
+          userId:
+            updatedProfile.username,
+          email:
+            updatedProfile.email,
+          favoriteTeamId:
+            updatedProfile
+              .favoriteTeam?.id ??
+            form.favoriteTeamId,
+          profileImage:
+            updatedProfile
+              .profileImageUrl ||
+            profile.profileImage ||
+            defaultProfileIcon,
+        };
 
         clearPreviewImage();
 
@@ -652,7 +637,7 @@ export function MyPage() {
           error instanceof ApiError &&
           error.status === 401
         ) {
-          redirectToLogin();
+          await redirectToLogin();
           return;
         }
 
@@ -715,12 +700,11 @@ export function MyPage() {
     }));
   };
 
-const handleLogout = async () => {
-  if (isLoggingOut) {
-    return;
-  }
+  const handleLogout = async () => {
+    if (isLoggingOut) {
+      return;
+    }
 
-  try {
     setIsLoggingOut(true);
     setLogoutErrorMessage("");
 
@@ -741,42 +725,41 @@ const handleLogout = async () => {
     }
 
     try {
-      await syncPushUserContext(null);
+      await logout();
+
+      await clearAuthSession();
+
+      navigate("/login", {
+        replace: true,
+      });
     } catch (error) {
+      if (
+        error instanceof ApiError &&
+        error.status === 401
+      ) {
+        await clearAuthSession();
+
+        navigate("/login", {
+          replace: true,
+        });
+
+        return;
+      }
+
+      setLogoutErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "로그아웃에 실패했습니다. 잠시 후 다시 시도해 주세요.",
+      );
+
       console.error(
-        "푸시 사용자 정보 초기화 실패:",
+        "로그아웃 중 오류가 발생했습니다.",
         error,
       );
+    } finally {
+      setIsLoggingOut(false);
     }
-
-    clearCurrentUserId();
-
-    await logout();
-
-    redirectToLogin();
-  } catch (error) {
-    if (
-      error instanceof ApiError &&
-      error.status === 401
-    ) {
-      redirectToLogin();
-      return;
-    }
-
-    setLogoutErrorMessage(
-      error instanceof Error
-        ? error.message
-        : "로그아웃에 실패했습니다. 잠시 후 다시 시도해 주세요.",
-    );
-
-    console.error(
-      "로그아웃 중 오류가 발생했습니다.",
-      error,
-    );
-  } finally {
-    setIsLoggingOut(false);
-  }
-};
+  };
 
   const isUserIdChanged =
     form.userId.trim() !==
@@ -980,9 +963,7 @@ const handleLogout = async () => {
                     className="absolute bottom-[3px] right-[3px] flex size-[28px] items-center justify-center rounded-full bg-text-secondary"
                   >
                     <img
-                      src={
-                        cameraIcon
-                      }
+                      src={cameraIcon}
                       alt=""
                       aria-hidden="true"
                       className="h-[13px] w-[15px]"
@@ -1059,7 +1040,7 @@ const handleLogout = async () => {
                   응원 팀
                 </p>
 
-                <div className="mt-[18px] flex items-center justify-between px-[10px]] pb-[6px]">
+                <div className="mt-[18px] flex items-center justify-between px-[10px] pb-[6px]">
                   <span className="text-label-3 font-medium leading-none text-text-secondary">
                     {selectedFormTeam
                       ?.name ??
@@ -1075,9 +1056,7 @@ const handleLogout = async () => {
 
               {updateErrorMessage && (
                 <p className="mt-[16px] text-center text-caption text-danger">
-                  {
-                    updateErrorMessage
-                  }
+                  {updateErrorMessage}
                 </p>
               )}
             </>
