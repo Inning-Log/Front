@@ -11,6 +11,8 @@ import { BottomBar } from "../../app/layouts/BottomBar";
 import { PageHeader } from "../../app/layouts/PageHeader";
 import cameraIcon from "../../assets/icons/camera.svg";
 import defaultProfileIcon from "../../assets/icons/defaultprofile.svg";
+import { logout } from "../../features/auth/api/authApi";
+import { unregisterPushNotification } from "../../features/home/api/notificationApi";
 import {
   checkUsernameAvailability,
   getMyPage,
@@ -18,10 +20,10 @@ import {
   updateMyProfile,
   updateProfileImage,
 } from "../../features/mypage/api/mypage";
-import {
-  ApiError,
-} from "../../shared/api/apiClient";
+import { ApiError } from "../../shared/api/apiClient";
+import { clearAuthSession } from "../../shared/auth/clearAuthSession";
 import { KBO_TEAMS } from "../../shared/constants/teams";
+import { getPushInstallationId } from "../../shared/firebase/pushInstallationStorage";
 import { TeamMascot } from "../../shared/ui/TeamMascot";
 
 type ProfileForm = {
@@ -52,8 +54,7 @@ type UserIdStatus =
   | "success"
   | "error";
 
-const USERNAME_PATTERN =
-  /^[a-zA-Z0-9._]+$/;
+const USERNAME_PATTERN = /^[a-zA-Z0-9._]+$/;
 
 const emptyProfile: ProfileForm = {
   nickname: "",
@@ -62,14 +63,6 @@ const emptyProfile: ProfileForm = {
   favoriteTeamId: null,
   profileImage: defaultProfileIcon,
 };
-
-function clearAuthStorage() {
-  localStorage.removeItem("accessToken");
-  localStorage.removeItem("tokenType");
-  localStorage.removeItem(
-    "accessTokenExpiresAt",
-  );
-}
 
 function getUsernameValidationMessage(
   username: string,
@@ -214,9 +207,17 @@ export function MyPage() {
     setUserIdFeedbackMessage,
   ] = useState("");
 
+  const [isLoggingOut, setIsLoggingOut] =
+    useState(false);
+
+  const [
+    logoutErrorMessage,
+    setLogoutErrorMessage,
+  ] = useState("");
+
   const redirectToLogin =
-    useCallback(() => {
-      clearAuthStorage();
+    useCallback(async () => {
+      await clearAuthSession();
 
       navigate("/login", {
         replace: true,
@@ -250,7 +251,7 @@ export function MyPage() {
           error instanceof ApiError &&
           error.status === 401
         ) {
-          redirectToLogin();
+          await redirectToLogin();
           return;
         }
 
@@ -360,11 +361,10 @@ export function MyPage() {
               }
 
               if (
-                error instanceof
-                  ApiError &&
+                error instanceof ApiError &&
                 error.status === 401
               ) {
-                redirectToLogin();
+                await redirectToLogin();
                 return;
               }
 
@@ -601,24 +601,23 @@ export function MyPage() {
           return;
         }
 
-        const profileData: ProfileForm =
-          {
-            nickname:
-              updatedProfile.nickname,
-            userId:
-              updatedProfile.username,
-            email:
-              updatedProfile.email,
-            favoriteTeamId:
-              updatedProfile
-                .favoriteTeam?.id ??
-              form.favoriteTeamId,
-            profileImage:
-              updatedProfile
-                .profileImageUrl ||
-              profile.profileImage ||
-              defaultProfileIcon,
-          };
+        const profileData: ProfileForm = {
+          nickname:
+            updatedProfile.nickname,
+          userId:
+            updatedProfile.username,
+          email:
+            updatedProfile.email,
+          favoriteTeamId:
+            updatedProfile
+              .favoriteTeam?.id ??
+            form.favoriteTeamId,
+          profileImage:
+            updatedProfile
+              .profileImageUrl ||
+            profile.profileImage ||
+            defaultProfileIcon,
+        };
 
         clearPreviewImage();
 
@@ -638,7 +637,7 @@ export function MyPage() {
           error instanceof ApiError &&
           error.status === 401
         ) {
-          redirectToLogin();
+          await redirectToLogin();
           return;
         }
 
@@ -699,6 +698,67 @@ export function MyPage() {
       ...previous,
       favoriteTeamId: teamId,
     }));
+  };
+
+  const handleLogout = async () => {
+    if (isLoggingOut) {
+      return;
+    }
+
+    setIsLoggingOut(true);
+    setLogoutErrorMessage("");
+
+    const installationId =
+      getPushInstallationId();
+
+    if (installationId) {
+      try {
+        await unregisterPushNotification(
+          installationId,
+        );
+      } catch (error) {
+        console.error(
+          "푸시 알림 비활성화 실패:",
+          error,
+        );
+      }
+    }
+
+    try {
+      await logout();
+
+      await clearAuthSession();
+
+      navigate("/login", {
+        replace: true,
+      });
+    } catch (error) {
+      if (
+        error instanceof ApiError &&
+        error.status === 401
+      ) {
+        await clearAuthSession();
+
+        navigate("/login", {
+          replace: true,
+        });
+
+        return;
+      }
+
+      setLogoutErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "로그아웃에 실패했습니다. 잠시 후 다시 시도해 주세요.",
+      );
+
+      console.error(
+        "로그아웃 중 오류가 발생했습니다.",
+        error,
+      );
+    } finally {
+      setIsLoggingOut(false);
+    }
   };
 
   const isUserIdChanged =
@@ -903,9 +963,7 @@ export function MyPage() {
                     className="absolute bottom-[3px] right-[3px] flex size-[28px] items-center justify-center rounded-full bg-text-secondary"
                   >
                     <img
-                      src={
-                        cameraIcon
-                      }
+                      src={cameraIcon}
                       alt=""
                       aria-hidden="true"
                       className="h-[13px] w-[15px]"
@@ -998,9 +1056,7 @@ export function MyPage() {
 
               {updateErrorMessage && (
                 <p className="mt-[16px] text-center text-caption text-danger">
-                  {
-                    updateErrorMessage
-                  }
+                  {updateErrorMessage}
                 </p>
               )}
             </>
@@ -1072,7 +1128,26 @@ export function MyPage() {
               >
                 친구
               </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  void handleLogout();
+                }}
+                disabled={isLoggingOut}
+                className="flex h-[58px] w-full items-center px-[16px] text-left text-label-3 text-danger disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isLoggingOut
+                  ? "로그아웃 중..."
+                  : "로그아웃"}
+              </button>
             </div>
+
+            {logoutErrorMessage && (
+              <p className="mt-[8px] px-[10px] text-caption text-danger">
+                {logoutErrorMessage}
+              </p>
+            )}
           </section>
         )}
       </main>

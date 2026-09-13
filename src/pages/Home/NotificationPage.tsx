@@ -1,113 +1,175 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { PageHeader } from "../../app/layouts/PageHeader";
+import {
+  acceptFriendRequest,
+  rejectFriendRequest,
+} from "../../features/friends/api/friendsApi";
+import {
+  getNotifications,
+  readNotification,
+} from "../../features/home/api/notificationApi";
 import { FriendRequestNotificationItem } from "../../features/home/components/FriendRequestNotificationItem";
 import {
   NotificationItem,
   type NotificationCategory,
 } from "../../features/home/components/NotificationItem";
+import type { NotificationResponse } from "../../features/home/types/notification";
 import { Toast } from "../../shared/ui/Toast";
 
 type NotificationTab = "request" | "game";
-
-type RequestNotification = {
-  id: number;
-  userId: string;
-  userName: string;
-};
-
-type GeneralNotification = {
-  id: number;
-  category: NotificationCategory;
-  message: string;
-};
 
 type ToastState = {
   open: boolean;
   message: string;
 };
 
-const initialRequestNotifications: RequestNotification[] = [
-  {
-    id: 1,
-    userId: "inning",
-    userName: "이닝로그",
-  },
-];
+const getNotificationCategory = (
+  notification: NotificationResponse,
+): NotificationCategory => {
+  if (notification.type.includes("GAME")) {
+    return "경기 알림";
+  }
 
-const gameNotifications: GeneralNotification[] = [
-  {
-    id: 1,
-    category: "친구 알림",
-    message: "@inning님이 댓글을 달았습니다.",
-  },
-  {
-    id: 2,
-    category: "친구 알림",
-    message: "@inning님이 친구신청을 수락했습니다.",
-  },
-  {
-    id: 3,
-    category: "경기 알림",
-    message: "1회가 시작되었습니다!",
-  },
-  {
-    id: 4,
-    category: "기록 알림",
-    message: "9회가 끝나기 전에 기록해주세요.",
-  },
-];
+  if (notification.type.includes("RECORD")) {
+    return "기록 알림";
+  }
+
+  return "친구 알림";
+};
 
 export function NotificationPage() {
   const [activeTab, setActiveTab] =
     useState<NotificationTab>("request");
 
-  const [requestNotifications, setRequestNotifications] = useState(
-    initialRequestNotifications,
-  );
+  const [notifications, setNotifications] = useState<
+    NotificationResponse[]
+  >([]);
 
   const [toast, setToast] = useState<ToastState>({
     open: false,
     message: "",
   });
 
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        const data = await getNotifications();
+
+        setNotifications(data.items);
+      } catch (error) {
+        console.error("알림 목록 조회 실패:", error);
+      }
+    };
+
+    void fetchNotifications();
+  }, []);
+
+  const requestNotifications = notifications.filter(
+    (notification) =>
+      notification.type === "FRIEND_REQUEST",
+  );
+
+  const generalNotifications = notifications.filter(
+    (notification) =>
+      notification.type !== "FRIEND_REQUEST",
+  );
+
   const hasNotifications =
     activeTab === "request"
       ? requestNotifications.length > 0
-      : gameNotifications.length > 0;
+      : generalNotifications.length > 0;
 
-  const removeRequestNotification = (notificationId: number) => {
-    setRequestNotifications((previousNotifications) =>
+  const removeNotification = (notificationId: number) => {
+    setNotifications((previousNotifications) =>
       previousNotifications.filter(
-        (notification) => notification.id !== notificationId,
+        (notification) =>
+          notification.id !== notificationId,
       ),
     );
   };
 
-  const handleAcceptRequest = (
-    notification: RequestNotification,
+  const handleAcceptRequest = async (
+    notification: NotificationResponse,
   ) => {
-    console.log(`${notification.userId} 친구 신청 수락`);
+    const friendshipId = Number(
+      notification.data.friendshipId,
+    );
 
-    removeRequestNotification(notification.id);
+    if (!friendshipId) {
+      console.error(
+        "친구 관계 ID를 확인할 수 없습니다.",
+        notification,
+      );
+      return;
+    }
 
-    setToast({
-      open: true,
-      message: "친구 신청을 수락했습니다!",
-    });
+    try {
+      await acceptFriendRequest(friendshipId);
+
+      removeNotification(notification.id);
+
+      setToast({
+        open: true,
+        message: "친구 신청을 수락했습니다!",
+      });
+    } catch (error) {
+      console.error("친구 신청 수락 실패:", error);
+    }
   };
 
-  const handleRejectRequest = (
-    notification: RequestNotification,
+  const handleRejectRequest = async (
+    notification: NotificationResponse,
   ) => {
-    console.log(`${notification.userId} 친구 신청 거절`);
+    const friendshipId = Number(
+      notification.data.friendshipId,
+    );
 
-    removeRequestNotification(notification.id);
+    if (!friendshipId) {
+      console.error(
+        "친구 관계 ID를 확인할 수 없습니다.",
+        notification,
+      );
+      return;
+    }
 
-    setToast({
-      open: true,
-      message: "친구 신청을 거절했습니다.",
-    });
+    try {
+      await rejectFriendRequest(friendshipId);
+
+      removeNotification(notification.id);
+
+      setToast({
+        open: true,
+        message: "친구 신청을 거절했습니다.",
+      });
+    } catch (error) {
+      console.error("친구 신청 거절 실패:", error);
+    }
+  };
+
+  const handleNotificationClick = async (
+    notification: NotificationResponse,
+  ) => {
+    if (notification.readAt) {
+      return;
+    }
+
+    try {
+      await readNotification(notification.id);
+
+      setNotifications((previousNotifications) =>
+        previousNotifications.map((item) =>
+          item.id === notification.id
+            ? {
+                ...item,
+                readAt: new Date().toISOString(),
+              }
+            : item,
+        ),
+      );
+    } catch (error) {
+      console.error("알림 읽음 처리 실패:", error);
+    }
   };
 
   const handleCloseToast = () => {
@@ -177,30 +239,47 @@ export function NotificationPage() {
             requestNotifications.map((notification) => (
               <FriendRequestNotificationItem
                 key={notification.id}
-                userId={notification.userId}
-                userName={notification.userName}
+                userId={
+                  notification.data.userId ?? ""
+                }
+                userName={
+                  notification.data.userName ??
+                  notification.title
+                }
                 onAccept={() =>
-                  handleAcceptRequest(notification)
+                  void handleAcceptRequest(notification)
                 }
                 onDelete={() =>
-                  handleRejectRequest(notification)
+                  void handleRejectRequest(notification)
                 }
               />
             ))
           ) : (
-            gameNotifications.map((notification) => (
-              <NotificationItem
+            generalNotifications.map((notification) => (
+              <button
                 key={notification.id}
-                category={notification.category}
-                message={notification.message}
-              />
+                type="button"
+                onClick={() =>
+                  void handleNotificationClick(
+                    notification,
+                  )
+                }
+                className="w-full"
+              >
+                <NotificationItem
+                  category={getNotificationCategory(
+                    notification,
+                  )}
+                  message={notification.body}
+                />
+              </button>
             ))
           )
         ) : (
           <p className="pt-[40px] text-label-4 text-text-tertiary">
             {activeTab === "request"
               ? "대기 중인 신청이 없습니다."
-              : "경기 알림이 없습니다."}
+              : "알림이 없습니다."}
           </p>
         )}
       </main>

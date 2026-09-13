@@ -15,6 +15,7 @@ import type { ProfileIdProps } from "../components/ProfileId";
 import type { ProfileNicknameProps } from "../components/ProfileNickname";
 import type { ProfileTeamProps } from "../components/ProfileTeam";
 import type { OnboardingStep } from "../types/onboarding";
+import { clearAuthSession } from "../../../shared/auth/clearAuthSession";
 
 type ProfileSetupStep = 1 | 2 | 3 | 4;
 type UsernameAvailabilityStatus =
@@ -26,12 +27,6 @@ type UsernameAvailabilityStatus =
   | "error";
 
 const USERNAME_PATTERN = /^[a-zA-Z0-9._]+$/;
-
-function clearAuthStorage() {
-  localStorage.removeItem("accessToken");
-  localStorage.removeItem("tokenType");
-  localStorage.removeItem("accessTokenExpiresAt");
-}
 
 function getRequestErrorMessage(error: unknown, fallbackMessage: string) {
   return error instanceof Error ? error.message : fallbackMessage;
@@ -131,8 +126,18 @@ export function useProfileSetup() {
   }, [navigate]);
 
   const redirectToLogin = useCallback(() => {
-    clearAuthStorage();
-    navigate("/login", { replace: true });
+    void clearAuthSession()
+      .catch((error) => {
+        console.error(
+          "인증 세션 정리 실패:",
+          error,
+        );
+      })
+      .finally(() => {
+        navigate("/login", {
+          replace: true,
+        });
+      });
   }, [navigate]);
 
   const handleUnauthorizedError = useCallback(
