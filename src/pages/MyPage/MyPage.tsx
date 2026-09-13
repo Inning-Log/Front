@@ -11,6 +11,9 @@ import { BottomBar } from "../../app/layouts/BottomBar";
 import { PageHeader } from "../../app/layouts/PageHeader";
 import cameraIcon from "../../assets/icons/camera.svg";
 import defaultProfileIcon from "../../assets/icons/defaultprofile.svg";
+import { logout } from "../../features/auth/api/authApi";
+import { unregisterPushNotification } from "../../features/home/api/notificationApi";
+import { getPushInstallationId } from "../../shared/firebase/pushInstallationStorage";
 import {
   checkUsernameAvailability,
   getMyPage,
@@ -23,6 +26,9 @@ import {
 } from "../../shared/api/apiClient";
 import { KBO_TEAMS } from "../../shared/constants/teams";
 import { TeamMascot } from "../../shared/ui/TeamMascot";
+
+import { clearCurrentUserId } from "../../shared/firebase/pushUserStorage";
+import { syncPushUserContext } from "../../shared/firebase/pushUserContext";
 
 type ProfileForm = {
   nickname: string;
@@ -212,6 +218,14 @@ export function MyPage() {
   const [
     userIdFeedbackMessage,
     setUserIdFeedbackMessage,
+  ] = useState("");
+
+  const [isLoggingOut, setIsLoggingOut] =
+    useState(false);
+
+  const [
+    logoutErrorMessage,
+    setLogoutErrorMessage,
   ] = useState("");
 
   const redirectToLogin =
@@ -701,6 +715,69 @@ export function MyPage() {
     }));
   };
 
+const handleLogout = async () => {
+  if (isLoggingOut) {
+    return;
+  }
+
+  try {
+    setIsLoggingOut(true);
+    setLogoutErrorMessage("");
+
+    const installationId =
+      getPushInstallationId();
+
+    if (installationId) {
+      try {
+        await unregisterPushNotification(
+          installationId,
+        );
+      } catch (error) {
+        console.error(
+          "푸시 알림 비활성화 실패:",
+          error,
+        );
+      }
+    }
+
+    try {
+      await syncPushUserContext(null);
+    } catch (error) {
+      console.error(
+        "푸시 사용자 정보 초기화 실패:",
+        error,
+      );
+    }
+
+    clearCurrentUserId();
+
+    await logout();
+
+    redirectToLogin();
+  } catch (error) {
+    if (
+      error instanceof ApiError &&
+      error.status === 401
+    ) {
+      redirectToLogin();
+      return;
+    }
+
+    setLogoutErrorMessage(
+      error instanceof Error
+        ? error.message
+        : "로그아웃에 실패했습니다. 잠시 후 다시 시도해 주세요.",
+    );
+
+    console.error(
+      "로그아웃 중 오류가 발생했습니다.",
+      error,
+    );
+  } finally {
+    setIsLoggingOut(false);
+  }
+};
+
   const isUserIdChanged =
     form.userId.trim() !==
     profile.userId;
@@ -982,7 +1059,7 @@ export function MyPage() {
                   응원 팀
                 </p>
 
-                <div className="mt-[18px] flex items-center justify-between px-[10px] pb-[6px]">
+                <div className="mt-[18px] flex items-center justify-between px-[10px]] pb-[6px]">
                   <span className="text-label-3 font-medium leading-none text-text-secondary">
                     {selectedFormTeam
                       ?.name ??
@@ -1072,7 +1149,26 @@ export function MyPage() {
               >
                 친구
               </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  void handleLogout();
+                }}
+                disabled={isLoggingOut}
+                className="flex h-[58px] w-full items-center px-[16px] text-left text-label-3 text-danger disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isLoggingOut
+                  ? "로그아웃 중..."
+                  : "로그아웃"}
+              </button>
             </div>
+
+            {logoutErrorMessage && (
+              <p className="mt-[8px] px-[10px] text-caption text-danger">
+                {logoutErrorMessage}
+              </p>
+            )}
           </section>
         )}
       </main>
