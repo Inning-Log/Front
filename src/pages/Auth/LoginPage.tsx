@@ -4,6 +4,11 @@ import { useNavigate } from "react-router-dom";
 
 import { PageHeader } from "../../app/layouts/PageHeader";
 import { loginWithGoogle } from "../../features/auth/api/authApi";
+import { registerPushInstallation } from "../../shared/firebase/pushRegistration";
+import { requestNotificationPermission } from "../../shared/firebase/requestNotificationPermission";
+
+import { saveCurrentUserId } from "../../shared/firebase/pushUserStorage";
+import { syncPushUserContext } from "../../shared/firebase/pushUserContext";
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -13,7 +18,9 @@ export function LoginPage() {
 
   const handleGoogleLogin = async (credential?: string) => {
     if (!credential) {
-      setErrorMessage("Google 로그인 정보를 받아오지 못했습니다.");
+      setErrorMessage(
+        "Google 로그인 정보를 받아오지 못했습니다.",
+      );
       return;
     }
 
@@ -21,7 +28,8 @@ export function LoginPage() {
     setIsLoggingIn(true);
 
     try {
-      const loginResponse = await loginWithGoogle(credential);
+      const loginResponse =
+        await loginWithGoogle(credential);
 
       localStorage.setItem(
         "accessToken",
@@ -38,13 +46,49 @@ export function LoginPage() {
         loginResponse.expiresAt,
       );
 
+      if (loginResponse.user?.id) {
+        saveCurrentUserId(
+          loginResponse.user.id,
+        );
+
+        void syncPushUserContext(
+          loginResponse.user.id,
+        ).catch((error) => {
+          console.error(
+            "푸시 사용자 정보 동기화 실패:",
+            error,
+          );
+        });
+      }
+
+      void (async () => {
+        try {
+          const permissionGranted =
+            await requestNotificationPermission();
+
+          if (permissionGranted) {
+            await registerPushInstallation();
+          }
+        } catch (error) {
+          console.error(
+            "푸시 알림 등록 실패:",
+            error,
+          );
+        }
+      })();
+
       const needsProfileSetup =
         loginResponse.isNewUser ||
         !loginResponse.user?.onboardingCompleted;
 
-      navigate(needsProfileSetup ? "/profile-setup" : "/home", {
-        replace: true,
-      });
+      navigate(
+        needsProfileSetup
+          ? "/profile-setup"
+          : "/home",
+        {
+          replace: true,
+        },
+      );
     } catch (error) {
       setErrorMessage(
         error instanceof Error
