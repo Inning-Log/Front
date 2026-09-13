@@ -30,14 +30,6 @@ export function PushRegistrationInitializer() {
         return;
       }
 
-      const currentUserId = getCurrentUserId();
-
-      if (currentUserId) {
-        await syncPushUserContext(
-          Number(currentUserId),
-        );
-      }
-
       if (
         !("Notification" in window) ||
         Notification.permission !== "granted"
@@ -47,6 +39,15 @@ export function PushRegistrationInitializer() {
 
       try {
         await registerPushInstallation();
+
+        const currentUserId =
+          getCurrentUserId();
+
+        if (currentUserId) {
+          await syncPushUserContext(
+            Number(currentUserId),
+          );
+        }
       } catch (error) {
         console.error(
           "푸시 알림 초기 등록 실패:",
