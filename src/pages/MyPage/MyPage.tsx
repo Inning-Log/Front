@@ -12,6 +12,8 @@ import { PageHeader } from "../../app/layouts/PageHeader";
 import cameraIcon from "../../assets/icons/camera.svg";
 import defaultProfileIcon from "../../assets/icons/defaultprofile.svg";
 import { logout } from "../../features/auth/api/authApi";
+import { unregisterPushNotification } from "../../features/home/api/notificationApi";
+import { getPushInstallationId } from "../../shared/firebase/pushInstallationStorage";
 import {
   checkUsernameAvailability,
   getMyPage,
@@ -24,6 +26,9 @@ import {
 } from "../../shared/api/apiClient";
 import { KBO_TEAMS } from "../../shared/constants/teams";
 import { TeamMascot } from "../../shared/ui/TeamMascot";
+
+import { clearCurrentUserId } from "../../shared/firebase/pushUserStorage";
+import { syncPushUserContext } from "../../shared/firebase/pushUserContext";
 
 type ProfileForm = {
   nickname: string;
@@ -710,41 +715,68 @@ export function MyPage() {
     }));
   };
 
-  const handleLogout = async () => {
-    if (isLoggingOut) {
-      return;
+const handleLogout = async () => {
+  if (isLoggingOut) {
+    return;
+  }
+
+  try {
+    setIsLoggingOut(true);
+    setLogoutErrorMessage("");
+
+    const installationId =
+      getPushInstallationId();
+
+    if (installationId) {
+      try {
+        await unregisterPushNotification(
+          installationId,
+        );
+      } catch (error) {
+        console.error(
+          "푸시 알림 비활성화 실패:",
+          error,
+        );
+      }
     }
 
     try {
-      setIsLoggingOut(true);
-      setLogoutErrorMessage("");
-
-      await logout();
-
-      redirectToLogin();
+      await syncPushUserContext(null);
     } catch (error) {
-      if (
-        error instanceof ApiError &&
-        error.status === 401
-      ) {
-        redirectToLogin();
-        return;
-      }
-
-      setLogoutErrorMessage(
-        error instanceof Error
-          ? error.message
-          : "로그아웃에 실패했습니다. 잠시 후 다시 시도해 주세요.",
-      );
-
       console.error(
-        "로그아웃 중 오류가 발생했습니다.",
+        "푸시 사용자 정보 초기화 실패:",
         error,
       );
-    } finally {
-      setIsLoggingOut(false);
     }
-  };
+
+    clearCurrentUserId();
+
+    await logout();
+
+    redirectToLogin();
+  } catch (error) {
+    if (
+      error instanceof ApiError &&
+      error.status === 401
+    ) {
+      redirectToLogin();
+      return;
+    }
+
+    setLogoutErrorMessage(
+      error instanceof Error
+        ? error.message
+        : "로그아웃에 실패했습니다. 잠시 후 다시 시도해 주세요.",
+    );
+
+    console.error(
+      "로그아웃 중 오류가 발생했습니다.",
+      error,
+    );
+  } finally {
+    setIsLoggingOut(false);
+  }
+};
 
   const isUserIdChanged =
     form.userId.trim() !==
