@@ -84,6 +84,7 @@ type DragState = {
   inning: number | null;
   isDragging: boolean;
   startX: number;
+  startY: number;
   scrollLeft: number;
 };
 
@@ -532,6 +533,7 @@ export function TimelinePage() {
       inning: null,
       isDragging: false,
       startX: 0,
+      startY: 0,
       scrollLeft: 0,
     });
 
@@ -1557,13 +1559,6 @@ export function TimelinePage() {
         PointerEvent<HTMLElement>,
       inning: number,
     ) => {
-      if (
-        event.pointerType !==
-        "mouse"
-      ) {
-        return;
-      }
-
       const container =
         scrollRefs.current[
           inning
@@ -1582,22 +1577,38 @@ export function TimelinePage() {
 
       dragState.current = {
         inning,
-
         isDragging:
           true,
-
         startX:
           event.clientX,
-
+        startY:
+          event.clientY,
         scrollLeft:
           container.scrollLeft,
       };
 
+      /*
+      * 손가락이 영역 밖으로 나가도
+      * pointer 이벤트 계속 받기
+      */
+      try {
+        container.setPointerCapture(
+          event.pointerId,
+        );
+      } catch {
+        // 일부 브라우저에서는 지원하지 않을 수 있음
+      }
+
       container.style.scrollSnapType =
         "none";
 
-      container.style.cursor =
-        "grabbing";
+      if (
+        event.pointerType ===
+        "mouse"
+      ) {
+        container.style.cursor =
+          "grabbing";
+      }
     };
 
   const handlePointerMove =
@@ -1607,13 +1618,6 @@ export function TimelinePage() {
 
       inning: number,
     ) => {
-      if (
-        event.pointerType !==
-        "mouse"
-      ) {
-        return;
-      }
-
       const container =
         scrollRefs.current[
           inning
@@ -1631,16 +1635,28 @@ export function TimelinePage() {
         return;
       }
 
-      event.preventDefault();
-
-      const movedDistance =
+      const movedX =
         event.clientX -
         currentDrag.startX;
 
+      const movedY =
+        event.clientY -
+        currentDrag.startY;
+
+      /*
+      * 세로 움직임이 더 큰 경우
+      * 페이지 세로 스크롤에 맡김
+      */
       if (
-        Math.abs(
-          movedDistance,
-        ) > 5
+        Math.abs(movedY) >
+        Math.abs(movedX)
+      ) {
+        return;
+      }
+
+      if (
+        Math.abs(movedX) >
+        5
       ) {
         preventClickRef.current =
           true;
@@ -1660,8 +1676,7 @@ export function TimelinePage() {
           () => {
             container.scrollLeft =
               currentDrag.scrollLeft -
-              movedDistance *
-                0.9;
+              movedX;
           },
         );
     };
@@ -1673,13 +1688,6 @@ export function TimelinePage() {
 
       inning: number,
     ) => {
-      if (
-        event.pointerType !==
-        "mouse"
-      ) {
-        return;
-      }
-
       const container =
         scrollRefs.current[
           inning
@@ -1701,6 +1709,7 @@ export function TimelinePage() {
         inning: null,
         isDragging: false,
         startX: 0,
+        startY: 0,
         scrollLeft: 0,
       };
 
@@ -1708,11 +1717,30 @@ export function TimelinePage() {
         return;
       }
 
+      try {
+        if (
+          container.hasPointerCapture(
+            event.pointerId,
+          )
+        ) {
+          container.releasePointerCapture(
+            event.pointerId,
+          );
+        }
+      } catch {
+        // 무시
+      }
+
       container.style.scrollSnapType =
         "x proximity";
 
-      container.style.cursor =
-        "grab";
+      if (
+        event.pointerType ===
+        "mouse"
+      ) {
+        container.style.cursor =
+          "grab";
+      }
     };
 
   const handleClickCapture =
@@ -2029,7 +2057,7 @@ export function TimelinePage() {
                   onClickCapture={
                     handleClickCapture
                   }
-                  className="scrollbar-hide flex w-full min-w-0 cursor-grab snap-x snap-proximity gap-[12px] overflow-x-auto overscroll-x-contain px-[16px] select-none [touch-action:pan-x]"
+                  className="scrollbar-hide flex w-full min-w-0 cursor-grab snap-x snap-proximity gap-[12px] overflow-x-auto overscroll-x-contain px-[16px] select-none [touch-action:pan-y]"
                 >
                   {inningRecords.map(
                     (record) => (
