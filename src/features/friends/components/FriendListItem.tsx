@@ -1,4 +1,5 @@
 import defaultProfileIcon from "../../../assets/icons/defaultprofile.svg";
+import deleteIcon from "../../../assets/icons/delete.svg";
 
 export type FriendListItemData = {
   friendshipId: number;
@@ -9,20 +10,25 @@ export type FriendListItemData = {
 
 type FriendListItemProps = {
   friend: FriendListItemData;
+  isDeleting?: boolean;
+  onDelete: () => void;
   onSelect: (userId: string) => void;
 };
 
 export function FriendListItem({
   friend,
+  isDeleting = false,
+  onDelete,
   onSelect,
 }: FriendListItemProps) {
   return (
-    <button
-      type="button"
-      onClick={() => onSelect(friend.username)}
-      className="flex h-[66px] w-full items-center border-b border-surface-secondary text-left"
-    >
-      <div className="flex h-full w-full items-center px-[10px]">
+    <div className="flex h-[66px] w-full items-center border-b border-surface-secondary">
+      <button
+        type="button"
+        onClick={() => onSelect(friend.username)}
+        disabled={isDeleting}
+        className="flex h-full min-w-0 flex-1 items-center px-[10px] text-left disabled:opacity-50"
+      >
         <div className="h-[44px] w-[44px] shrink-0 overflow-hidden rounded-full bg-text-tertiary">
           <img
             src={friend.profileImageUrl ?? defaultProfileIcon}
@@ -42,7 +48,21 @@ export function FriendListItem({
             {friend.nickname}
           </p>
         </div>
-      </div>
-    </button>
+      </button>
+
+      <button
+        type="button"
+        onClick={onDelete}
+        disabled={isDeleting}
+        aria-label={`${friend.username} 친구 삭제`}
+        className="mr-[10px] flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full disabled:opacity-50"
+      >
+        <img
+          src={deleteIcon}
+          alt=""
+          className="h-full w-full"
+        />
+      </button>
+    </div>
   );
 }

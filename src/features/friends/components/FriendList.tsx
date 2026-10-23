@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 
-import { getFriends } from "../api/friendsApi";
+import {
+  deleteFriendship,
+  getFriends,
+} from "../api/friendsApi";
 import type { FriendshipResponse } from "../types/friend";
 import { FriendListEmptyState } from "./FriendListEmptyState";
 import {
@@ -32,6 +35,9 @@ export function FriendList({
   const [friends, setFriends] = useState<FriendshipResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
+  const [deleteErrorMessage, setDeleteErrorMessage] = useState("");
+  const [deletingFriendshipId, setDeletingFriendshipId] =
+    useState<number | null>(null);
   const friendItems = friends.map(mapFriendshipToListItem);
 
   useEffect(() => {
@@ -58,6 +64,32 @@ export function FriendList({
     void fetchFriends();
   }, []);
 
+  const handleDeleteFriend = async (friendshipId: number) => {
+    if (deletingFriendshipId !== null) {
+      return;
+    }
+
+    setDeletingFriendshipId(friendshipId);
+    setDeleteErrorMessage("");
+
+    try {
+      await deleteFriendship(friendshipId);
+      setFriends((currentFriends) =>
+        currentFriends.filter(
+          (friendship) => friendship.id !== friendshipId,
+        ),
+      );
+    } catch (error) {
+      setDeleteErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "친구를 삭제하지 못했습니다.",
+      );
+    } finally {
+      setDeletingFriendshipId(null);
+    }
+  };
+
   if (isLoading) {
     return (
       <FriendListStatus message="친구 목록을 불러오는 중입니다." />
@@ -79,11 +111,26 @@ export function FriendList({
 
   return (
     <main className="mt-[66px] min-h-0 flex-1 overflow-y-auto px-[29px]">
+      {deleteErrorMessage && (
+        <p
+          role="alert"
+          className="mb-[8px] px-[10px] text-caption text-danger"
+        >
+          {deleteErrorMessage}
+        </p>
+      )}
+
       <div className="border-t-[1.5px] border-surface-secondary">
         {friendItems.map((friend) => (
           <FriendListItem
             key={friend.friendshipId}
             friend={friend}
+            isDeleting={
+              deletingFriendshipId === friend.friendshipId
+            }
+            onDelete={() => {
+              void handleDeleteFriend(friend.friendshipId);
+            }}
             onSelect={onSelectFriend}
           />
         ))}
