@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 
 import { ApiError } from "../../../shared/api/apiClient";
 import { getTeams } from "../../../shared/api/teamApi";
+import { clearAuthSession } from "../../../shared/auth/authSession";
 import type { TeamSummaryResponse } from "../../../shared/types/team";
 import {
   checkUsernameAvailability,
@@ -26,12 +27,6 @@ type UsernameAvailabilityStatus =
   | "error";
 
 const USERNAME_PATTERN = /^[a-zA-Z0-9._]+$/;
-
-function clearAuthStorage() {
-  localStorage.removeItem("accessToken");
-  localStorage.removeItem("tokenType");
-  localStorage.removeItem("accessTokenExpiresAt");
-}
 
 function getRequestErrorMessage(error: unknown, fallbackMessage: string) {
   return error instanceof Error ? error.message : fallbackMessage;
@@ -131,7 +126,7 @@ export function useProfileSetup() {
   }, [navigate]);
 
   const redirectToLogin = useCallback(() => {
-    clearAuthStorage();
+    clearAuthSession();
     navigate("/login", { replace: true });
   }, [navigate]);
 
