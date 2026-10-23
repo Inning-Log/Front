@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 
 import { ApiError } from "../../../shared/api/apiClient";
 import { getTeams } from "../../../shared/api/teamApi";
+import { clearAuthSession } from "../../../shared/auth/clearAuthSession";
 import type { TeamSummaryResponse } from "../../../shared/types/team";
 import {
   checkUsernameAvailability,
@@ -15,7 +16,6 @@ import type { ProfileIdProps } from "../components/ProfileId";
 import type { ProfileNicknameProps } from "../components/ProfileNickname";
 import type { ProfileTeamProps } from "../components/ProfileTeam";
 import type { OnboardingStep } from "../types/onboarding";
-import { clearAuthSession } from "../../../shared/auth/clearAuthSession";
 
 type ProfileSetupStep = 1 | 2 | 3 | 4;
 type UsernameAvailabilityStatus =

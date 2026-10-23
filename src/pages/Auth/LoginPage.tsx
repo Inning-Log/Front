@@ -1,10 +1,14 @@
 import { GoogleLogin } from "@react-oauth/google";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { PageHeader } from "../../app/layouts/PageHeader";
 import { loginWithGoogle } from "../../features/auth/api/authApi";
 import { updateNotificationSettings } from "../../features/home/api/notificationApi";
+import {
+  hasStoredAuthSession,
+  saveAuthSession,
+} from "../../shared/auth/authSession";
 import { registerPushInstallation } from "../../shared/firebase/pushRegistration";
 import { requestNotificationPermission } from "../../shared/firebase/requestNotificationPermission";
 import { saveCurrentUserId } from "../../shared/firebase/pushUserStorage";
@@ -15,6 +19,12 @@ export function LoginPage() {
 
   const [errorMessage, setErrorMessage] = useState("");
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+
+  useEffect(() => {
+    if (hasStoredAuthSession()) {
+      navigate("/", { replace: true });
+    }
+  }, [navigate]);
 
   const handleGoogleLogin = async (credential?: string) => {
     if (!credential) {
@@ -31,20 +41,13 @@ export function LoginPage() {
       const loginResponse =
         await loginWithGoogle(credential);
 
-      localStorage.setItem(
-        "accessToken",
-        loginResponse.accessToken,
-      );
-
-      localStorage.setItem(
-        "tokenType",
-        loginResponse.tokenType,
-      );
-
-      localStorage.setItem(
-        "accessTokenExpiresAt",
-        loginResponse.expiresAt,
-      );
+      saveAuthSession({
+        accessToken: loginResponse.accessToken,
+        accessTokenExpiresAt: loginResponse.expiresAt,
+        refreshToken: loginResponse.refreshToken,
+        refreshTokenExpiresAt: loginResponse.refreshTokenExpiresAt,
+        tokenType: loginResponse.tokenType,
+      });
 
       if (loginResponse.user?.id) {
         saveCurrentUserId(

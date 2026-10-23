@@ -5,6 +5,9 @@ import splash01 from "../../assets/splash/splash01.png";
 import splash02 from "../../assets/splash/splash02.png";
 import splash03 from "../../assets/splash/splash03.png";
 import splash04 from "../../assets/splash/splash04.png";
+import { getCurrentUser } from "../../features/auth/api/authApi";
+import { hasStoredAuthSession } from "../../shared/auth/authSession";
+import { clearAuthSession } from "../../shared/auth/clearAuthSession";
 
 const splashFrames = [
   splash01,
@@ -20,17 +23,54 @@ export function SplashPage() {
   const [frameIndex, setFrameIndex] = useState(0);
 
   useEffect(() => {
+    let isCancelled = false;
+
     const frameTimer = setInterval(() => {
       setFrameIndex((prev) => (prev + 1) % splashFrames.length);
     }, 220);
 
-    const navigationTimer = setTimeout(() => {
-      navigate("/login");
-    }, 3000);
+    const minimumSplashTime = new Promise<void>((resolve) => {
+      window.setTimeout(resolve, 3000);
+    });
+
+    const resolveInitialRoute = async () => {
+      if (!hasStoredAuthSession()) {
+        return "/login";
+      }
+
+      try {
+        const currentUser = await getCurrentUser();
+
+        if (!currentUser.user) {
+          await clearAuthSession();
+          return "/login";
+        }
+
+        return currentUser.user.onboardingCompleted
+          ? "/home"
+          : "/profile-setup";
+      } catch {
+        await clearAuthSession();
+        return "/login";
+      }
+    };
+
+    const continueToApp = async () => {
+      const [initialRoute] = await Promise.all([
+        resolveInitialRoute(),
+        minimumSplashTime,
+      ]);
+
+      if (!isCancelled) {
+        navigate(initialRoute, { replace: true });
+      }
+    };
+
+    void continueToApp();
 
     return () => {
+      isCancelled = true;
       clearInterval(frameTimer);
-      clearTimeout(navigationTimer);
     };
   }, [navigate]);
 

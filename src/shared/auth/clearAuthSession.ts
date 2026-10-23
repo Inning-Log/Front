@@ -1,5 +1,6 @@
 import { clearCurrentUserId } from "../firebase/pushUserStorage";
 import { syncPushUserContext } from "../firebase/pushUserContext";
+import { clearStoredAuthSession } from "./authSession";
 
 export async function clearAuthSession() {
   try {
@@ -12,10 +13,5 @@ export async function clearAuthSession() {
   }
 
   clearCurrentUserId();
-
-  localStorage.removeItem("accessToken");
-  localStorage.removeItem("tokenType");
-  localStorage.removeItem(
-    "accessTokenExpiresAt",
-  );
+  clearStoredAuthSession();
 }

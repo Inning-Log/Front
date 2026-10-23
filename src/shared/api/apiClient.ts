@@ -1,3 +1,11 @@
+import {
+  getAccessToken,
+  getRefreshToken,
+  getTokenType,
+  saveAuthSession,
+} from "../auth/authSession";
+import { clearAuthSession } from "../auth/clearAuthSession";
+
 const API_BASE_PATH = "/api";
 
 type ApiClientOptions = Omit<RequestInit, "body" | "headers"> & {
@@ -13,6 +21,16 @@ type ApiErrorResponse = {
   error?: string;
   message?: string;
 };
+
+type TokenRefreshResponse = {
+  accessToken: string;
+  accessTokenExpiresAt: string;
+  refreshToken: string;
+  refreshTokenExpiresAt: string;
+  tokenType: string;
+};
+
+let refreshRequest: Promise<boolean> | null = null;
 
 export class ApiError extends Error {
   code?: string;
@@ -79,15 +97,61 @@ function appendParams(
 }
 
 function getAuthHeader() {
-  const accessToken = localStorage.getItem("accessToken");
+  const accessToken = getAccessToken();
 
   if (!accessToken) {
     return null;
   }
 
-  const tokenType = localStorage.getItem("tokenType") || "Bearer";
+  return `${getTokenType()} ${accessToken}`;
+}
 
-  return `${tokenType} ${accessToken}`;
+function refreshAuthSession() {
+  if (refreshRequest) {
+    return refreshRequest;
+  }
+
+  refreshRequest = (async () => {
+    const refreshToken = getRefreshToken();
+
+    if (!refreshToken) {
+      return false;
+    }
+
+    try {
+      const response = await fetch(resolveApiUrl("/auth/refresh"), {
+        body: JSON.stringify({ refreshToken }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      });
+
+      if (!response.ok) {
+        await clearAuthSession();
+        return false;
+      }
+
+      const tokens = (await response.json()) as TokenRefreshResponse;
+
+      if (
+        !tokens.accessToken ||
+        !tokens.refreshToken ||
+        !tokens.accessTokenExpiresAt ||
+        !tokens.refreshTokenExpiresAt
+      ) {
+        await clearAuthSession();
+        return false;
+      }
+
+      saveAuthSession(tokens);
+      return true;
+    } catch {
+      return false;
+    }
+  })().finally(() => {
+    refreshRequest = null;
+  });
+
+  return refreshRequest;
 }
 
 async function parseErrorMessage(
@@ -149,11 +213,29 @@ export async function apiClient<TResponse>(
     }
   }
 
-  const response = await fetch(appendParams(resolveApiUrl(path), params), {
-    ...requestInit,
-    body: isFormDataBody ? body : hasBody ? JSON.stringify(body) : undefined,
-    headers: requestHeaders,
-  });
+  const url = appendParams(resolveApiUrl(path), params);
+  const requestBody = isFormDataBody
+    ? body
+    : hasBody
+      ? JSON.stringify(body)
+      : undefined;
+  const sendRequest = () =>
+    fetch(url, {
+      ...requestInit,
+      body: requestBody,
+      headers: requestHeaders,
+    });
+
+  let response = await sendRequest();
+
+  if (auth && response.status === 401 && (await refreshAuthSession())) {
+    const refreshedAuthHeader = getAuthHeader();
+
+    if (refreshedAuthHeader) {
+      requestHeaders.set("Authorization", refreshedAuthHeader);
+      response = await sendRequest();
+    }
+  }
 
   if (!response.ok) {
     const { code, message } = await parseErrorMessage(
