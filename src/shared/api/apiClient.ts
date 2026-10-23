@@ -1,10 +1,10 @@
 import {
-  clearAuthSession,
   getAccessToken,
   getRefreshToken,
   getTokenType,
   saveAuthSession,
 } from "../auth/authSession";
+import { clearAuthSession } from "../auth/clearAuthSession";
 
 const API_BASE_PATH = "/api";
 
@@ -126,7 +126,7 @@ function refreshAuthSession() {
       });
 
       if (!response.ok) {
-        clearAuthSession();
+        await clearAuthSession();
         return false;
       }
 
@@ -138,7 +138,7 @@ function refreshAuthSession() {
         !tokens.accessTokenExpiresAt ||
         !tokens.refreshTokenExpiresAt
       ) {
-        clearAuthSession();
+        await clearAuthSession();
         return false;
       }
 

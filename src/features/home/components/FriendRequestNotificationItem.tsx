@@ -1,5 +1,5 @@
+import defaultProfileIcon from "../../../assets/icons/defaultprofile.svg";
 import deleteIcon from "../../../assets/icons/delete.svg";
-import profileMockIcon from "../../../assets/icons/profilemock.svg";
 import selectedCheckIcon from "../../../assets/icons/selected_check.svg";
 
 type FriendRequestNotificationItemProps = {
@@ -13,15 +13,19 @@ type FriendRequestNotificationItemProps = {
 export function FriendRequestNotificationItem({
   userId,
   userName,
-  profileImage = profileMockIcon,
+  profileImage,
   onAccept,
   onDelete,
 }: FriendRequestNotificationItemProps) {
   return (
     <article className="flex h-[66px] w-[calc(100%_-_32px)] max-w-[398px] items-center rounded-[37.5px] bg-white px-[14px] shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
       <img
-        src={profileImage}
+        src={profileImage || defaultProfileIcon}
         alt=""
+        onError={(event) => {
+          event.currentTarget.onerror = null;
+          event.currentTarget.src = defaultProfileIcon;
+        }}
         className="h-[44px] w-[44px] shrink-0 rounded-full object-cover"
       />
 

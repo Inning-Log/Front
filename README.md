@@ -1,75 +1,198 @@
-# React + TypeScript + Vite
+# ⚾ InningLog
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+> 야구 관람의 순간과 기록을 한곳에 남기는 야구 기록 서비스
 
-Currently, two official plugins are available:
+InningLog는 야구팬이 직관·집관 기록을 남기고, 경기 일정과 다른 사용자의 기록을 확인할 수 있는 웹 서비스입니다.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+개인 기록 관리뿐 아니라 친구와 타임라인을 공유하며 야구 관람 경험을 함께 쌓을 수 있도록 기획했습니다.
 
-## React Compiler
+🔗 [서비스 바로가기](https://inning-log.vercel.app/)
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+---
 
-## Expanding the ESLint configuration
+## 📌 Project Overview
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+- 개발 기간: 2026.03 ~ 진행 중
+- 서비스 형태: 반응형 웹
+- 배포: Vercel
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+---
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+## 💡 Background
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+야구팬은 경기 결과뿐 아니라 관람 날짜, 장소, 응원팀, 사진과 감상 등 다양한 기록을 남깁니다.
+
+하지만 이러한 기록이 사진 앱, 메모, SNS 등에 분산되어 있어 과거의 관람 경험을 체계적으로 확인하기 어렵다는 문제가 있었습니다.
+
+InningLog는 야구 관람 기록과 경기 일정을 하나의 서비스에서 관리하고, 친구와 기록을 공유할 수 있도록 기획한 서비스입니다.
+
+---
+
+## ✨ Key Features
+
+### 🔐 사용자 인증 및 온보딩
+
+- Google OAuth 기반 로그인
+- 신규 사용자의 아이디·닉네임 입력
+- 선호 구단 선택
+- 온보딩 진행 상태 관리
+- 인증 및 온보딩 오류 처리
+
+### 👤 프로필 및 마이페이지
+
+- 사용자 프로필 조회 및 수정
+- 아이디 중복 확인
+- 프로필 이미지 등록 및 변경
+- 이미지 로드 실패 시 기본 이미지 제공
+- 선호 구단 조회 및 변경
+
+### ⚾ 야구 관람 기록
+
+- 직관·집관 기록 작성
+- 촬영 및 기록 문구 작성
+- 관람 장소 선택
+- 이닝별 기록 관리
+- 기록 완료 후 타임라인 연결
+
+### 📝 타임라인
+
+- 사용자별 관람 기록 조회
+- 이닝별 기록 및 경기 정보 확인
+- 기록 상세 모달
+- 내 타임라인과 친구 타임라인 조회
+- 과거 경기 기록 조회
+- 프로필 목록 가로 탐색
+
+### 🎥 기록 저장 및 공유
+
+- 기록 저장 형식 선택
+- 영상 저장용 이닝 카드
+- 영상 템플릿 미리보기
+- 친구와 함께한 기록 저장
+- 저장 과정의 로딩 및 완료 상태 처리
+
+### 👥 친구
+
+- 사용자 검색
+- 친구 요청 전송
+- 친구 요청 수락 및 거절
+- 친구 목록 조회
+- 로딩·오류·빈 상태 처리
+
+### 🔔 알림
+
+- 친구 요청 알림
+- 일반 알림
+- 알림 유형별 탭
+- 알림 설정 및 토글 관리
+- 알림 결과에 대한 토스트 제공
+
+### 📱 모바일 웹 및 PWA
+
+- 모바일 화면을 기준으로 한 반응형 레이아웃
+- 모바일 viewport 설정
+- PWA 앱 아이콘 및 기본 환경 구성
+- Vercel 기반 배포
+
+---
+
+## 🛠 Tech Stack
+
+### Frontend
+
+- React
+- TypeScript
+- React Router
+
+### Styling
+
+- Tailwind CSS
+
+### Authentication
+
+- Google OAuth
+
+### Development
+
+- Vite
+- ESLint
+
+### Deployment
+
+- Vercel
+- Vite PWA
+
+### Version Control
+
+- Git
+- GitHub
+
+---
+
+## 📁 Project Structure
+
+```text
+src/
+├── app/                 # 라우터, Provider, 공통 레이아웃
+├── assets/              # 이미지 및 정적 리소스
+├── features/            # 도메인별 기능
+│   ├── auth/            # 인증
+│   ├── friends/         # 친구
+│   ├── home/            # 홈
+│   ├── mypage/          # 마이페이지
+│   ├── onboarding/      # 온보딩
+│   ├── record/          # 관람 기록
+│   └── timeline/        # 타임라인
+├── pages/               # 라우트 단위 페이지
+├── shared/              # 공통 모듈
+│   ├── api/             # 공통 API 통신
+│   ├── config/          # 환경 및 서비스 설정
+│   ├── constants/       # 공통 상수
+│   ├── hooks/           # 공통 Custom Hook
+│   ├── lib/             # 외부 라이브러리 설정
+│   ├── types/           # 공통 타입
+│   └── ui/              # 공통 UI 컴포넌트
+└── styles/              # 전역 스타일
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+기능 단위로 코드를 분리하고, 여러 기능에서 함께 사용하는 API·타입·UI 요소는 `shared` 영역에서 관리했습니다.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+---
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
-# Front
-Inning Log frontend repository
+## 👩‍💻 Contributors & Features
+
+### heexion
+
+- 프로젝트 초기 환경, 모바일 중심 레이아웃 및 라우팅 구조 구성
+- 관람 기록 작성과 이닝별 기록 관리 기능 구현
+- 사용자·친구별 타임라인과 과거 경기 기록 조회 기능 구현
+- 기록 영상 저장 및 친구와 함께 저장하는 흐름 구현
+- 마이페이지 프로필 조회·수정 및 선호 구단 변경 API 연동
+- 일반 알림·친구 요청 알림 및 알림 설정 기능 구현
+- Google OAuth 적용 및 공통 API 통신 구조 개선
+- PWA 및 Vercel 배포 환경 구성
+
+### wooooyun
+
+- 프로젝트 공통 폴더 구조와 재사용 UI 컴포넌트 구성
+- 로그인 이후 아이디·닉네임·선호 구단을 입력하는 온보딩 흐름 구현
+- Google 로그인 및 온보딩 관련 API 연동
+- 홈 화면과 사용자 검색·친구 추가 화면 구현
+- 친구 검색, 친구 목록 조회 및 친구 요청 API 연동
+- 친구 기능의 로딩·오류·빈 상태 처리
+
+---
+
+## 🔍 Technical Highlights
+
+### 공통 API 통신 구조 개선
+
+기능별 API 요청에서 반복되던 공통 설정을 하나의 API 클라이언트로 통합했습니다. 이를 통해 API 요청 방식을 일관되게 관리하고 새로운 기능을 추가할 때 발생하는 중복을 줄였습니다.
+
+### 사용자 상태별 화면 처리
+
+친구 목록, 사용자 검색, 알림, 프로필 이미지 등 서버 응답에 따라 여러 상태가 발생하는 기능에 로딩·오류·빈 상태·기본 이미지 처리를 적용했습니다.
+
+### 기록 저장 흐름 구성
+
+사용자가 기록 저장 방식을 선택하고, 친구를 지정하고, 템플릿을 확인한 뒤 저장을 완료하는 과정을 여러 화면과 상태로 분리했습니다. 저장 중 로딩과 완료 피드백을 제공하여 사용자가 현재 진행 상태를 확인할 수 있도록 구현했습니다.

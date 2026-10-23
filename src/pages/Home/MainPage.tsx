@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import { BottomBar } from "../../app/layouts/BottomBar";
@@ -6,6 +6,7 @@ import { PageHeader } from "../../app/layouts/PageHeader";
 import addFriendIcon from "../../assets/icons/addfriend.svg";
 import notificationIcon from "../../assets/icons/notification.svg";
 import rightArrowIcon from "../../assets/icons/rightarrow.svg";
+import { getNotifications } from "../../features/home/api/notificationApi";
 import {
   InningCalendar,
   type CalendarRecord,
@@ -24,7 +25,25 @@ const sampleRecords: CalendarRecord[] = [
 
 export function MainPage() {
   const navigate = useNavigate();
+
   const [month, setMonth] = useState(() => new Date(2026, 5, 1));
+
+  const [hasUnreadNotification, setHasUnreadNotification] =
+    useState(false);
+
+  useEffect(() => {
+    const fetchUnreadNotificationStatus = async () => {
+      try {
+        const data = await getNotifications();
+
+        setHasUnreadNotification(data.unreadCount > 0);
+      } catch (error) {
+        console.error("알림 미읽음 여부 조회 실패:", error);
+      }
+    };
+
+    void fetchUnreadNotificationStatus();
+  }, []);
 
   const goToPreviousMonth = () => {
     setMonth(
@@ -70,6 +89,7 @@ export function MainPage() {
                 to="/home/notifications"
                 iconSrc={notificationIcon}
                 label="알림"
+                showBadge={hasUnreadNotification}
               />
             </div>
           }
@@ -144,12 +164,14 @@ type HeaderIconLinkProps = {
   to: string;
   iconSrc: string;
   label: string;
+  showBadge?: boolean;
 };
 
 function HeaderIconLink({
   to,
   iconSrc,
   label,
+  showBadge = false,
 }: HeaderIconLinkProps) {
   return (
     <Link
@@ -163,7 +185,9 @@ function HeaderIconLink({
         className="h-[22px] w-auto"
       />
 
-      <span className="absolute right-[-2px] top-[-4px] h-[7px] w-[7px] rounded-full bg-danger" />
+      {showBadge && (
+        <span className="absolute right-[-2px] top-[-4px] h-[7px] w-[7px] rounded-full bg-danger" />
+      )}
     </Link>
   );
 }

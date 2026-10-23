@@ -20,7 +20,7 @@ export function saveAuthSession(tokens: AuthTokenSet) {
   });
 }
 
-export function clearAuthSession() {
+export function clearStoredAuthSession() {
   Object.values(AUTH_STORAGE_KEYS).forEach((key) => {
     localStorage.removeItem(key);
   });

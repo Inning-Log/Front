@@ -6,10 +6,8 @@ import splash02 from "../../assets/splash/splash02.png";
 import splash03 from "../../assets/splash/splash03.png";
 import splash04 from "../../assets/splash/splash04.png";
 import { getCurrentUser } from "../../features/auth/api/authApi";
-import {
-  clearAuthSession,
-  hasStoredAuthSession,
-} from "../../shared/auth/authSession";
+import { hasStoredAuthSession } from "../../shared/auth/authSession";
+import { clearAuthSession } from "../../shared/auth/clearAuthSession";
 
 const splashFrames = [
   splash01,
@@ -44,7 +42,7 @@ export function SplashPage() {
         const currentUser = await getCurrentUser();
 
         if (!currentUser.user) {
-          clearAuthSession();
+          await clearAuthSession();
           return "/login";
         }
 
@@ -52,7 +50,7 @@ export function SplashPage() {
           ? "/home"
           : "/profile-setup";
       } catch {
-        clearAuthSession();
+        await clearAuthSession();
         return "/login";
       }
     };

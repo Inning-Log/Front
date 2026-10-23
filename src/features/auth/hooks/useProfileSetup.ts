@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 
 import { ApiError } from "../../../shared/api/apiClient";
 import { getTeams } from "../../../shared/api/teamApi";
-import { clearAuthSession } from "../../../shared/auth/authSession";
+import { clearAuthSession } from "../../../shared/auth/clearAuthSession";
 import type { TeamSummaryResponse } from "../../../shared/types/team";
 import {
   checkUsernameAvailability,
@@ -126,8 +126,18 @@ export function useProfileSetup() {
   }, [navigate]);
 
   const redirectToLogin = useCallback(() => {
-    clearAuthSession();
-    navigate("/login", { replace: true });
+    void clearAuthSession()
+      .catch((error) => {
+        console.error(
+          "인증 세션 정리 실패:",
+          error,
+        );
+      })
+      .finally(() => {
+        navigate("/login", {
+          replace: true,
+        });
+      });
   }, [navigate]);
 
   const handleUnauthorizedError = useCallback(
