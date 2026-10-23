@@ -13,6 +13,8 @@ import {
   useSearchParams,
 } from "react-router-dom";
 
+
+
 import { BottomBar } from "../../app/layouts/BottomBar";
 import { PageHeader } from "../../app/layouts/PageHeader";
 
@@ -35,7 +37,20 @@ import {
   type InningRecord,
 } from "../../features/timeline/components/InningCard";
 
-import { InningDetailModal } from "../../features/timeline/components/InningDetailModal";
+import {
+  deleteInningRecord,
+} from "../../features/record/api/inningRecordApi";
+
+import type {
+  InningRecordResponse,
+} from "../../features/record/types/inningRecord";
+
+import {
+  InningDetailModal,
+  type InningDetailMode,
+} from "../../features/timeline/components/InningDetailModal";
+
+import { InningRecordDeleteConfirmModal } from "../../features/timeline/components/InningRecordDeleteConfirmModal";
 import { TimelineGameScore } from "../../features/timeline/components/TimelineGameScore";
 import { TimelineProfileList } from "../../features/timeline/components/TimelineProfileList";
 import { TimelineShareModal } from "../../features/timeline/components/TimelineShareModal";
@@ -459,6 +474,34 @@ export function TimelinePage() {
 
   const preventClickRef =
     useRef(false);
+
+    const [
+      selectedRecordMode,
+      setSelectedRecordMode,
+    ] =
+      useState<InningDetailMode>(
+        "view",
+      );
+
+    const [
+      pendingDeleteRecord,
+      setPendingDeleteRecord,
+    ] =
+      useState<InningRecord | null>(
+        null,
+      );
+
+    const [
+      isDeletingRecord,
+      setIsDeletingRecord,
+    ] =
+      useState(false);
+
+    const [
+      deleteRecordError,
+      setDeleteRecordError,
+    ] =
+      useState("");
 
   /**
    * 최초 타임라인 조회
@@ -943,18 +986,187 @@ export function TimelinePage() {
       );
     };
 
-  const handleOpenRecord =
-    (
-      record: InningRecord,
-    ) => {
+  const handleOpenRecord = (
+    record: InningRecord,
+  ) => {
+    if (
+      preventClickRef.current
+    ) {
+      return;
+    }
+
+    setSelectedRecordMode(
+      "view",
+    );
+
+    setSelectedRecord(
+      record,
+    );
+  };
+
+  const handleEditRecord = (
+    record: InningRecord,
+  ) => {
+    setSelectedRecordMode(
+      "edit",
+    );
+
+    setSelectedRecord(
+      record,
+    );
+  };
+
+  const handleRequestDeleteRecord = (
+    record: InningRecord,
+  ) => {
+    setDeleteRecordError(
+      "",
+    );
+
+    setPendingDeleteRecord(
+      record,
+    );
+  };
+
+  const handleDeleteRecord =
+    async () => {
       if (
-        preventClickRef.current
+        !pendingDeleteRecord ||
+        isDeletingRecord
       ) {
         return;
       }
 
+      const recordId =
+        Number(
+          pendingDeleteRecord.id,
+        );
+
+      if (
+        !Number.isSafeInteger(
+          recordId,
+        ) ||
+        recordId <= 0
+      ) {
+        setDeleteRecordError(
+          "올바르지 않은 기록입니다.",
+        );
+
+        return;
+      }
+
+      try {
+        setIsDeletingRecord(
+          true,
+        );
+
+        setDeleteRecordError(
+          "",
+        );
+
+        await deleteInningRecord(
+          recordId,
+        );
+
+        /*
+        * 서버 삭제 성공 후
+        * 현재 타임라인 state에서도 즉시 제거.
+        *
+        * 페이지 새로고침 필요 없음.
+        */
+        setRecords(
+          (
+            previousRecords,
+          ) =>
+            previousRecords.filter(
+              (record) =>
+                record.id !==
+                recordId,
+            ),
+        );
+
+        if (
+          selectedRecord?.id ===
+          String(recordId)
+        ) {
+          setSelectedRecord(
+            null,
+          );
+        }
+
+        setPendingDeleteRecord(
+          null,
+        );
+      } catch (error) {
+        console.error(
+          "이닝 기록 삭제 실패:",
+          error,
+        );
+
+        setDeleteRecordError(
+          error instanceof
+            Error
+            ? error.message
+            : "이닝 기록을 삭제하지 못했습니다.",
+        );
+      } finally {
+        setIsDeletingRecord(
+          false,
+        );
+      }
+    };
+
+    const handleRecordUpdated = (
+      updated:
+        InningRecordResponse,
+    ) => {
+      /*
+      * 서버 PATCH 응답을
+      * 현재 records state에 바로 반영한다.
+      */
+      setRecords(
+        (
+          previousRecords,
+        ) =>
+          previousRecords.map(
+            (record) =>
+              record.id ===
+              updated.id
+                ? {
+                    ...record,
+
+                    text:
+                      updated.text,
+
+                    updatedAt:
+                      updated.updatedAt,
+                  }
+                : record,
+          ),
+      );
+
+      /*
+      * 현재 선택된 카드가
+      * 수정한 카드라면 상세 데이터도 갱신.
+      */
       setSelectedRecord(
-        record,
+        (previous) => {
+          if (
+            !previous ||
+            previous.id !==
+              String(
+                updated.id,
+              )
+          ) {
+            return previous;
+          }
+
+          return {
+            ...previous,
+            text:
+              updated.text,
+          };
+        },
       );
     };
 
@@ -1445,17 +1657,20 @@ export function TimelinePage() {
                   {inningRecords.map(
                     (record) => (
                       <InningCard
-                        key={
-                          record.id
-                        }
-                        inning={
-                          inning
-                        }
-                        record={
-                          record
+                        key={record.id}
+                        inning={inning}
+                        record={record}
+                        showActions={
+                          !isFriendTimeline
                         }
                         onOpen={
                           handleOpenRecord
+                        }
+                        onEdit={
+                          handleEditRecord
+                        }
+                        onDelete={
+                          handleRequestDeleteRecord
                         }
                       />
                     ),
@@ -1512,10 +1727,51 @@ export function TimelinePage() {
         record={
           selectedRecord
         }
-        onClose={() =>
+        mode={
+          selectedRecordMode
+        }
+        onClose={() => {
           setSelectedRecord(
             null,
-          )
+          );
+
+          setSelectedRecordMode(
+            "view",
+          );
+        }}
+        onUpdated={
+          handleRecordUpdated
+        }
+      />
+
+      <InningRecordDeleteConfirmModal
+        isOpen={
+          pendingDeleteRecord !==
+          null
+        }
+        isDeleting={
+          isDeletingRecord
+        }
+        errorMessage={
+          deleteRecordError
+        }
+        onCancel={() => {
+          if (
+            isDeletingRecord
+          ) {
+            return;
+          }
+
+          setDeleteRecordError(
+            "",
+          );
+
+          setPendingDeleteRecord(
+            null,
+          );
+        }}
+        onConfirm={() =>
+          void handleDeleteRecord()
         }
       />
 
