@@ -19,6 +19,7 @@ import { BottomBar } from "../../app/layouts/BottomBar";
 import { PageHeader } from "../../app/layouts/PageHeader";
 
 import shareIcon from "../../assets/icons/share.svg";
+import settingIcon from "../../assets/icons/setting.png";
 
 import { getHomeCalendar } from "../../features/home/api/homeApi";
 
@@ -1524,24 +1525,42 @@ export function TimelinePage() {
         <PageHeader title="타임라인" />
 
         {!isPastTimeline && (
-          <button
-            type="button"
-            aria-label="영상 저장하기"
-            onClick={() =>
-              setIsShareModalOpen(
-                true,
-              )
-            }
-            className="absolute right-[27px] top-1/2 flex size-[15px] -translate-y-1/2 items-center justify-center"
-          >
-            <img
-              src={
-                shareIcon
+          <div className="absolute right-[22px] top-1/2 flex -translate-y-1/2 items-center gap-[16px]">
+            <button
+              type="button"
+              aria-label="영상 저장하기"
+              onClick={() =>
+                setIsShareModalOpen(
+                  true,
+                )
               }
-              alt=""
-              className="size-[24px]"
-            />
-          </button>
+              className="flex size-[24px] items-center justify-center"
+            >
+              <img
+                src={
+                  shareIcon
+                }
+                alt=""
+                className="size-[15px]"
+              />
+            </button>
+
+            {!isFriendTimeline && (
+              <button
+                type="button"
+                aria-label="관람 정보 설정"
+                className="flex size-[24px] items-center justify-center"
+              >
+                <img
+                  src={
+                    settingIcon
+                  }
+                  alt=""
+                  className="size-[18px] object-contain"
+                />
+              </button>
+            )}
+          </div>
         )}
       </div>
 
