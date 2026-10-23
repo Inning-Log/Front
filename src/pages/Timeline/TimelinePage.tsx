@@ -1012,7 +1012,6 @@ export function TimelinePage() {
 
   const canManageViewing =
     !isFriendTimeline &&
-    !isPastTimeline &&
     viewingLogId !== null &&
     Number.isSafeInteger(
       viewingLogId,
@@ -1877,7 +1876,7 @@ export function TimelinePage() {
       <div className="relative">
         <PageHeader title="타임라인" />
 
-        {!isPastTimeline && (
+        {!isFriendTimeline && (
           <div className="absolute right-[22px] top-1/2 flex -translate-y-1/2 items-center gap-[16px]">
             <button
               type="button"
