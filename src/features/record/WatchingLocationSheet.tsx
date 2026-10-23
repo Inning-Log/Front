@@ -2,13 +2,19 @@ export type WatchingLocation = "stadium" | "home";
 
 type WatchingLocationSheetProps = {
   isOpen: boolean;
+  isSubmitting?: boolean;
+  feedbackMessage?: string;
   onClose: () => void;
+  onRetry?: () => void;
   onSelect: (location: WatchingLocation) => void;
 };
 
 export function WatchingLocationSheet({
   isOpen,
+  isSubmitting = false,
+  feedbackMessage = "",
   onClose,
+  onRetry,
   onSelect,
 }: WatchingLocationSheetProps) {
   if (!isOpen) return null;
@@ -33,7 +39,8 @@ export function WatchingLocationSheet({
           <button
             type="button"
             onClick={() => onSelect("stadium")}
-            className="button-text h-[54px] w-full rounded-full bg-accent-primary text-text-primary"
+            disabled={isSubmitting}
+            className="button-text h-[54px] w-full rounded-full bg-accent-primary text-text-primary disabled:opacity-50"
           >
             직관
           </button>
@@ -41,11 +48,36 @@ export function WatchingLocationSheet({
           <button
             type="button"
             onClick={() => onSelect("home")}
-            className="button-text h-[54px] w-full rounded-full bg-text-tertiary text-text-primary"
+            disabled={isSubmitting}
+            className="button-text h-[54px] w-full rounded-full bg-text-tertiary text-text-primary disabled:opacity-50"
           >
             집관
           </button>
         </div>
+
+        {isSubmitting && (
+          <p role="status" className="mt-[12px] text-center text-caption text-text-tertiary">
+            오늘 경기를 확인하고 있어요.
+          </p>
+        )}
+
+        {!isSubmitting && feedbackMessage && (
+          <div className="mt-[12px] text-center">
+            <p role="alert" className="text-caption text-danger">
+              {feedbackMessage}
+            </p>
+
+            {onRetry && (
+              <button
+                type="button"
+                onClick={onRetry}
+                className="mt-[4px] text-caption text-accent-deep underline"
+              >
+                다시 시도
+              </button>
+            )}
+          </div>
+        )}
       </section>
     </div>
   );
