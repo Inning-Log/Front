@@ -1749,7 +1749,7 @@ export function TimelinePage() {
    */
   if (isLoading) {
     return (
-      <div className="flex min-h-dvh w-full flex-col pt-[45px]">
+      <div className="flex min-h-dvh w-full flex-col pt-[20px]">
         <PageHeader title="타임라인" />
 
         {!isPastTimeline && (
@@ -1780,7 +1780,7 @@ export function TimelinePage() {
     !timeline
   ) {
     return (
-      <div className="flex min-h-dvh w-full flex-col pt-[45px]">
+      <div className="flex min-h-dvh w-full flex-col pt-[20px]">
         <PageHeader title="타임라인" />
 
         {!isPastTimeline && (
@@ -1815,7 +1815,7 @@ export function TimelinePage() {
    */
   if (!timeline) {
     return (
-      <div className="flex min-h-dvh w-full flex-col pt-[45px]">
+      <div className="flex min-h-dvh w-full flex-col pt-[20px]">
         <PageHeader title="타임라인" />
 
         {!isPastTimeline && (
@@ -1872,7 +1872,7 @@ export function TimelinePage() {
     "";
 
   return (
-    <div className="min-h-dvh w-full pt-[45px]">
+    <div className="min-h-dvh w-full pt-[20px]">
       <div className="relative">
         <PageHeader title="타임라인" />
 
