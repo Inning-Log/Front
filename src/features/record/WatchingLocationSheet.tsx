@@ -49,7 +49,7 @@ export function WatchingLocationSheet({
             type="button"
             onClick={() => onSelect("home")}
             disabled={isSubmitting}
-            className="button-text h-[54px] w-full rounded-full bg-text-tertiary text-text-primary disabled:opacity-50"
+            className="button-text h-[54px] w-full rounded-full bg-accent-primary text-text-primary active:bg-accent-pressed disabled:opacity-50"
           >
             집관
           </button>
