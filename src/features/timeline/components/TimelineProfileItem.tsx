@@ -1,6 +1,6 @@
 import plusIcon from "../../../assets/icons/plus.svg";
 import profileBackArrowIcon from "../../../assets/icons/profilebackarrow.svg";
-import profileMockIcon from "../../../assets/icons/profilemock.svg";
+import defaultProfileIcon from "../../../assets/icons/defaultprofile.svg";
 
 type TimelineProfileItemProps = {
   userId: string;
@@ -15,7 +15,7 @@ type TimelineProfileItemProps = {
 
 export function TimelineProfileItem({
   userId,
-  profileImage = profileMockIcon,
+  profileImage = defaultProfileIcon,
   isMe = false,
   hasRecordedToday = false,
   isViewingFriendTimeline = false,
@@ -23,7 +23,8 @@ export function TimelineProfileItem({
   onRecordClick,
   onBackClick,
 }: TimelineProfileItemProps) {
-  const showRecordedBorder = !isMe && hasRecordedToday;
+  const showRecordedBorder =
+    !isMe && hasRecordedToday;
 
   return (
     <div className="flex w-[64px] shrink-0 flex-col items-center">
@@ -46,8 +47,12 @@ export function TimelineProfileItem({
           className="size-full rounded-full disabled:cursor-default"
         >
           <img
-            src={profileImage}
+            src={profileImage || defaultProfileIcon}
             alt={`${userId} 프로필`}
+            onError={(event) => {
+              event.currentTarget.onerror = null;
+              event.currentTarget.src = defaultProfileIcon;
+            }}
             className="size-full rounded-full object-cover"
           />
         </button>
@@ -56,7 +61,9 @@ export function TimelineProfileItem({
           <button
             type="button"
             onClick={
-              isViewingFriendTimeline ? onBackClick : onRecordClick
+              isViewingFriendTimeline
+                ? onBackClick
+                : onRecordClick
             }
             aria-label={
               isViewingFriendTimeline
@@ -72,6 +79,7 @@ export function TimelineProfileItem({
                   : plusIcon
               }
               alt=""
+              aria-hidden="true"
               className="size-[12px]"
             />
           </button>
