@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 
 import { PageHeader } from "../../app/layouts/PageHeader";
 
@@ -18,7 +17,6 @@ import type { TimelineProfile } from "../../features/timeline/types/timeline";
 import { Toast } from "../../shared/ui/Toast";
 
 export function TimelineFriendSelectPage() {
-  const navigate = useNavigate();
 
   const [friends, setFriends] = useState<
     TimelineProfile[]
