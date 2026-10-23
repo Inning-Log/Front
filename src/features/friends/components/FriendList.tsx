@@ -5,6 +5,7 @@ import {
   getFriends,
 } from "../api/friendsApi";
 import type { FriendshipResponse } from "../types/friend";
+import { FriendDeleteConfirmModal } from "./FriendDeleteConfirmModal";
 import { FriendListEmptyState } from "./FriendListEmptyState";
 import {
   FriendListItem,
@@ -36,6 +37,8 @@ export function FriendList({
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const [deleteErrorMessage, setDeleteErrorMessage] = useState("");
+  const [pendingDeleteFriendshipId, setPendingDeleteFriendshipId] =
+    useState<number | null>(null);
   const [deletingFriendshipId, setDeletingFriendshipId] =
     useState<number | null>(null);
   const friendItems = friends.map(mapFriendshipToListItem);
@@ -64,10 +67,15 @@ export function FriendList({
     void fetchFriends();
   }, []);
 
-  const handleDeleteFriend = async (friendshipId: number) => {
-    if (deletingFriendshipId !== null) {
+  const handleDeleteFriend = async () => {
+    if (
+      deletingFriendshipId !== null ||
+      pendingDeleteFriendshipId === null
+    ) {
       return;
     }
+
+    const friendshipId = pendingDeleteFriendshipId;
 
     setDeletingFriendshipId(friendshipId);
     setDeleteErrorMessage("");
@@ -79,6 +87,7 @@ export function FriendList({
           (friendship) => friendship.id !== friendshipId,
         ),
       );
+      setPendingDeleteFriendshipId(null);
     } catch (error) {
       setDeleteErrorMessage(
         error instanceof Error
@@ -110,31 +119,40 @@ export function FriendList({
   }
 
   return (
-    <main className="mt-[66px] min-h-0 flex-1 overflow-y-auto px-[29px]">
-      {deleteErrorMessage && (
-        <p
-          role="alert"
-          className="mb-[8px] px-[10px] text-caption text-danger"
-        >
-          {deleteErrorMessage}
-        </p>
-      )}
+    <>
+      <main className="mt-[66px] min-h-0 flex-1 overflow-y-auto px-[29px]">
+        <div className="border-t-[1.5px] border-surface-secondary">
+          {friendItems.map((friend) => (
+            <FriendListItem
+              key={friend.friendshipId}
+              friend={friend}
+              isDeleting={
+                deletingFriendshipId === friend.friendshipId
+              }
+              onDelete={() => {
+                setDeleteErrorMessage("");
+                setPendingDeleteFriendshipId(friend.friendshipId);
+              }}
+              onSelect={onSelectFriend}
+            />
+          ))}
+        </div>
+      </main>
 
-      <div className="border-t-[1.5px] border-surface-secondary">
-        {friendItems.map((friend) => (
-          <FriendListItem
-            key={friend.friendshipId}
-            friend={friend}
-            isDeleting={
-              deletingFriendshipId === friend.friendshipId
-            }
-            onDelete={() => {
-              void handleDeleteFriend(friend.friendshipId);
-            }}
-            onSelect={onSelectFriend}
-          />
-        ))}
-      </div>
-    </main>
+      <FriendDeleteConfirmModal
+        isOpen={pendingDeleteFriendshipId !== null}
+        isDeleting={deletingFriendshipId !== null}
+        errorMessage={deleteErrorMessage}
+        onCancel={() => {
+          if (deletingFriendshipId !== null) return;
+
+          setDeleteErrorMessage("");
+          setPendingDeleteFriendshipId(null);
+        }}
+        onConfirm={() => {
+          void handleDeleteFriend();
+        }}
+      />
+    </>
   );
 }
