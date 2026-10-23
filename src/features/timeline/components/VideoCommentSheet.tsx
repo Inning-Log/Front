@@ -710,21 +710,38 @@ export function VideoCommentSheet({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[120] flex items-end justify-center bg-black/45"
-      role="presentation"
-      onClick={
-        onClose
-      }
-    >
+        className="fixed inset-0 z-[120] flex items-end justify-center bg-black/45"
+        role="presentation"
+        onPointerDown={(event) => {
+            event.stopPropagation();
+        }}
+        onPointerMove={(event) => {
+            event.stopPropagation();
+        }}
+        onPointerUp={(event) => {
+            event.stopPropagation();
+        }}
+        onClick={(event) => {
+            event.stopPropagation();
+            onClose();
+        }}
+        >
       <section
         role="dialog"
         aria-modal="true"
         aria-label="영상 댓글"
-        onClick={(
-          event,
-        ) =>
-          event.stopPropagation()
-        }
+        onPointerDown={(event) => {
+            event.stopPropagation();
+        }}
+        onPointerMove={(event) => {
+            event.stopPropagation();
+        }}
+        onPointerUp={(event) => {
+            event.stopPropagation();
+        }}
+        onClick={(event) => {
+            event.stopPropagation();
+        }}
         className="flex max-h-[72dvh] min-h-[430px] w-full max-w-[390px] flex-col overflow-hidden rounded-t-[30px] bg-white"
       >
         {/* 상단 핸들 */}
@@ -742,14 +759,18 @@ export function VideoCommentSheet({
 
           <button
             type="button"
-            onClick={
-              onClose
-            }
+            onPointerDown={(event) => {
+                event.stopPropagation();
+            }}
+            onClick={(event) => {
+                event.stopPropagation();
+                onClose();
+            }}
             aria-label="댓글 닫기"
-            className="absolute right-[20px] top-1/2 flex size-[32px] -translate-y-1/2 items-center justify-center text-[26px] font-light text-[#444444]"
-          >
+            className="absolute right-[20px] top-1/2 z-30 flex size-[36px] -translate-y-1/2 items-center justify-center text-[26px] font-light text-[#444444]"
+            >
             ×
-          </button>
+            </button>
         </header>
 
         {/* 댓글 목록 */}
