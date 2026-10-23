@@ -1,6 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+import { getCurrentUser } from "../../features/auth/api/authApi";
+import { getGames } from "../../features/games/api/gamesApi";
+import type { GameResponse } from "../../features/games/types/game";
 import { CameraControls } from "../../features/record/CameraControls";
 import type { CameraDirection } from "../../features/record/CameraControls";
 import { CameraPreview } from "../../features/record/CameraPreview";
@@ -8,6 +11,8 @@ import type { CameraPreviewMode } from "../../features/record/CameraPreview";
 import { InningIndicator } from "../../features/record/InningIndicator";
 import { WatchingLocationSheet } from "../../features/record/WatchingLocationSheet";
 import type { WatchingLocation } from "../../features/record/WatchingLocationSheet";
+import { createUserGameLog } from "../../features/record/api/userGameLogApi";
+import type { ViewingType } from "../../features/record/types/userGameLog";
 
 function getTodayDate() {
   const today = new Date();
@@ -34,12 +39,87 @@ export function RecordPage() {
 
   const [caption, setCaption] = useState("");
   const [isLocationSheetOpen, setIsLocationSheetOpen] = useState(false);
+  const [favoriteTeamId, setFavoriteTeamId] = useState<number | null>(null);
+  const [favoriteTeamGame, setFavoriteTeamGame] =
+    useState<GameResponse | null>(null);
+  const [isLoadingGame, setIsLoadingGame] = useState(true);
+  const [isSubmittingLocation, setIsSubmittingLocation] = useState(false);
+  const [gameFeedbackMessage, setGameFeedbackMessage] = useState("");
 
   /*
    * 임시값
    * 이후 경기 진행 정보나 서버 응답에서 받아오면 됨
    */
   const currentInning = 1;
+
+  const loadFavoriteTeamGame = useCallback(async () => {
+    try {
+      const [currentUser, gameList] = await Promise.all([
+        getCurrentUser(),
+        getGames(getTodayDate()),
+      ]);
+      const nextFavoriteTeamId = currentUser.user?.favoriteTeamId;
+
+      if (nextFavoriteTeamId === undefined) {
+        setFavoriteTeamId(null);
+        setFavoriteTeamGame(null);
+        setGameFeedbackMessage(
+          "응원팀 설정을 확인하지 못했습니다.",
+        );
+        return;
+      }
+
+      const favoriteTeamGames = gameList.games.filter(
+        (game) =>
+          game.homeTeam.id === nextFavoriteTeamId ||
+          game.awayTeam.id === nextFavoriteTeamId,
+      );
+      const nextGame = selectCurrentGame(favoriteTeamGames);
+
+      setFavoriteTeamId(nextFavoriteTeamId);
+      setFavoriteTeamGame(nextGame);
+
+      if (!nextGame) {
+        setGameFeedbackMessage(
+          gameList.scheduleData.state === "NOT_IMPORTED"
+            ? "오늘 경기 일정이 아직 준비되지 않았습니다."
+            : "오늘 응원팀 경기가 없습니다.",
+        );
+        return;
+      }
+
+      if (nextGame.myViewing?.viewingType) {
+        localStorage.setItem(
+          getWatchingLocationKey(),
+          toWatchingLocation(nextGame.myViewing.viewingType),
+        );
+      }
+    } catch (error) {
+      setFavoriteTeamId(null);
+      setFavoriteTeamGame(null);
+      setGameFeedbackMessage(
+        error instanceof Error
+          ? error.message
+          : "오늘 경기 정보를 불러오지 못했습니다.",
+      );
+    } finally {
+      setIsLoadingGame(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const timerId = window.setTimeout(() => {
+      void loadFavoriteTeamGame();
+    }, 0);
+
+    return () => window.clearTimeout(timerId);
+  }, [loadFavoriteTeamGame]);
+
+  const handleGameRetry = () => {
+    setIsLoadingGame(true);
+    setGameFeedbackMessage("");
+    void loadFavoriteTeamGame();
+  };
 
   useEffect(() => {
     if (previewMode !== "caption") return;
@@ -79,7 +159,11 @@ export function RecordPage() {
      * 바텀시트를 띄우지 않고 타임라인으로 이동
      */
     if (savedLocation) {
-      navigate("/timeline");
+      navigate("/timeline", {
+        state: {
+          gameId: favoriteTeamGame?.gameId,
+        },
+      });
       return;
     }
 
@@ -89,19 +173,47 @@ export function RecordPage() {
     setIsLocationSheetOpen(true);
   };
 
-  const handleLocationSelect = (location: WatchingLocation) => {
-    /*
-     * 선택한 관람 장소를 오늘 날짜 기준으로 저장
-     */
-    localStorage.setItem(getWatchingLocationKey(), location);
+  const handleLocationSelect = async (location: WatchingLocation) => {
+    if (isLoadingGame) {
+      setGameFeedbackMessage("오늘 경기를 확인하고 있습니다.");
+      return;
+    }
 
-    setIsLocationSheetOpen(false);
-    navigate("/timeline");
+    if (!favoriteTeamGame || favoriteTeamId === null) {
+      if (!gameFeedbackMessage) {
+        setGameFeedbackMessage("오늘 응원팀 경기가 없습니다.");
+      }
+      return;
+    }
 
-    /*
-     * API 연동 후에는 타임라인 이동 전에
-     * 촬영 영상, 문구, 관람 장소를 서버에 전달하면 됨
-     */
+    setIsSubmittingLocation(true);
+    setGameFeedbackMessage("");
+
+    try {
+      const request = {
+        cheeringTeamId: favoriteTeamId,
+        gameId: favoriteTeamGame.gameId,
+        viewingType: toViewingType(location),
+      };
+      const userGameLog = await createUserGameLog(request);
+
+      localStorage.setItem(getWatchingLocationKey(), location);
+      setIsLocationSheetOpen(false);
+      navigate("/timeline", {
+        state: {
+          gameId: favoriteTeamGame.gameId,
+          userGameLogId: userGameLog.id,
+        },
+      });
+    } catch (error) {
+      setGameFeedbackMessage(
+        error instanceof Error
+          ? error.message
+          : "관람 정보를 저장하지 못했습니다.",
+      );
+    } finally {
+      setIsSubmittingLocation(false);
+    }
   };
 
   const handleFlashClick = () => {
@@ -141,9 +253,58 @@ export function RecordPage() {
 
       <WatchingLocationSheet
         isOpen={isLocationSheetOpen}
+        isSubmitting={isLoadingGame || isSubmittingLocation}
+        feedbackMessage={gameFeedbackMessage}
         onClose={() => setIsLocationSheetOpen(false)}
+        onRetry={handleGameRetry}
         onSelect={handleLocationSelect}
       />
     </main>
   );
+}
+
+const GAME_STATUS_PRIORITY: Record<string, number> = {
+  LIVE: 0,
+  DELAYED: 1,
+  SUSPENDED: 2,
+  SCHEDULED: 3,
+  FINISHED: 4,
+  UNKNOWN: 5,
+};
+
+function selectCurrentGame(games: GameResponse[]) {
+  const availableGames = games.filter(
+    (game) =>
+      game.status !== "CANCELED" && game.status !== "POSTPONED",
+  );
+  const registeredGame = availableGames.find((game) => game.myViewing);
+
+  if (registeredGame) {
+    return registeredGame;
+  }
+
+  return (
+    [...availableGames].sort((first, second) => {
+      const statusDifference =
+        (GAME_STATUS_PRIORITY[first.status] ?? 6) -
+        (GAME_STATUS_PRIORITY[second.status] ?? 6);
+
+      if (statusDifference !== 0) {
+        return statusDifference;
+      }
+
+      return (
+        Math.abs(Date.parse(first.scheduledAt) - Date.now()) -
+        Math.abs(Date.parse(second.scheduledAt) - Date.now())
+      );
+    })[0] ?? null
+  );
+}
+
+function toViewingType(location: WatchingLocation): ViewingType {
+  return location === "stadium" ? "STADIUM" : "HOME";
+}
+
+function toWatchingLocation(viewingType: string): WatchingLocation {
+  return viewingType === "STADIUM" ? "stadium" : "home";
 }
