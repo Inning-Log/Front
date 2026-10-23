@@ -118,6 +118,9 @@ function mapTimelineRecord(
     homeScore: record.homeScore,
     awayScore: record.awayScore,
     text: record.text,
+
+    videoStatus:
+      record.videoStatus,
   };
 }
 
