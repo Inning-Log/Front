@@ -1,168 +1,406 @@
-import { useRef } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type MouseEvent,
+  type PointerEvent,
+} from "react";
 
-import profileMockIcon from "../../../assets/icons/profilemock.svg";
+import {
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from "react-router-dom";
+
+import defaultProfileIcon from "../../../assets/icons/defaultprofile.svg";
+
+import { getTimelineProfiles } from "../api/timelineApi";
+
+import type {
+  TimelineProfile,
+  TimelineProfilesResponse,
+} from "../types/timeline";
+
 import { TimelineProfileItem } from "./TimelineProfileItem";
 
 const DRAG_THRESHOLD = 10;
 
-const profiles = [
-  {
-    id: "me",
-    userId: "@my_id",
-    profileImage: profileMockIcon,
-    isMe: true,
-    hasRecordedToday: false,
-  },
-  {
-    id: "user-1",
-    userId: "@user01",
-    profileImage: profileMockIcon,
-    isMe: false,
-    hasRecordedToday: true,
-  },
-  {
-    id: "user-2",
-    userId: "@user02",
-    profileImage: profileMockIcon,
-    isMe: false,
-    hasRecordedToday: false,
-  },
-  {
-    id: "user-3",
-    userId: "@user03",
-    profileImage: profileMockIcon,
-    isMe: false,
-    hasRecordedToday: true,
-  },
-  {
-    id: "user-4",
-    userId: "@user04",
-    profileImage: profileMockIcon,
-    isMe: false,
-    hasRecordedToday: false,
-  },
-  {
-    id: "user-5",
-    userId: "@user05",
-    profileImage: profileMockIcon,
-    isMe: false,
-    hasRecordedToday: false,
-  },
-];
+type TimelineParams = {
+  userId?: string;
+};
 
 export function TimelineProfileList() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
 
-  const scrollContainerRef = useRef<HTMLElement>(null);
-  const dragStartXRef = useRef(0);
-  const dragStartScrollLeftRef = useRef(0);
-  const isPointerDownRef = useRef(false);
-  const hasMovedRef = useRef(false);
+  const { userId: pathUserId } =
+    useParams<TimelineParams>();
 
-  const selectedUserId = searchParams.get("userId");
-  const isViewingFriendTimeline = Boolean(selectedUserId);
+  const [searchParams] =
+    useSearchParams();
+
+  const [profiles, setProfiles] =
+    useState<TimelineProfilesResponse | null>(
+      null,
+    );
+
+  const [friends, setFriends] =
+    useState<TimelineProfile[]>([]);
+
+  const [isLoading, setIsLoading] =
+    useState(true);
+
+  const scrollContainerRef =
+    useRef<HTMLElement>(null);
+
+  const dragStartXRef =
+    useRef(0);
+
+  const dragStartScrollLeftRef =
+    useRef(0);
+
+  const isPointerDownRef =
+    useRef(false);
+
+  const hasMovedRef =
+    useRef(false);
+
+  const queryUserId =
+    searchParams.get("userId");
+
+  const selectedUserId =
+    queryUserId ??
+    pathUserId ??
+    null;
+
+  const isViewingFriendTimeline =
+    selectedUserId !== null;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchProfiles =
+      async () => {
+        try {
+          setIsLoading(true);
+
+          const firstPage =
+            await getTimelineProfiles({
+              afterUserId: 0,
+              limit: 50,
+            });
+
+          if (cancelled) {
+            return;
+          }
+
+          const allFriends = [
+            ...firstPage.friends,
+          ];
+
+          let nextAfterUserId =
+            firstPage.nextAfterUserId;
+
+          const visitedCursors =
+            new Set<number>();
+
+          while (
+            nextAfterUserId !==
+              null &&
+            nextAfterUserId !==
+              undefined
+          ) {
+            if (
+              visitedCursors.has(
+                nextAfterUserId,
+              )
+            ) {
+              break;
+            }
+
+            visitedCursors.add(
+              nextAfterUserId,
+            );
+
+            const nextPage =
+              await getTimelineProfiles({
+                afterUserId:
+                  nextAfterUserId,
+                limit: 50,
+              });
+
+            if (cancelled) {
+              return;
+            }
+
+            const existingIds =
+              new Set(
+                allFriends.map(
+                  (friend) =>
+                    friend.userId,
+                ),
+              );
+
+            allFriends.push(
+              ...nextPage.friends.filter(
+                (friend) =>
+                  !existingIds.has(
+                    friend.userId,
+                  ),
+              ),
+            );
+
+            if (
+              nextPage.nextAfterUserId ===
+              nextAfterUserId
+            ) {
+              break;
+            }
+
+            nextAfterUserId =
+              nextPage.nextAfterUserId;
+          }
+
+          if (cancelled) {
+            return;
+          }
+
+          setProfiles(firstPage);
+          setFriends(allFriends);
+        } catch (error) {
+          console.error(
+            "타임라인 프로필 조회 실패:",
+            error,
+          );
+        } finally {
+          if (!cancelled) {
+            setIsLoading(false);
+          }
+        }
+      };
+
+    void fetchProfiles();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handlePointerDown = (
-    event: React.PointerEvent<HTMLElement>,
+    event: PointerEvent<HTMLElement>,
   ) => {
-    const container = scrollContainerRef.current;
+    const container =
+      scrollContainerRef.current;
 
-    if (!container || !event.isPrimary) return;
+    if (
+      !container ||
+      !event.isPrimary
+    ) {
+      return;
+    }
 
-    isPointerDownRef.current = true;
-    hasMovedRef.current = false;
-    dragStartXRef.current = event.clientX;
-    dragStartScrollLeftRef.current = container.scrollLeft;
+    isPointerDownRef.current =
+      true;
+
+    hasMovedRef.current =
+      false;
+
+    dragStartXRef.current =
+      event.clientX;
+
+    dragStartScrollLeftRef.current =
+      container.scrollLeft;
   };
 
   const handlePointerMove = (
-    event: React.PointerEvent<HTMLElement>,
+    event: PointerEvent<HTMLElement>,
   ) => {
-    const container = scrollContainerRef.current;
+    const container =
+      scrollContainerRef.current;
 
-    if (!container || !isPointerDownRef.current) return;
+    if (
+      !container ||
+      !isPointerDownRef.current
+    ) {
+      return;
+    }
 
-    const movedDistance = event.clientX - dragStartXRef.current;
+    const movedDistance =
+      event.clientX -
+      dragStartXRef.current;
 
-    if (!hasMovedRef.current) {
-      if (Math.abs(movedDistance) < DRAG_THRESHOLD) return;
+    if (
+      !hasMovedRef.current
+    ) {
+      if (
+        Math.abs(
+          movedDistance,
+        ) < DRAG_THRESHOLD
+      ) {
+        return;
+      }
 
-      hasMovedRef.current = true;
-      container.setPointerCapture(event.pointerId);
+      hasMovedRef.current =
+        true;
+
+      container.setPointerCapture(
+        event.pointerId,
+      );
     }
 
     container.scrollLeft =
-      dragStartScrollLeftRef.current - movedDistance;
+      dragStartScrollLeftRef.current -
+      movedDistance;
   };
 
   const handlePointerEnd = (
-    event: React.PointerEvent<HTMLElement>,
+    event: PointerEvent<HTMLElement>,
   ) => {
-    const container = scrollContainerRef.current;
+    const container =
+      scrollContainerRef.current;
 
-    isPointerDownRef.current = false;
+    isPointerDownRef.current =
+      false;
 
-    if (container?.hasPointerCapture(event.pointerId)) {
-      container.releasePointerCapture(event.pointerId);
+    if (
+      container?.hasPointerCapture(
+        event.pointerId,
+      )
+    ) {
+      container.releasePointerCapture(
+        event.pointerId,
+      );
     }
   };
 
   const handleClickCapture = (
-    event: React.MouseEvent<HTMLElement>,
+    event: MouseEvent<HTMLElement>,
   ) => {
-    if (!hasMovedRef.current) return;
+    if (
+      !hasMovedRef.current
+    ) {
+      return;
+    }
 
     event.preventDefault();
     event.stopPropagation();
-    hasMovedRef.current = false;
+
+    hasMovedRef.current =
+      false;
   };
 
-  const handleFriendProfileClick = (userId: string) => {
-    navigate(`/timeline?userId=${encodeURIComponent(userId)}`);
+  const handleFriendProfileClick = (
+    friend: TimelineProfile,
+  ) => {
+    const game =
+      friend.games[0];
+
+    if (!game) {
+      console.log(
+        "친구가 오늘 관람한 경기가 없습니다.",
+      );
+
+      return;
+    }
+
+    navigate(
+      `/timeline/${friend.userId}?gameId=${game.gameId}`,
+    );
   };
 
-  const handleRecordClick = () => {
-    navigate("/home/record");
-  };
+  const handleRecordClick =
+    () => {
+      navigate(
+        "/home/record",
+      );
+    };
 
-  const handleBackToMyTimeline = () => {
-    navigate("/timeline");
-  };
+  const handleBackToMyTimeline =
+    () => {
+      navigate("/timeline");
+    };
+
+  if (isLoading) {
+    return (
+      <div className="h-[100px] w-full animate-pulse bg-surface-secondary" />
+    );
+  }
+
+  if (!profiles) {
+    return null;
+  }
+
+  const me = profiles.me;
 
   return (
     <section
-      ref={scrollContainerRef}
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerEnd}
-      onPointerCancel={handlePointerEnd}
-      onClickCapture={handleClickCapture}
+      ref={
+        scrollContainerRef
+      }
+      onPointerDown={
+        handlePointerDown
+      }
+      onPointerMove={
+        handlePointerMove
+      }
+      onPointerUp={
+        handlePointerEnd
+      }
+      onPointerCancel={
+        handlePointerEnd
+      }
+      onClickCapture={
+        handleClickCapture
+      }
       className="scrollbar-hide w-full cursor-grab touch-pan-x select-none overflow-x-auto px-[16px] py-[12px] active:cursor-grabbing"
     >
       <div className="flex min-w-max items-start gap-[18px]">
-        {profiles.map((profile) => (
-          <TimelineProfileItem
-            key={profile.id}
-            userId={profile.userId}
-            profileImage={profile.profileImage}
-            isMe={profile.isMe}
-            hasRecordedToday={profile.hasRecordedToday}
-            isViewingFriendTimeline={isViewingFriendTimeline}
-            onProfileClick={
-              profile.isMe
-                ? undefined
-                : () => handleFriendProfileClick(profile.userId)
-            }
-            onRecordClick={
-              profile.isMe ? handleRecordClick : undefined
-            }
-            onBackClick={
-              profile.isMe ? handleBackToMyTimeline : undefined
-            }
-          />
-        ))}
+        <TimelineProfileItem
+          userId={`@${me.username}`}
+          profileImage={
+            me.profileImageUrl ||
+            defaultProfileIcon
+          }
+          isMe
+          hasRecordedToday={
+            me.hasRecordedToday
+          }
+          isViewingFriendTimeline={
+            isViewingFriendTimeline
+          }
+          onRecordClick={
+            handleRecordClick
+          }
+          onBackClick={
+            handleBackToMyTimeline
+          }
+        />
+
+        {friends.map(
+          (friend) => (
+            <TimelineProfileItem
+              key={
+                friend.userId
+              }
+              userId={`@${friend.username}`}
+              profileImage={
+                friend.profileImageUrl ||
+                defaultProfileIcon
+              }
+              isMe={false}
+              hasRecordedToday={
+                friend.hasRecordedToday
+              }
+              isViewingFriendTimeline={
+                isViewingFriendTimeline
+              }
+              onProfileClick={() =>
+                handleFriendProfileClick(
+                  friend,
+                )
+              }
+            />
+          ),
+        )}
       </div>
     </section>
   );
