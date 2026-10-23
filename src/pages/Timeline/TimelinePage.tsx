@@ -84,6 +84,7 @@ type DragState = {
   inning: number | null;
   isDragging: boolean;
   startX: number;
+  startY: number;
   scrollLeft: number;
 };
 
@@ -532,6 +533,7 @@ export function TimelinePage() {
       inning: null,
       isDragging: false,
       startX: 0,
+      startY: 0,
       scrollLeft: 0,
     });
 
@@ -1070,11 +1072,6 @@ export function TimelinePage() {
   const handleOpenRecord = (
     record: InningRecord,
   ) => {
-    if (
-      preventClickRef.current
-    ) {
-      return;
-    }
 
     setSelectedRecordMode(
       "view",
@@ -1582,13 +1579,12 @@ export function TimelinePage() {
 
       dragState.current = {
         inning,
-
         isDragging:
           true,
-
         startX:
           event.clientX,
-
+        startY:
+          event.clientY,
         scrollLeft:
           container.scrollLeft,
       };
@@ -1660,8 +1656,7 @@ export function TimelinePage() {
           () => {
             container.scrollLeft =
               currentDrag.scrollLeft -
-              movedDistance *
-                0.9;
+              movedDistance;
           },
         );
     };
@@ -1701,6 +1696,7 @@ export function TimelinePage() {
         inning: null,
         isDragging: false,
         startX: 0,
+        startY: 0,
         scrollLeft: 0,
       };
 
@@ -2029,7 +2025,12 @@ export function TimelinePage() {
                   onClickCapture={
                     handleClickCapture
                   }
-                  className="scrollbar-hide flex w-full min-w-0 cursor-grab snap-x snap-proximity gap-[12px] overflow-x-auto overscroll-x-contain px-[16px] select-none [touch-action:pan-x]"
+                  className="scrollbar-hide flex w-full min-w-0 cursor-grab snap-x snap-proximity gap-[12px] overflow-x-auto overscroll-x-contain px-[16px] select-none"
+                  style={{
+                    touchAction: "pan-x pan-y",
+                    WebkitOverflowScrolling:
+                      "touch",
+                  }}
                 >
                   {inningRecords.map(
                     (record) => (

@@ -5,32 +5,64 @@ import {
   useRef,
   useState,
 } from "react";
-import { useNavigate } from "react-router-dom";
 
-import { BottomBar } from "../../app/layouts/BottomBar";
-import { PageHeader } from "../../app/layouts/PageHeader";
+import {
+  useNavigate,
+} from "react-router-dom";
+
+import {
+  BottomBar,
+} from "../../app/layouts/BottomBar";
+
+import {
+  PageHeader,
+} from "../../app/layouts/PageHeader";
+
 import cameraIcon from "../../assets/icons/camera.svg";
 import defaultProfileIcon from "../../assets/icons/defaultprofile.svg";
-import { logout } from "../../features/auth/api/authApi";
-import { unregisterPushNotification } from "../../features/home/api/notificationApi";
+
+import {
+  logout,
+} from "../../features/auth/api/authApi";
+
+import {
+  unregisterPushNotification,
+} from "../../features/home/api/notificationApi";
+
 import {
   checkUsernameAvailability,
   getMyPage,
   updateFavoriteTeam,
   updateMyProfile,
-  updateProfileImage,
+  uploadProfileImage,
 } from "../../features/mypage/api/mypage";
-import { ApiError } from "../../shared/api/apiClient";
-import { clearAuthSession } from "../../shared/auth/clearAuthSession";
-import { KBO_TEAMS } from "../../shared/constants/teams";
-import { getPushInstallationId } from "../../shared/firebase/pushInstallationStorage";
-import { TeamMascot } from "../../shared/ui/TeamMascot";
+
+import {
+  ApiError,
+} from "../../shared/api/apiClient";
+
+import {
+  clearAuthSession,
+} from "../../shared/auth/clearAuthSession";
+
+import {
+  KBO_TEAMS,
+} from "../../shared/constants/teams";
+
+import {
+  getPushInstallationId,
+} from "../../shared/firebase/pushInstallationStorage";
+
+import {
+  TeamMascot,
+} from "../../shared/ui/TeamMascot";
 
 type ProfileForm = {
   nickname: string;
   userId: string;
   email: string;
-  favoriteTeamId: number | null;
+  favoriteTeamId:
+    number | null;
   profileImage: string;
 };
 
@@ -39,8 +71,14 @@ type ProfileInputProps = {
   value: string;
   disabled?: boolean;
   message?: string;
-  messageType?: "success" | "error";
-  onChange?: (value: string) => void;
+
+  messageType?:
+    | "success"
+    | "error";
+
+  onChange?: (
+    value: string,
+  ) => void;
 };
 
 type ProfileItemProps = {
@@ -54,15 +92,30 @@ type UserIdStatus =
   | "success"
   | "error";
 
-const USERNAME_PATTERN = /^[a-zA-Z0-9._]+$/;
+const USERNAME_PATTERN =
+  /^[a-zA-Z0-9._]+$/;
 
-const emptyProfile: ProfileForm = {
-  nickname: "",
-  userId: "",
-  email: "",
-  favoriteTeamId: null,
-  profileImage: defaultProfileIcon,
-};
+const MAX_PROFILE_IMAGE_SIZE =
+  10 * 1024 * 1024;
+
+const ALLOWED_PROFILE_IMAGE_TYPES =
+  new Set([
+    "image/jpeg",
+    "image/png",
+  ]);
+
+const emptyProfile: ProfileForm =
+  {
+    nickname: "",
+    userId: "",
+    email: "",
+
+    favoriteTeamId:
+      null,
+
+    profileImage:
+      defaultProfileIcon,
+  };
 
 function getUsernameValidationMessage(
   username: string,
@@ -71,11 +124,18 @@ function getUsernameValidationMessage(
     return "아이디를 입력해주세요.";
   }
 
-  if (username.length > 30) {
+  if (
+    username.length >
+    30
+  ) {
     return "아이디는 30자 이내로 입력해주세요.";
   }
 
-  if (!USERNAME_PATTERN.test(username)) {
+  if (
+    !USERNAME_PATTERN.test(
+      username,
+    )
+  ) {
     return "영문, 숫자, 마침표, 밑줄만 사용할 수 있어요.";
   }
 
@@ -97,19 +157,31 @@ function ProfileInput({
 
         <input
           type="text"
-          value={value}
-          disabled={disabled}
-          onChange={(event) =>
-            onChange?.(event.target.value)
+          value={
+            value
+          }
+          disabled={
+            disabled
+          }
+          onChange={(
+            event,
+          ) =>
+            onChange?.(
+              event.target
+                .value,
+            )
           }
           className={[
             "mt-[14px] block w-full bg-transparent px-[10px]",
             "pb-[6px] text-label-3 font-medium leading-none outline-none",
+
             disabled
               ? "cursor-not-allowed text-surface-secondary"
               : "text-text-secondary",
+
             message
-              ? messageType === "error"
+              ? messageType ===
+                "error"
                 ? "border-b-[1.5px] border-danger"
                 : "border-b-[1.5px] border-accent-primary"
               : "border-b-[1.5px] border-surface-secondary",
@@ -121,12 +193,16 @@ function ProfileInput({
         <p
           className={[
             "mt-[4px] px-[10px] text-caption",
-            messageType === "error"
+
+            messageType ===
+            "error"
               ? "text-danger"
               : "text-accent-primary",
           ].join(" ")}
         >
-          {message}
+          {
+            message
+          }
         </p>
       )}
     </div>
@@ -153,140 +229,240 @@ function ProfileItem({
 }
 
 export function MyPage() {
-  const navigate = useNavigate();
+  const navigate =
+    useNavigate();
 
   const fileInputRef =
-    useRef<HTMLInputElement>(null);
+    useRef<HTMLInputElement>(
+      null,
+    );
 
   const previewImageUrlRef =
-    useRef<string | null>(null);
+    useRef<string | null>(
+      null,
+    );
 
   const usernameCheckRequestIdRef =
     useRef(0);
 
-  const [profile, setProfile] =
-    useState<ProfileForm>(emptyProfile);
+  const [
+    profile,
+    setProfile,
+  ] =
+    useState<ProfileForm>(
+      emptyProfile,
+    );
 
-  const [form, setForm] =
-    useState<ProfileForm>(emptyProfile);
+  const [
+    form,
+    setForm,
+  ] =
+    useState<ProfileForm>(
+      emptyProfile,
+    );
 
-  const [isLoading, setIsLoading] =
+  const [
+    isLoading,
+    setIsLoading,
+  ] =
     useState(true);
 
-  const [loadErrorMessage, setLoadErrorMessage] =
+  const [
+    loadErrorMessage,
+    setLoadErrorMessage,
+  ] =
     useState("");
 
-  const [isEditing, setIsEditing] =
+  const [
+    isEditing,
+    setIsEditing,
+  ] =
     useState(false);
 
   const [
     isSelectingTeam,
     setIsSelectingTeam,
-  ] = useState(false);
+  ] =
+    useState(false);
 
-  const [isUpdating, setIsUpdating] =
+  const [
+    isUpdating,
+    setIsUpdating,
+  ] =
     useState(false);
 
   const [
     updateErrorMessage,
     setUpdateErrorMessage,
-  ] = useState("");
+  ] =
+    useState("");
 
   const [
     selectedProfileImageFile,
     setSelectedProfileImageFile,
-  ] = useState<File | null>(null);
+  ] =
+    useState<File | null>(
+      null,
+    );
 
   const [
     userIdStatus,
     setUserIdStatus,
-  ] = useState<UserIdStatus>("idle");
+  ] =
+    useState<UserIdStatus>(
+      "idle",
+    );
 
   const [
     userIdFeedbackMessage,
     setUserIdFeedbackMessage,
-  ] = useState("");
+  ] =
+    useState("");
 
-  const [isLoggingOut, setIsLoggingOut] =
+  const [
+    isLoggingOut,
+    setIsLoggingOut,
+  ] =
     useState(false);
 
   const [
     logoutErrorMessage,
     setLogoutErrorMessage,
-  ] = useState("");
+  ] =
+    useState("");
 
   const redirectToLogin =
-    useCallback(async () => {
-      await clearAuthSession();
+    useCallback(
+      async () => {
+        await clearAuthSession();
 
-      navigate("/login", {
-        replace: true,
-      });
-    }, [navigate]);
-
-  const loadMyPage =
-    useCallback(async () => {
-      setIsLoading(true);
-      setLoadErrorMessage("");
-
-      try {
-        const data =
-          await getMyPage();
-
-        const profileData: ProfileForm = {
-          nickname: data.nickname,
-          userId: data.username,
-          email: data.email,
-          favoriteTeamId:
-            data.favoriteTeam?.id ?? null,
-          profileImage:
-            data.profileImageUrl ||
-            defaultProfileIcon,
-        };
-
-        setProfile(profileData);
-        setForm(profileData);
-      } catch (error) {
-        if (
-          error instanceof ApiError &&
-          error.status === 401
-        ) {
-          await redirectToLogin();
-          return;
-        }
-
-        setLoadErrorMessage(
-          error instanceof Error
-            ? error.message
-            : "마이페이지 정보를 불러오지 못했습니다.",
+        navigate(
+          "/login",
+          {
+            replace:
+              true,
+          },
         );
-      } finally {
-        setIsLoading(false);
-      }
-    }, [redirectToLogin]);
+      },
+      [
+        navigate,
+      ],
+    );
 
-  useEffect(() => {
-    const timer =
-      window.setTimeout(() => {
-        void loadMyPage();
-      }, 0);
-
-    return () =>
-      window.clearTimeout(timer);
-  }, [loadMyPage]);
-
-  useEffect(() => {
-    return () => {
+  const clearPreviewImage =
+    useCallback(() => {
       if (
         previewImageUrlRef.current
       ) {
         URL.revokeObjectURL(
           previewImageUrlRef.current,
         );
-      }
-    };
-  }, []);
 
+        previewImageUrlRef.current =
+          null;
+      }
+    }, []);
+
+  const loadMyPage =
+    useCallback(
+      async () => {
+        setIsLoading(
+          true,
+        );
+
+        setLoadErrorMessage(
+          "",
+        );
+
+        try {
+          const data =
+            await getMyPage();
+
+          const profileData: ProfileForm =
+            {
+              nickname:
+                data.nickname,
+
+              userId:
+                data.username,
+
+              email:
+                data.email,
+
+              favoriteTeamId:
+                data.favoriteTeam
+                  ?.id ??
+                null,
+
+              profileImage:
+                data.profileImageUrl ||
+                defaultProfileIcon,
+            };
+
+          setProfile(
+            profileData,
+          );
+
+          setForm(
+            profileData,
+          );
+        } catch (error) {
+          if (
+            error instanceof
+              ApiError &&
+            error.status ===
+              401
+          ) {
+            await redirectToLogin();
+
+            return;
+          }
+
+          setLoadErrorMessage(
+            error instanceof
+                Error
+              ? error.message
+              : "마이페이지 정보를 불러오지 못했습니다.",
+          );
+        } finally {
+          setIsLoading(
+            false,
+          );
+        }
+      },
+      [
+        redirectToLogin,
+      ],
+    );
+
+  useEffect(() => {
+    const timer =
+      window.setTimeout(
+        () => {
+          void loadMyPage();
+        },
+        0,
+      );
+
+    return () =>
+      window.clearTimeout(
+        timer,
+      );
+  }, [
+    loadMyPage,
+  ]);
+
+  useEffect(() => {
+    return () => {
+      clearPreviewImage();
+    };
+  }, [
+    clearPreviewImage,
+  ]);
+
+  /*
+   * 아이디 중복 검사
+   */
   useEffect(() => {
     if (!isEditing) {
       return;
@@ -307,84 +483,98 @@ export function MyPage() {
         trimmedUserId,
       );
 
-    if (validationMessage) {
+    if (
+      validationMessage
+    ) {
       return;
     }
 
     const timer =
-      window.setTimeout(() => {
-        const checkAvailability =
-          async () => {
-            const requestId =
-              usernameCheckRequestIdRef
-                .current + 1;
+      window.setTimeout(
+        () => {
+          const checkAvailability =
+            async () => {
+              const requestId =
+                usernameCheckRequestIdRef
+                  .current +
+                1;
 
-            usernameCheckRequestIdRef.current =
-              requestId;
+              usernameCheckRequestIdRef.current =
+                requestId;
 
-            setUserIdStatus(
-              "checking",
-            );
+              setUserIdStatus(
+                "checking",
+              );
 
-            try {
-              const data =
-                await checkUsernameAvailability(
-                  trimmedUserId,
+              try {
+                const data =
+                  await checkUsernameAvailability(
+                    trimmedUserId,
+                  );
+
+                if (
+                  requestId !==
+                  usernameCheckRequestIdRef
+                    .current
+                ) {
+                  return;
+                }
+
+                setUserIdStatus(
+                  data.available
+                    ? "success"
+                    : "error",
                 );
 
-              if (
-                requestId !==
-                usernameCheckRequestIdRef
-                  .current
+                setUserIdFeedbackMessage(
+                  data.available
+                    ? "사용 가능한 아이디입니다."
+                    : "이미 사용 중인 아이디입니다.",
+                );
+              } catch (
+                error
               ) {
-                return;
+                if (
+                  requestId !==
+                  usernameCheckRequestIdRef
+                    .current
+                ) {
+                  return;
+                }
+
+                if (
+                  error instanceof
+                    ApiError &&
+                  error.status ===
+                    401
+                ) {
+                  await redirectToLogin();
+
+                  return;
+                }
+
+                setUserIdStatus(
+                  "error",
+                );
+
+                setUserIdFeedbackMessage(
+                  error instanceof
+                      Error
+                    ? error.message
+                    : "아이디 중복 확인에 실패했습니다.",
+                );
               }
+            };
 
-              setUserIdStatus(
-                data.available
-                  ? "success"
-                  : "error",
-              );
-
-              setUserIdFeedbackMessage(
-                data.available
-                  ? "사용 가능한 아이디입니다."
-                  : "이미 사용 중인 아이디입니다.",
-              );
-            } catch (error) {
-              if (
-                requestId !==
-                usernameCheckRequestIdRef
-                  .current
-              ) {
-                return;
-              }
-
-              if (
-                error instanceof ApiError &&
-                error.status === 401
-              ) {
-                await redirectToLogin();
-                return;
-              }
-
-              setUserIdStatus(
-                "error",
-              );
-
-              setUserIdFeedbackMessage(
-                error instanceof Error
-                  ? error.message
-                  : "아이디 중복 확인에 실패했습니다.",
-              );
-            }
-          };
-
-        void checkAvailability();
-      }, 400);
+          void checkAvailability();
+        },
+        400,
+      );
 
     return () =>
-      window.clearTimeout(timer);
+      window.clearTimeout(
+        timer,
+      );
   }, [
     form.userId,
     isEditing,
@@ -392,98 +582,244 @@ export function MyPage() {
     redirectToLogin,
   ]);
 
-  const clearPreviewImage = () => {
-    if (
-      previewImageUrlRef.current
-    ) {
-      URL.revokeObjectURL(
-        previewImageUrlRef.current,
+  const handleStartEditing =
+    () => {
+      clearPreviewImage();
+
+      usernameCheckRequestIdRef.current +=
+        1;
+
+      setForm(
+        profile,
       );
+
+      setSelectedProfileImageFile(
+        null,
+      );
+
+      setUserIdStatus(
+        "idle",
+      );
+
+      setUserIdFeedbackMessage(
+        "",
+      );
+
+      setUpdateErrorMessage(
+        "",
+      );
+
+      setIsEditing(
+        true,
+      );
+    };
+
+  const handleCancelEditing =
+    () => {
+      clearPreviewImage();
+
+      usernameCheckRequestIdRef.current +=
+        1;
+
+      setForm(
+        profile,
+      );
+
+      setSelectedProfileImageFile(
+        null,
+      );
+
+      setUserIdStatus(
+        "idle",
+      );
+
+      setUserIdFeedbackMessage(
+        "",
+      );
+
+      setUpdateErrorMessage(
+        "",
+      );
+
+      setIsSelectingTeam(
+        false,
+      );
+
+      setIsEditing(
+        false,
+      );
+    };
+
+  const handleUserIdChange =
+    (
+      userId: string,
+    ) => {
+      usernameCheckRequestIdRef.current +=
+        1;
+
+      setForm(
+        (
+          previous,
+        ) => ({
+          ...previous,
+          userId,
+        }),
+      );
+
+      const trimmedUserId =
+        userId.trim();
+
+      if (
+        trimmedUserId ===
+        profile.userId
+      ) {
+        setUserIdStatus(
+          "idle",
+        );
+
+        setUserIdFeedbackMessage(
+          "",
+        );
+
+        return;
+      }
+
+      const validationMessage =
+        getUsernameValidationMessage(
+          trimmedUserId,
+        );
+
+      if (
+        validationMessage
+      ) {
+        setUserIdStatus(
+          "error",
+        );
+
+        setUserIdFeedbackMessage(
+          validationMessage,
+        );
+
+        return;
+      }
+
+      setUserIdStatus(
+        "idle",
+      );
+
+      setUserIdFeedbackMessage(
+        "",
+      );
+    };
+
+  /*
+   * 프로필 이미지 파일 선택
+   */
+  const handleProfileImageChange =
+    (
+      event:
+        ChangeEvent<HTMLInputElement>,
+    ) => {
+      const imageFile =
+        event.target.files?.[0];
+
+      if (!imageFile) {
+        return;
+      }
+
+      setUpdateErrorMessage(
+        "",
+      );
+
+      /*
+       * Swagger:
+       * JPEG / PNG 지원
+       */
+      if (
+        !ALLOWED_PROFILE_IMAGE_TYPES.has(
+          imageFile.type,
+        )
+      ) {
+        setUpdateErrorMessage(
+          "프로필 이미지는 JPEG 또는 PNG 파일만 사용할 수 있습니다.",
+        );
+
+        event.target.value =
+          "";
+
+        return;
+      }
+
+      /*
+       * Swagger:
+       * 기본 최대 10MB
+       */
+      if (
+        imageFile.size >
+        MAX_PROFILE_IMAGE_SIZE
+      ) {
+        setUpdateErrorMessage(
+          "프로필 이미지는 10MB 이하의 파일만 사용할 수 있습니다.",
+        );
+
+        event.target.value =
+          "";
+
+        return;
+      }
+
+      clearPreviewImage();
+
+      const imageUrl =
+        URL.createObjectURL(
+          imageFile,
+        );
 
       previewImageUrlRef.current =
-        null;
-    }
-  };
+        imageUrl;
 
-  const handleStartEditing = () => {
-    clearPreviewImage();
-
-    usernameCheckRequestIdRef.current +=
-      1;
-
-    setForm(profile);
-
-    setSelectedProfileImageFile(
-      null,
-    );
-
-    setUserIdStatus("idle");
-    setUserIdFeedbackMessage("");
-    setUpdateErrorMessage("");
-
-    setIsEditing(true);
-  };
-
-  const handleCancelEditing = () => {
-    clearPreviewImage();
-
-    usernameCheckRequestIdRef.current +=
-      1;
-
-    setForm(profile);
-
-    setSelectedProfileImageFile(
-      null,
-    );
-
-    setUserIdStatus("idle");
-    setUserIdFeedbackMessage("");
-    setUpdateErrorMessage("");
-
-    setIsSelectingTeam(false);
-    setIsEditing(false);
-  };
-
-  const handleUserIdChange = (
-    userId: string,
-  ) => {
-    usernameCheckRequestIdRef.current +=
-      1;
-
-    setForm((previous) => ({
-      ...previous,
-      userId,
-    }));
-
-    const trimmedUserId =
-      userId.trim();
-
-    if (
-      trimmedUserId ===
-      profile.userId
-    ) {
-      setUserIdStatus("idle");
-      setUserIdFeedbackMessage("");
-      return;
-    }
-
-    const validationMessage =
-      getUsernameValidationMessage(
-        trimmedUserId,
+      setSelectedProfileImageFile(
+        imageFile,
       );
 
-    if (validationMessage) {
-      setUserIdStatus("error");
-      setUserIdFeedbackMessage(
-        validationMessage,
+      setForm(
+        (
+          previous,
+        ) => ({
+          ...previous,
+
+          profileImage:
+            imageUrl,
+        }),
       );
-      return;
-    }
 
-    setUserIdStatus("idle");
-    setUserIdFeedbackMessage("");
-  };
+      /*
+       * 같은 파일을 다시 선택해도
+       * change 이벤트가 발생하게 초기화
+       */
+      event.target.value =
+        "";
+    };
 
+  const handleSelectTeam =
+    (
+      teamId: number,
+    ) => {
+      setForm(
+        (
+          previous,
+        ) => ({
+          ...previous,
+
+          favoriteTeamId:
+            teamId,
+        }),
+      );
+    };
+
+  /*
+   * 프로필 수정 완료
+   */
   const handleCompleteEditing =
     async () => {
       const trimmedNickname =
@@ -504,10 +840,6 @@ export function MyPage() {
         form.favoriteTeamId !==
         profile.favoriteTeamId;
 
-      const isProfileImageChanged =
-        form.profileImage !==
-        profile.profileImage;
-
       const validationMessage =
         getUsernameValidationMessage(
           trimmedUserId,
@@ -516,50 +848,49 @@ export function MyPage() {
       if (
         !trimmedNickname ||
         validationMessage ||
-        (isUserIdChanged &&
-          userIdStatus !== "success")
+        (
+          isUserIdChanged &&
+          userIdStatus !==
+            "success"
+        )
       ) {
         return;
       }
 
-      /*
-       * PUT /api/mypage/profile-image는
-       * 이미지 파일이 아닌 이미지 URL을 받는 API입니다.
-       *
-       * 현재 file input으로 선택한 파일은 blob: URL만 생성되므로
-       * 서버에 저장할 수 없습니다.
-       *
-       * 별도의 이미지 업로드 API가 연결된 이후
-       * 해당 API에서 반환받은 URL을
-       * updateProfileImage(imageUrl)에 전달하면 됩니다.
-       */
-      if (selectedProfileImageFile) {
-        setUpdateErrorMessage(
-          "이미지 파일 업로드 API 연동이 필요합니다.",
+      try {
+        setIsUpdating(
+          true,
         );
 
-        return;
-      }
+        setUpdateErrorMessage(
+          "",
+        );
 
-      try {
-        setIsUpdating(true);
-        setUpdateErrorMessage("");
+        let updatedProfile =
+          null;
 
-        let updatedProfile = null;
-
+        /*
+         * 닉네임 / 아이디 수정
+         */
         if (
           isNicknameChanged ||
           isUserIdChanged
         ) {
           updatedProfile =
-            await updateMyProfile({
-              username:
-                trimmedUserId,
-              nickname:
-                trimmedNickname,
-            });
+            await updateMyProfile(
+              {
+                username:
+                  trimmedUserId,
+
+                nickname:
+                  trimmedNickname,
+              },
+            );
         }
 
+        /*
+         * 응원 팀 수정
+         */
         if (
           isFavoriteTeamChanged
         ) {
@@ -578,71 +909,118 @@ export function MyPage() {
             );
         }
 
+        /*
+         * 프로필 이미지 파일 업로드
+         *
+         * 1. upload-url
+         * 2. S3 PUT
+         * 3. complete
+         */
         if (
-          isProfileImageChanged &&
-          !form.profileImage.startsWith(
-            "blob:",
-          )
+          selectedProfileImageFile
         ) {
           updatedProfile =
-            await updateProfileImage(
-              form.profileImage ===
-                defaultProfileIcon
-                ? null
-                : form.profileImage,
+            await uploadProfileImage(
+              selectedProfileImageFile,
             );
         }
 
-        if (!updatedProfile) {
-          setUserIdStatus("idle");
-          setUserIdFeedbackMessage("");
-          setIsSelectingTeam(false);
-          setIsEditing(false);
+        /*
+         * 변경 사항이 없는 경우
+         */
+        if (
+          !updatedProfile
+        ) {
+          setUserIdStatus(
+            "idle",
+          );
+
+          setUserIdFeedbackMessage(
+            "",
+          );
+
+          setIsSelectingTeam(
+            false,
+          );
+
+          setIsEditing(
+            false,
+          );
+
           return;
         }
 
-        const profileData: ProfileForm = {
-          nickname:
-            updatedProfile.nickname,
-          userId:
-            updatedProfile.username,
-          email:
-            updatedProfile.email,
-          favoriteTeamId:
-            updatedProfile
-              .favoriteTeam?.id ??
-            form.favoriteTeamId,
-          profileImage:
-            updatedProfile
-              .profileImageUrl ||
-            profile.profileImage ||
-            defaultProfileIcon,
-        };
+        /*
+         * complete / profile / favorite-team 응답은
+         * 모두 MyPageResponse이므로 동일하게 반영
+         */
+        const profileData: ProfileForm =
+          {
+            nickname:
+              updatedProfile.nickname,
+
+            userId:
+              updatedProfile.username,
+
+            email:
+              updatedProfile.email,
+
+            favoriteTeamId:
+              updatedProfile
+                .favoriteTeam
+                ?.id ??
+              form.favoriteTeamId,
+
+            profileImage:
+              updatedProfile
+                .profileImageUrl ||
+              defaultProfileIcon,
+          };
 
         clearPreviewImage();
 
-        setProfile(profileData);
-        setForm(profileData);
+        setProfile(
+          profileData,
+        );
+
+        setForm(
+          profileData,
+        );
 
         setSelectedProfileImageFile(
           null,
         );
 
-        setUserIdStatus("idle");
-        setUserIdFeedbackMessage("");
-        setIsSelectingTeam(false);
-        setIsEditing(false);
+        setUserIdStatus(
+          "idle",
+        );
+
+        setUserIdFeedbackMessage(
+          "",
+        );
+
+        setIsSelectingTeam(
+          false,
+        );
+
+        setIsEditing(
+          false,
+        );
       } catch (error) {
         if (
-          error instanceof ApiError &&
-          error.status === 401
+          error instanceof
+            ApiError &&
+          error.status ===
+            401
         ) {
           await redirectToLogin();
+
           return;
         }
 
         const message =
-          error instanceof Error
+          error instanceof
+              Error
             ? error.message
             : "프로필 수정에 실패했습니다.";
 
@@ -655,111 +1033,95 @@ export function MyPage() {
           error,
         );
       } finally {
-        setIsUpdating(false);
+        setIsUpdating(
+          false,
+        );
       }
     };
 
-  const handleProfileImageChange = (
-    event: ChangeEvent<HTMLInputElement>,
-  ) => {
-    const imageFile =
-      event.target.files?.[0];
-
-    if (!imageFile) {
-      return;
-    }
-
-    clearPreviewImage();
-
-    const imageUrl =
-      URL.createObjectURL(
-        imageFile,
-      );
-
-    previewImageUrlRef.current =
-      imageUrl;
-
-    setSelectedProfileImageFile(
-      imageFile,
-    );
-
-    setForm((previous) => ({
-      ...previous,
-      profileImage: imageUrl,
-    }));
-
-    event.target.value = "";
-  };
-
-  const handleSelectTeam = (
-    teamId: number,
-  ) => {
-    setForm((previous) => ({
-      ...previous,
-      favoriteTeamId: teamId,
-    }));
-  };
-
-  const handleLogout = async () => {
-    if (isLoggingOut) {
-      return;
-    }
-
-    setIsLoggingOut(true);
-    setLogoutErrorMessage("");
-
-    const installationId =
-      getPushInstallationId();
-
-    if (installationId) {
-      try {
-        await unregisterPushNotification(
-          installationId,
-        );
-      } catch (error) {
-        console.error(
-          "푸시 알림 비활성화 실패:",
-          error,
-        );
-      }
-    }
-
-    try {
-      await logout();
-
-      await clearAuthSession();
-
-      navigate("/login", {
-        replace: true,
-      });
-    } catch (error) {
+  const handleLogout =
+    async () => {
       if (
-        error instanceof ApiError &&
-        error.status === 401
+        isLoggingOut
       ) {
-        await clearAuthSession();
-
-        navigate("/login", {
-          replace: true,
-        });
-
         return;
       }
 
-      setLogoutErrorMessage(
-        error instanceof Error
-          ? error.message
-          : "로그아웃에 실패했습니다. 잠시 후 다시 시도해 주세요.",
+      setIsLoggingOut(
+        true,
       );
 
-      console.error(
-        "로그아웃 중 오류가 발생했습니다.",
-        error,
+      setLogoutErrorMessage(
+        "",
       );
-    } finally {
-      setIsLoggingOut(false);
-    }
-  };
+
+      const installationId =
+        getPushInstallationId();
+
+      if (
+        installationId
+      ) {
+        try {
+          await unregisterPushNotification(
+            installationId,
+          );
+        } catch (error) {
+          console.error(
+            "푸시 알림 비활성화 실패:",
+            error,
+          );
+        }
+      }
+
+      try {
+        await logout();
+
+        await clearAuthSession();
+
+        navigate(
+          "/login",
+          {
+            replace:
+              true,
+          },
+        );
+      } catch (error) {
+        if (
+          error instanceof
+            ApiError &&
+          error.status ===
+            401
+        ) {
+          await clearAuthSession();
+
+          navigate(
+            "/login",
+            {
+              replace:
+                true,
+            },
+          );
+
+          return;
+        }
+
+        setLogoutErrorMessage(
+          error instanceof
+              Error
+            ? error.message
+            : "로그아웃에 실패했습니다. 잠시 후 다시 시도해 주세요.",
+        );
+
+        console.error(
+          "로그아웃 중 오류가 발생했습니다.",
+          error,
+        );
+      } finally {
+        setIsLoggingOut(
+          false,
+        );
+      }
+    };
 
   const isUserIdChanged =
     form.userId.trim() !==
@@ -789,7 +1151,9 @@ export function MyPage() {
     );
   }
 
-  if (loadErrorMessage) {
+  if (
+    loadErrorMessage
+  ) {
     return (
       <div className="flex min-h-dvh w-full flex-col bg-[#F1F2F1]">
         <div className="bg-[#F1F2F1] pt-[20px]">
@@ -800,7 +1164,9 @@ export function MyPage() {
 
         <main className="flex flex-1 flex-col items-center justify-center px-[16px]">
           <p className="text-center text-label-3 text-text-secondary">
-            {loadErrorMessage}
+            {
+              loadErrorMessage
+            }
           </p>
 
           <button
@@ -819,7 +1185,9 @@ export function MyPage() {
     );
   }
 
-  if (isSelectingTeam) {
+  if (
+    isSelectingTeam
+  ) {
     return (
       <div className="min-h-dvh w-full bg-[#F1F2F1] pb-[110px]">
         <div className="bg-[#F1F2F1] pt-[20px]">
@@ -837,14 +1205,18 @@ export function MyPage() {
           <section className="rounded-[31px] bg-bg-primary pb-[24px] pt-[76px]">
             <div className="rounded-[35px] bg-surface-secondary px-[16px] py-[12px]">
               {KBO_TEAMS.map(
-                (team) => {
+                (
+                  team,
+                ) => {
                   const isSelected =
                     form.favoriteTeamId ===
                     team.id;
 
                   return (
                     <button
-                      key={team.id}
+                      key={
+                        team.id
+                      }
                       type="button"
                       onClick={() =>
                         handleSelectTeam(
@@ -854,13 +1226,18 @@ export function MyPage() {
                       className={[
                         "flex h-[64px] w-full items-center rounded-[32px]",
                         "px-[18px] text-left text-label-1 text-black",
+
                         isSelected
                           ? "bg-bg-primary"
                           : "",
-                      ].join(" ")}
+                      ].join(
+                        " ",
+                      )}
                     >
                       <TeamMascot
-                        team={team}
+                        team={
+                          team
+                        }
                         containerSize={
                           52
                         }
@@ -869,7 +1246,9 @@ export function MyPage() {
                       />
 
                       <span>
-                        {team.name}
+                        {
+                          team.name
+                        }
                       </span>
                     </button>
                   );
@@ -905,8 +1284,11 @@ export function MyPage() {
     isUpdating ||
     !form.nickname.trim() ||
     !form.userId.trim() ||
-    (isUserIdChanged &&
-      userIdStatus !== "success");
+    (
+      isUserIdChanged &&
+      userIdStatus !==
+        "success"
+    );
 
   return (
     <div className="min-h-dvh w-full bg-[#F1F2F1] pb-[110px]">
@@ -918,7 +1300,9 @@ export function MyPage() {
               : "마이페이지"
           }
           rightText={
-            isEditing ? "" : "수정"
+            isEditing
+              ? ""
+              : "수정"
           }
           onRightClick={
             isEditing
@@ -944,7 +1328,12 @@ export function MyPage() {
                       .profileImage
                   }
                   alt={`${displayedProfile.nickname} 프로필`}
-                  onError={(event) => {
+                  onError={(
+                    event,
+                  ) => {
+                    event.currentTarget.onerror =
+                      null;
+
                     event.currentTarget.src =
                       defaultProfileIcon;
                   }}
@@ -959,11 +1348,16 @@ export function MyPage() {
                     onClick={() =>
                       fileInputRef.current?.click()
                     }
+                    disabled={
+                      isUpdating
+                    }
                     aria-label="프로필 사진 변경"
-                    className="absolute bottom-[3px] right-[3px] flex size-[28px] items-center justify-center rounded-full bg-text-secondary"
+                    className="absolute bottom-[3px] right-[3px] flex size-[28px] items-center justify-center rounded-full bg-text-secondary disabled:opacity-50"
                   >
                     <img
-                      src={cameraIcon}
+                      src={
+                        cameraIcon
+                      }
                       alt=""
                       aria-hidden="true"
                       className="h-[13px] w-[15px]"
@@ -971,11 +1365,16 @@ export function MyPage() {
                   </button>
 
                   <input
-                    ref={fileInputRef}
+                    ref={
+                      fileInputRef
+                    }
                     type="file"
-                    accept="image/*"
+                    accept="image/jpeg,image/png"
                     onChange={
                       handleProfileImageChange
+                    }
+                    disabled={
+                      isUpdating
                     }
                     className="hidden"
                   />
@@ -995,7 +1394,9 @@ export function MyPage() {
                   nickname,
                 ) =>
                   setForm(
-                    (previous) => ({
+                    (
+                      previous,
+                    ) => ({
                       ...previous,
                       nickname,
                     }),
@@ -1005,7 +1406,9 @@ export function MyPage() {
 
               <ProfileInput
                 label="아이디"
-                value={form.userId}
+                value={
+                  form.userId
+                }
                 message={
                   userIdFeedbackMessage ||
                   undefined
@@ -1023,7 +1426,9 @@ export function MyPage() {
 
               <ProfileInput
                 label="이메일"
-                value={form.email}
+                value={
+                  form.email
+                }
                 disabled
               />
 
@@ -1034,7 +1439,10 @@ export function MyPage() {
                     true,
                   )
                 }
-                className="w-full border-b-[1.5px] border-surface-secondary pt-[16px] text-left"
+                disabled={
+                  isUpdating
+                }
+                className="w-full border-b-[1.5px] border-surface-secondary pt-[16px] text-left disabled:opacity-50"
               >
                 <p className="text-label-3 text-black">
                   응원 팀
@@ -1056,7 +1464,9 @@ export function MyPage() {
 
               {updateErrorMessage && (
                 <p className="mt-[16px] text-center text-caption text-danger">
-                  {updateErrorMessage}
+                  {
+                    updateErrorMessage
+                  }
                 </p>
               )}
             </>
@@ -1134,7 +1544,9 @@ export function MyPage() {
                 onClick={() => {
                   void handleLogout();
                 }}
-                disabled={isLoggingOut}
+                disabled={
+                  isLoggingOut
+                }
                 className="flex h-[58px] w-full items-center px-[16px] text-left text-label-3 text-danger disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isLoggingOut
@@ -1145,7 +1557,9 @@ export function MyPage() {
 
             {logoutErrorMessage && (
               <p className="mt-[8px] px-[10px] text-caption text-danger">
-                {logoutErrorMessage}
+                {
+                  logoutErrorMessage
+                }
               </p>
             )}
           </section>
