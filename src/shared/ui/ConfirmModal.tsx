@@ -1,28 +1,37 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useId, useRef } from "react";
 import { createPortal } from "react-dom";
 
-type FriendDeleteConfirmModalProps = {
-  isOpen: boolean;
-  isDeleting: boolean;
-  errorMessage: string;
+type ConfirmModalProps = {
+  open: boolean;
+  title: string;
+  isPending?: boolean;
+  errorMessage?: string;
+  cancelText?: string;
+  confirmText?: string;
+  pendingText?: string;
   onCancel: () => void;
   onConfirm: () => void;
 };
 
-export function FriendDeleteConfirmModal({
-  isOpen,
-  isDeleting,
-  errorMessage,
+export function ConfirmModal({
+  open,
+  title,
+  isPending = false,
+  errorMessage = "",
+  cancelText = "취소",
+  confirmText = "확인",
+  pendingText = "처리 중...",
   onCancel,
   onConfirm,
-}: FriendDeleteConfirmModalProps) {
+}: ConfirmModalProps) {
+  const titleId = useId();
   const cancelButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!open) return;
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !isDeleting) {
+      if (event.key === "Escape" && !isPending) {
         onCancel();
       }
     };
@@ -36,30 +45,30 @@ export function FriendDeleteConfirmModal({
       document.body.style.overflow = originalOverflow;
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [isDeleting, isOpen, onCancel]);
+  }, [isPending, onCancel, open]);
 
-  if (!isOpen) return null;
+  if (!open) return null;
 
   return createPortal(
     <div
       role="presentation"
       onClick={() => {
-        if (!isDeleting) onCancel();
+        if (!isPending) onCancel();
       }}
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 px-[24px]"
+      className="fixed inset-0 z-[110] flex items-center justify-center bg-black/50 px-[24px]"
     >
       <section
-        role="dialog"
+        role="alertdialog"
         aria-modal="true"
-        aria-labelledby="friend-delete-modal-title"
+        aria-labelledby={titleId}
         onClick={(event) => event.stopPropagation()}
         className="w-full max-w-[328px] rounded-[25px] bg-white px-[20px] pb-[20px] pt-[28px] shadow-[0_6px_16px_rgba(0,0,0,0.12)]"
       >
         <h2
-          id="friend-delete-modal-title"
+          id={titleId}
           className="text-center text-label-2 text-button-neutral"
         >
-          친구를 삭제하시겠습니까?
+          {title}
         </h2>
 
         {errorMessage && (
@@ -76,18 +85,18 @@ export function FriendDeleteConfirmModal({
             ref={cancelButtonRef}
             type="button"
             onClick={onCancel}
-            disabled={isDeleting}
+            disabled={isPending}
             className="flex h-[50px] flex-1 items-center justify-center rounded-[25px] bg-surface-secondary text-label-3 text-button-neutral disabled:cursor-not-allowed disabled:opacity-60"
           >
-            취소
+            {cancelText}
           </button>
           <button
             type="button"
             onClick={onConfirm}
-            disabled={isDeleting}
+            disabled={isPending}
             className="flex h-[50px] flex-1 items-center justify-center rounded-[25px] bg-accent-primary text-label-3 text-white active:bg-accent-pressed disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {isDeleting ? "삭제 중..." : "확인"}
+            {isPending ? pendingText : confirmText}
           </button>
         </div>
       </section>

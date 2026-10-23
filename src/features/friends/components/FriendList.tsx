@@ -5,7 +5,7 @@ import {
   getFriends,
 } from "../api/friendsApi";
 import type { FriendshipResponse } from "../types/friend";
-import { FriendDeleteConfirmModal } from "./FriendDeleteConfirmModal";
+import { ConfirmModal } from "../../../shared/ui/ConfirmModal";
 import { FriendListEmptyState } from "./FriendListEmptyState";
 import {
   FriendListItem,
@@ -139,10 +139,12 @@ export function FriendList({
         </div>
       </main>
 
-      <FriendDeleteConfirmModal
-        isOpen={pendingDeleteFriendshipId !== null}
-        isDeleting={deletingFriendshipId !== null}
+      <ConfirmModal
+        open={pendingDeleteFriendshipId !== null}
+        title="친구를 삭제하시겠습니까?"
+        isPending={deletingFriendshipId !== null}
         errorMessage={deleteErrorMessage}
+        pendingText="삭제 중..."
         onCancel={() => {
           if (deletingFriendshipId !== null) return;
 

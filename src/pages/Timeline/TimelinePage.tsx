@@ -51,10 +51,10 @@ import {
   type InningDetailMode,
 } from "../../features/timeline/components/InningDetailModal";
 
-import { InningRecordDeleteConfirmModal } from "../../features/timeline/components/InningRecordDeleteConfirmModal";
 import { TimelineGameScore } from "../../features/timeline/components/TimelineGameScore";
 import { TimelineProfileList } from "../../features/timeline/components/TimelineProfileList";
 import { TimelineShareModal } from "../../features/timeline/components/TimelineShareModal";
+import { ConfirmModal } from "../../shared/ui/ConfirmModal";
 
 import type {
   TimelineRecord,
@@ -1763,17 +1763,19 @@ export function TimelinePage() {
         }
       />
 
-      <InningRecordDeleteConfirmModal
-        isOpen={
+      <ConfirmModal
+        open={
           pendingDeleteRecord !==
           null
         }
-        isDeleting={
+        title="기록을 삭제하시겠습니까?"
+        isPending={
           isDeletingRecord
         }
         errorMessage={
           deleteRecordError
         }
+        pendingText="삭제 중..."
         onCancel={() => {
           if (
             isDeletingRecord
