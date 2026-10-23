@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react";
 
-import { getFriends } from "../api/friendsApi";
+import {
+  deleteFriendship,
+  getFriends,
+} from "../api/friendsApi";
 import type { FriendshipResponse } from "../types/friend";
+import { FriendDeleteConfirmModal } from "./FriendDeleteConfirmModal";
 import { FriendListEmptyState } from "./FriendListEmptyState";
 import {
   FriendListItem,
@@ -32,6 +36,11 @@ export function FriendList({
   const [friends, setFriends] = useState<FriendshipResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
+  const [deleteErrorMessage, setDeleteErrorMessage] = useState("");
+  const [pendingDeleteFriendshipId, setPendingDeleteFriendshipId] =
+    useState<number | null>(null);
+  const [deletingFriendshipId, setDeletingFriendshipId] =
+    useState<number | null>(null);
   const friendItems = friends.map(mapFriendshipToListItem);
 
   useEffect(() => {
@@ -58,6 +67,38 @@ export function FriendList({
     void fetchFriends();
   }, []);
 
+  const handleDeleteFriend = async () => {
+    if (
+      deletingFriendshipId !== null ||
+      pendingDeleteFriendshipId === null
+    ) {
+      return;
+    }
+
+    const friendshipId = pendingDeleteFriendshipId;
+
+    setDeletingFriendshipId(friendshipId);
+    setDeleteErrorMessage("");
+
+    try {
+      await deleteFriendship(friendshipId);
+      setFriends((currentFriends) =>
+        currentFriends.filter(
+          (friendship) => friendship.id !== friendshipId,
+        ),
+      );
+      setPendingDeleteFriendshipId(null);
+    } catch (error) {
+      setDeleteErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "친구를 삭제하지 못했습니다.",
+      );
+    } finally {
+      setDeletingFriendshipId(null);
+    }
+  };
+
   if (isLoading) {
     return (
       <FriendListStatus message="친구 목록을 불러오는 중입니다." />
@@ -78,16 +119,40 @@ export function FriendList({
   }
 
   return (
-    <main className="mt-[66px] min-h-0 flex-1 overflow-y-auto px-[29px]">
-      <div className="border-t-[1.5px] border-surface-secondary">
-        {friendItems.map((friend) => (
-          <FriendListItem
-            key={friend.friendshipId}
-            friend={friend}
-            onSelect={onSelectFriend}
-          />
-        ))}
-      </div>
-    </main>
+    <>
+      <main className="mt-[66px] min-h-0 flex-1 overflow-y-auto px-[29px]">
+        <div className="border-t-[1.5px] border-surface-secondary">
+          {friendItems.map((friend) => (
+            <FriendListItem
+              key={friend.friendshipId}
+              friend={friend}
+              isDeleting={
+                deletingFriendshipId === friend.friendshipId
+              }
+              onDelete={() => {
+                setDeleteErrorMessage("");
+                setPendingDeleteFriendshipId(friend.friendshipId);
+              }}
+              onSelect={onSelectFriend}
+            />
+          ))}
+        </div>
+      </main>
+
+      <FriendDeleteConfirmModal
+        isOpen={pendingDeleteFriendshipId !== null}
+        isDeleting={deletingFriendshipId !== null}
+        errorMessage={deleteErrorMessage}
+        onCancel={() => {
+          if (deletingFriendshipId !== null) return;
+
+          setDeleteErrorMessage("");
+          setPendingDeleteFriendshipId(null);
+        }}
+        onConfirm={() => {
+          void handleDeleteFriend();
+        }}
+      />
+    </>
   );
 }
