@@ -19,6 +19,7 @@ import { BottomBar } from "../../app/layouts/BottomBar";
 import { PageHeader } from "../../app/layouts/PageHeader";
 
 import shareIcon from "../../assets/icons/share.svg";
+import settingIcon from "../../assets/icons/setting.png";
 
 import { getHomeCalendar } from "../../features/home/api/homeApi";
 
@@ -40,20 +41,34 @@ import {
 import {
   deleteInningRecord,
 } from "../../features/record/api/inningRecordApi";
+import {
+  deleteUserGameLog,
+  getUserGameLog,
+  updateUserGameLog,
+} from "../../features/record/api/userGameLogApi";
+import {
+  WatchingLocationSheet,
+  type WatchingLocation,
+} from "../../features/record/WatchingLocationSheet";
 
 import type {
   InningRecordResponse,
 } from "../../features/record/types/inningRecord";
+import type {
+  UserGameLogResponse,
+} from "../../features/record/types/userGameLog";
 
 import {
   InningDetailModal,
   type InningDetailMode,
 } from "../../features/timeline/components/InningDetailModal";
 
-import { InningRecordDeleteConfirmModal } from "../../features/timeline/components/InningRecordDeleteConfirmModal";
 import { TimelineGameScore } from "../../features/timeline/components/TimelineGameScore";
 import { TimelineProfileList } from "../../features/timeline/components/TimelineProfileList";
 import { TimelineShareModal } from "../../features/timeline/components/TimelineShareModal";
+import { TimelineViewingSettingsModal } from "../../features/timeline/components/TimelineViewingSettingsModal";
+import { ConfirmModal } from "../../shared/ui/ConfirmModal";
+import { Toast } from "../../shared/ui/Toast";
 
 import type {
   TimelineRecord,
@@ -450,6 +465,56 @@ export function TimelinePage() {
     setIsShareModalOpen,
   ] =
     useState(false);
+
+  const [
+    isViewingSettingsOpen,
+    setIsViewingSettingsOpen,
+  ] = useState(false);
+
+  const [
+    viewingLog,
+    setViewingLog,
+  ] = useState<UserGameLogResponse | null>(null);
+
+  const [
+    isViewingLocationSheetOpen,
+    setIsViewingLocationSheetOpen,
+  ] = useState(false);
+
+  const [
+    isLoadingViewing,
+    setIsLoadingViewing,
+  ] = useState(false);
+
+  const [
+    isUpdatingViewing,
+    setIsUpdatingViewing,
+  ] = useState(false);
+
+  const [
+    viewingSettingsError,
+    setViewingSettingsError,
+  ] = useState("");
+
+  const [
+    isViewingDeleteConfirmOpen,
+    setIsViewingDeleteConfirmOpen,
+  ] = useState(false);
+
+  const [
+    isDeletingViewing,
+    setIsDeletingViewing,
+  ] = useState(false);
+
+  const [
+    deleteViewingError,
+    setDeleteViewingError,
+  ] = useState("");
+
+  const [
+    feedbackMessage,
+    setFeedbackMessage,
+  ] = useState("");
 
   const scrollRefs =
     useRef<
@@ -940,6 +1005,19 @@ export function TimelinePage() {
       .requiresViewingRegistration ===
       false;
 
+  const viewingLogId =
+    timeline?.viewing?.id ??
+    timeline?.game.myViewing?.id ??
+    null;
+
+  const canManageViewing =
+    !isFriendTimeline &&
+    viewingLogId !== null &&
+    Number.isSafeInteger(
+      viewingLogId,
+    ) &&
+    viewingLogId > 0;
+
   /**
    * 현재 이닝은
    * 기록이 있어도 + 카드 표시
@@ -1168,6 +1246,281 @@ export function TimelinePage() {
           };
         },
       );
+    };
+
+  const handleOpenViewingSettings =
+    async () => {
+      if (
+        !canManageViewing ||
+        viewingLogId ===
+          null
+      ) {
+        return;
+      }
+
+      setViewingLog(null);
+      setViewingSettingsError(
+        "",
+      );
+      setIsViewingSettingsOpen(
+        true,
+      );
+
+      try {
+        setIsLoadingViewing(
+          true,
+        );
+
+        const response =
+          await getUserGameLog(
+            viewingLogId,
+          );
+
+        setViewingLog(
+          response,
+        );
+      } catch (error) {
+        console.error(
+          "관람 정보 조회 실패:",
+          error,
+        );
+
+        setViewingSettingsError(
+          error instanceof Error
+            ? error.message
+            : "관람 정보를 불러오지 못했습니다.",
+        );
+      } finally {
+        setIsLoadingViewing(
+          false,
+        );
+      }
+    };
+
+  const handleCloseViewingSettings =
+    () => {
+      if (
+        isLoadingViewing ||
+        isUpdatingViewing
+      ) {
+        return;
+      }
+
+      setIsViewingSettingsOpen(
+        false,
+      );
+      setViewingSettingsError(
+        "",
+      );
+      setViewingLog(null);
+    };
+
+  const handleOpenViewingEdit =
+    () => {
+      if (!viewingLog) {
+        return;
+      }
+
+      setViewingSettingsError(
+        "",
+      );
+      setIsViewingSettingsOpen(
+        false,
+      );
+      setIsViewingLocationSheetOpen(
+        true,
+      );
+    };
+
+  const handleCloseViewingEdit =
+    () => {
+      if (isUpdatingViewing) {
+        return;
+      }
+
+      setIsViewingLocationSheetOpen(
+        false,
+      );
+      setViewingSettingsError(
+        "",
+      );
+    };
+
+  const handleUpdateViewing =
+    async (
+      location:
+        WatchingLocation,
+    ) => {
+      if (!viewingLog) {
+        return;
+      }
+
+      try {
+        setIsUpdatingViewing(
+          true,
+        );
+        setViewingSettingsError(
+          "",
+        );
+
+        const updated =
+          await updateUserGameLog(
+            viewingLog.id,
+            {
+              viewingType:
+                location ===
+                "stadium"
+                  ? "STADIUM"
+                  : "HOME",
+            },
+          );
+
+        const updatedViewing = {
+          id: updated.id,
+          viewingType:
+            updated.viewingType,
+          cheeringTeamId:
+            updated.cheeringTeamId,
+        };
+
+        setViewingLog(
+          updated,
+        );
+        setTimeline(
+          (current) =>
+            current
+              ? {
+                  ...current,
+                  viewing:
+                    updatedViewing,
+                  game: {
+                    ...current.game,
+                    myViewing:
+                      updatedViewing,
+                  },
+                }
+              : current,
+        );
+        setIsViewingLocationSheetOpen(
+          false,
+        );
+        setFeedbackMessage(
+          "관람 정보가 수정되었습니다.",
+        );
+      } catch (error) {
+        console.error(
+          "관람 정보 수정 실패:",
+          error,
+        );
+
+        setViewingSettingsError(
+          error instanceof Error
+            ? error.message
+            : "관람 정보를 수정하지 못했습니다.",
+        );
+      } finally {
+        setIsUpdatingViewing(
+          false,
+        );
+      }
+    };
+
+  const handleRequestDeleteViewing =
+    () => {
+      if (!viewingLog) {
+        return;
+      }
+
+      setDeleteViewingError(
+        "",
+      );
+      setIsViewingDeleteConfirmOpen(
+        true,
+      );
+    };
+
+  const handleDeleteViewing =
+    async () => {
+      if (
+        !viewingLog ||
+        isDeletingViewing ||
+        !timeline
+      ) {
+        return;
+      }
+
+      const targetGameId =
+        timeline.game.gameId;
+
+      try {
+        setIsDeletingViewing(
+          true,
+        );
+        setDeleteViewingError(
+          "",
+        );
+
+        await deleteUserGameLog(
+          viewingLog.id,
+        );
+
+        try {
+          const refreshed =
+            await getMyTimeline({
+              gameId:
+                targetGameId,
+              limit: 50,
+            });
+
+          setTimeline(
+            refreshed,
+          );
+          setRecords(
+            refreshed.records ??
+              [],
+          );
+          setNextCursor(
+            refreshed.nextCursor ??
+              null,
+          );
+        } catch (refreshError) {
+          console.error(
+            "관람 기록 삭제 후 타임라인 조회 실패:",
+            refreshError,
+          );
+
+          navigate(
+            "/home",
+            { replace: true },
+          );
+        }
+
+        setIsViewingDeleteConfirmOpen(
+          false,
+        );
+        setIsViewingSettingsOpen(
+          false,
+        );
+        setViewingLog(null);
+        setFeedbackMessage(
+          "관람 기록이 삭제되었습니다.",
+        );
+      } catch (error) {
+        console.error(
+          "관람 기록 삭제 실패:",
+          error,
+        );
+
+        setDeleteViewingError(
+          error instanceof Error
+            ? error.message
+            : "관람 기록을 삭제하지 못했습니다.",
+        );
+      } finally {
+        setIsDeletingViewing(
+          false,
+        );
+      }
     };
 
   const handleSaveMyVideo =
@@ -1523,25 +1876,46 @@ export function TimelinePage() {
       <div className="relative">
         <PageHeader title="타임라인" />
 
-        {!isPastTimeline && (
-          <button
-            type="button"
-            aria-label="영상 저장하기"
-            onClick={() =>
-              setIsShareModalOpen(
-                true,
-              )
-            }
-            className="absolute right-[27px] top-1/2 flex size-[15px] -translate-y-1/2 items-center justify-center"
-          >
-            <img
-              src={
-                shareIcon
+        {!isFriendTimeline && (
+          <div className="absolute right-[22px] top-1/2 flex -translate-y-1/2 items-center gap-[16px]">
+            <button
+              type="button"
+              aria-label="영상 저장하기"
+              onClick={() =>
+                setIsShareModalOpen(
+                  true,
+                )
               }
-              alt=""
-              className="size-[24px]"
-            />
-          </button>
+              className="flex size-[24px] items-center justify-center"
+            >
+              <img
+                src={
+                  shareIcon
+                }
+                alt=""
+                className="size-[15px]"
+              />
+            </button>
+
+            {canManageViewing && (
+              <button
+                type="button"
+                aria-label="관람 정보 설정"
+                onClick={() =>
+                  void handleOpenViewingSettings()
+                }
+                className="flex size-[24px] items-center justify-center"
+              >
+                <img
+                  src={
+                    settingIcon
+                  }
+                  alt=""
+                  className="size-[18px] object-contain"
+                />
+              </button>
+            )}
+          </div>
         )}
       </div>
 
@@ -1744,17 +2118,19 @@ export function TimelinePage() {
         }
       />
 
-      <InningRecordDeleteConfirmModal
-        isOpen={
+      <ConfirmModal
+        open={
           pendingDeleteRecord !==
           null
         }
-        isDeleting={
+        title="기록을 삭제하시겠습니까?"
+        isPending={
           isDeletingRecord
         }
         errorMessage={
           deleteRecordError
         }
+        pendingText="삭제 중..."
         onCancel={() => {
           if (
             isDeletingRecord
@@ -1775,6 +2151,82 @@ export function TimelinePage() {
         }
       />
 
+      <TimelineViewingSettingsModal
+        open={
+          isViewingSettingsOpen
+        }
+        isLoading={
+          isLoadingViewing
+        }
+        canUseActions={
+          viewingLog !== null &&
+          !isLoadingViewing
+        }
+        errorMessage={
+          viewingSettingsError
+        }
+        onClose={
+          handleCloseViewingSettings
+        }
+        onEdit={
+          handleOpenViewingEdit
+        }
+        onDelete={
+          handleRequestDeleteViewing
+        }
+      />
+
+      <WatchingLocationSheet
+        isOpen={
+          isViewingLocationSheetOpen
+        }
+        isSubmitting={
+          isUpdatingViewing
+        }
+        feedbackMessage={
+          viewingSettingsError
+        }
+        onClose={
+          handleCloseViewingEdit
+        }
+        onSelect={(location) =>
+          void handleUpdateViewing(
+            location,
+          )
+        }
+      />
+
+      <ConfirmModal
+        open={
+          isViewingDeleteConfirmOpen
+        }
+        title="정말 삭제하시겠습니까?"
+        isPending={
+          isDeletingViewing
+        }
+        errorMessage={
+          deleteViewingError
+        }
+        pendingText="삭제 중..."
+        onCancel={() => {
+          if (
+            isDeletingViewing
+          ) {
+            return;
+          }
+
+          setDeleteViewingError(
+            "",
+          );
+          setIsViewingDeleteConfirmOpen(
+            false,
+          );
+        }}
+        onConfirm={() =>
+          void handleDeleteViewing()
+        }
+      />
+
       <TimelineShareModal
         isOpen={
           isShareModalOpen
@@ -1789,6 +2241,22 @@ export function TimelinePage() {
         }
         onSaveWithFriend={
           handleSaveWithFriend
+        }
+      />
+
+      <Toast
+        open={
+          Boolean(
+            feedbackMessage,
+          )
+        }
+        message={
+          feedbackMessage
+        }
+        onClose={() =>
+          setFeedbackMessage(
+            "",
+          )
         }
       />
     </div>

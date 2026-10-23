@@ -6,6 +6,10 @@ export type CreateUserGameLogRequest = {
   viewingType: ViewingType;
 };
 
+export type UpdateUserGameLogRequest = {
+  viewingType: ViewingType;
+};
+
 export type UserGameLogResponse = {
   id: number;
   gameId: number;
