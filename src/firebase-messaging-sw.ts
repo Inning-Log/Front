@@ -6,6 +6,9 @@ import {
   getMessaging,
   onBackgroundMessage,
 } from "firebase/messaging/sw";
+
+import { clientsClaim } from "workbox-core";
+
 import {
   cleanupOutdatedCaches,
   precacheAndRoute,
@@ -18,9 +21,25 @@ declare let self: ServiceWorkerGlobalScope & {
   }>;
 };
 
+// ========================================
+// PWA 서비스워커 자동 업데이트
+// ========================================
+
+// 새 서비스워커 설치 후 즉시 활성화 요청
+self.skipWaiting();
+
+// 새 서비스워커가 기존 페이지의 제어권 획득
+clientsClaim();
+
+// 이전 버전의 불필요한 캐시 정리
 cleanupOutdatedCaches();
 
+// 빌드된 정적 파일 캐싱
 precacheAndRoute(self.__WB_MANIFEST);
+
+// ========================================
+// Firebase 초기화
+// ========================================
 
 const firebaseApp = initializeApp({
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -36,6 +55,10 @@ const firebaseApp = initializeApp({
 });
 
 const messaging = getMessaging(firebaseApp);
+
+// ========================================
+// IndexedDB 설정
+// ========================================
 
 const DB_NAME = "inninglog-push";
 const STORE_NAME = "settings";
@@ -72,6 +95,10 @@ function openDatabase(): Promise<IDBDatabase> {
   });
 }
 
+// ========================================
+// IndexedDB 값 저장
+// ========================================
+
 async function setValue(
   key: string,
   value: unknown,
@@ -105,6 +132,10 @@ async function setValue(
     },
   );
 }
+
+// ========================================
+// IndexedDB 값 조회
+// ========================================
 
 async function getValue<T>(
   key: string,
@@ -144,6 +175,10 @@ async function getValue<T>(
   );
 }
 
+// ========================================
+// 현재 로그인 사용자 ID 동기화
+// ========================================
+
 self.addEventListener(
   "message",
   (event: ExtendableMessageEvent) => {
@@ -162,6 +197,10 @@ self.addEventListener(
     );
   },
 );
+
+// ========================================
+// 중복 알림 방지
+// ========================================
 
 async function markNotificationAsHandled(
   notificationId: string,
@@ -192,6 +231,10 @@ async function markNotificationAsHandled(
   return true;
 }
 
+// ========================================
+// 안전한 알림 이동 링크 검증
+// ========================================
+
 function getSafeLink(
   link?: string,
 ): string | null {
@@ -212,6 +255,10 @@ function getSafeLink(
   }
 }
 
+// ========================================
+// Firebase 백그라운드 알림 처리
+// ========================================
+
 onBackgroundMessage(
   messaging,
   async (payload) => {
@@ -221,11 +268,13 @@ onBackgroundMessage(
       return;
     }
 
+    // 현재 로그인 사용자 확인
     const currentUserId =
       await getValue<string>(
         "currentUserId",
       );
 
+    // 다른 사용자 알림 차단
     if (
       !currentUserId ||
       !data.audienceUserId ||
@@ -242,6 +291,7 @@ onBackgroundMessage(
       return;
     }
 
+    // 중복 알림 방지
     const shouldHandle =
       await markNotificationAsHandled(
         notificationId,
@@ -265,6 +315,7 @@ onBackgroundMessage(
       data.link,
     );
 
+    // 푸시 알림 표시
     await self.registration.showNotification(
       title,
       {
@@ -278,6 +329,10 @@ onBackgroundMessage(
     );
   },
 );
+
+// ========================================
+// 푸시 알림 클릭 이벤트
+// ========================================
 
 self.addEventListener(
   "notificationclick",
