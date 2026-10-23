@@ -3,8 +3,10 @@ import { useEffect, useState } from "react";
 import { PageHeader } from "../../app/layouts/PageHeader";
 import {
   acceptFriendRequest,
+  getReceivedFriendRequests,
   rejectFriendRequest,
 } from "../../features/friends/api/friendsApi";
+import type { FriendshipResponse } from "../../features/friends/types/friend";
 import {
   getNotifications,
   readNotification,
@@ -46,6 +48,10 @@ export function NotificationPage() {
     NotificationResponse[]
   >([]);
 
+  const [friendRequests, setFriendRequests] = useState<
+    FriendshipResponse[]
+  >([]);
+
   const [toast, setToast] = useState<ToastState>({
     open: false,
     message: "",
@@ -62,13 +68,19 @@ export function NotificationPage() {
       }
     };
 
-    void fetchNotifications();
-  }, []);
+    const fetchFriendRequests = async () => {
+      try {
+        const data = await getReceivedFriendRequests();
 
-  const requestNotifications = notifications.filter(
-    (notification) =>
-      notification.type === "FRIEND_REQUEST",
-  );
+        setFriendRequests(data);
+      } catch (error) {
+        console.error("받은 친구 신청 목록 조회 실패:", error);
+      }
+    };
+
+    void fetchNotifications();
+    void fetchFriendRequests();
+  }, []);
 
   const generalNotifications = notifications.filter(
     (notification) =>
@@ -77,37 +89,24 @@ export function NotificationPage() {
 
   const hasNotifications =
     activeTab === "request"
-      ? requestNotifications.length > 0
+      ? friendRequests.length > 0
       : generalNotifications.length > 0;
 
-  const removeNotification = (notificationId: number) => {
-    setNotifications((previousNotifications) =>
-      previousNotifications.filter(
-        (notification) =>
-          notification.id !== notificationId,
+  const removeFriendRequest = (friendshipId: number) => {
+    setFriendRequests((previousRequests) =>
+      previousRequests.filter(
+        (request) => request.id !== friendshipId,
       ),
     );
   };
 
   const handleAcceptRequest = async (
-    notification: NotificationResponse,
+    friendship: FriendshipResponse,
   ) => {
-    const friendshipId = Number(
-      notification.data.friendshipId,
-    );
-
-    if (!friendshipId) {
-      console.error(
-        "친구 관계 ID를 확인할 수 없습니다.",
-        notification,
-      );
-      return;
-    }
-
     try {
-      await acceptFriendRequest(friendshipId);
+      await acceptFriendRequest(friendship.id);
 
-      removeNotification(notification.id);
+      removeFriendRequest(friendship.id);
 
       setToast({
         open: true,
@@ -119,24 +118,12 @@ export function NotificationPage() {
   };
 
   const handleRejectRequest = async (
-    notification: NotificationResponse,
+    friendship: FriendshipResponse,
   ) => {
-    const friendshipId = Number(
-      notification.data.friendshipId,
-    );
-
-    if (!friendshipId) {
-      console.error(
-        "친구 관계 ID를 확인할 수 없습니다.",
-        notification,
-      );
-      return;
-    }
-
     try {
-      await rejectFriendRequest(friendshipId);
+      await rejectFriendRequest(friendship.id);
 
-      removeNotification(notification.id);
+      removeFriendRequest(friendship.id);
 
       setToast({
         open: true,
@@ -236,21 +223,19 @@ export function NotificationPage() {
       <main className="flex min-h-[calc(100dvh-151px)] flex-col items-center gap-[8px] bg-[#F5F5F5] pt-[20px]">
         {hasNotifications ? (
           activeTab === "request" ? (
-            requestNotifications.map((notification) => (
+            friendRequests.map((friendship) => (
               <FriendRequestNotificationItem
-                key={notification.id}
-                userId={
-                  notification.data.userId ?? ""
-                }
-                userName={
-                  notification.data.userName ??
-                  notification.title
+                key={friendship.id}
+                userId={friendship.friend.username}
+                userName={friendship.friend.nickname}
+                profileImage={
+                  friendship.friend.profileImageUrl ?? undefined
                 }
                 onAccept={() =>
-                  void handleAcceptRequest(notification)
+                  void handleAcceptRequest(friendship)
                 }
                 onDelete={() =>
-                  void handleRejectRequest(notification)
+                  void handleRejectRequest(friendship)
                 }
               />
             ))
