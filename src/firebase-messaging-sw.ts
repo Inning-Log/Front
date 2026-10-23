@@ -12,7 +12,11 @@ import { clientsClaim } from "workbox-core";
 import {
   cleanupOutdatedCaches,
   precacheAndRoute,
+  matchPrecache,
 } from "workbox-precaching";
+
+import { registerRoute } from "workbox-routing";
+import { NetworkFirst } from "workbox-strategies";
 
 declare let self: ServiceWorkerGlobalScope & {
   __WB_MANIFEST: Array<{
@@ -25,16 +29,52 @@ declare let self: ServiceWorkerGlobalScope & {
 // PWA 서비스워커 자동 업데이트
 // ========================================
 
-// 새 서비스워커 설치 후 즉시 활성화 요청
+// 새 서비스워커 설치 후 즉시 활성화
 self.skipWaiting();
 
-// 새 서비스워커가 기존 페이지의 제어권 획득
+// 새 서비스워커가 기존 페이지 제어
 clientsClaim();
 
-// 이전 버전의 불필요한 캐시 정리
+// ========================================
+// HTML 네트워크 우선 캐싱
+// ========================================
+
+const navigationStrategy = new NetworkFirst({
+  cacheName: "inninglog-pages-v1",
+  networkTimeoutSeconds: 5,
+});
+
+// HTML 요청은 네트워크 우선
+registerRoute(
+  ({ request }) => request.mode === "navigate",
+
+  async ({ event, request }) => {
+    try {
+      return await navigationStrategy.handle({
+        event,
+        request,
+      });
+    } catch {
+      // 네트워크 실패 시 PWA HTML 캐시 사용
+      const cachedPage =
+        await matchPrecache("/index.html");
+
+      if (cachedPage) {
+        return cachedPage;
+      }
+
+      return Response.error();
+    }
+  },
+);
+// ========================================
+// 정적 파일 캐싱
+// ========================================
+
+// 이전 버전의 불필요한 Workbox 캐시 정리
 cleanupOutdatedCaches();
 
-// 빌드된 정적 파일 캐싱
+// JS, CSS, 이미지 등 빌드 파일 캐싱
 precacheAndRoute(self.__WB_MANIFEST);
 
 // ========================================
@@ -43,14 +83,19 @@ precacheAndRoute(self.__WB_MANIFEST);
 
 const firebaseApp = initializeApp({
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+
   authDomain:
     import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+
   projectId:
     import.meta.env.VITE_FIREBASE_PROJECT_ID,
+
   storageBucket:
     import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+
   messagingSenderId:
     import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 });
 
@@ -158,18 +203,18 @@ async function getValue<T>(
       const request = store.get(key);
 
       request.onsuccess = () => {
-        database.close();
-
         resolve(
-          request.result as
-            | T
-            | undefined,
+          request.result as T | undefined,
         );
       };
 
-      request.onerror = () => {
+      transaction.oncomplete = () => {
         database.close();
-        reject(request.error);
+      };
+
+      transaction.onerror = () => {
+        database.close();
+        reject(transaction.error);
       };
     },
   );
