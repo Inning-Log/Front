@@ -12,9 +12,15 @@ import {
 
 import { getCurrentUser } from "../../features/auth/api/authApi";
 
-import { getGames } from "../../features/games/api/gamesApi";
+import {
+  getGames,
+  getGameStateHistory,
+} from "../../features/games/api/gamesApi";
 
-import type { GameResponse } from "../../features/games/types/game";
+import type {
+  GameResponse,
+  GameStateResponse,
+} from "../../features/games/types/game";
 
 import { CameraControls } from "../../features/record/CameraControls";
 
@@ -39,8 +45,6 @@ import { uploadInningRecordVideo } from "../../features/record/api/inningRecordV
 import { createUserGameLog } from "../../features/record/api/userGameLogApi";
 
 import type { ViewingType } from "../../features/record/types/userGameLog";
-
-import { getMyTimeline } from "../../features/timeline/api/timelineApi";
 
 import { Toast } from "../../shared/ui/Toast";
 
@@ -68,6 +72,12 @@ function getTodayDate() {
 
 function getWatchingLocationKey() {
   return `watching-location-${getTodayDate()}`;
+}
+
+function getLatestGameState(
+  states: GameStateResponse[],
+) {
+  return states.at(-1);
 }
 
 function getSupportedRecorderMimeType() {
@@ -799,28 +809,35 @@ export function RecordPage() {
     recordedVideo,
   ]);
 
-  const loadCurrentTimelineState =
+  /**
+   * 서버에서 현재 이닝 / 초·말 상태 조회
+   */
+  const loadCurrentGameState =
     useCallback(
       async (
         gameId: number,
       ) => {
-        const timeline =
-          await getMyTimeline({
+        const stateHistory =
+          await getGameStateHistory(
             gameId,
-            limit: 1,
-          });
+          );
+
+        const latestState =
+          getLatestGameState(
+            stateHistory.states,
+          );
 
         if (
-          timeline.currentInning >
-          0
+          latestState &&
+          latestState.inning > 0
         ) {
           setCurrentInning(
             requestedInning ??
-              timeline.currentInning,
+              latestState.inning,
           );
         }
 
-        return timeline;
+        return latestState;
       },
       [
         requestedInning,
@@ -921,7 +938,7 @@ export function RecordPage() {
           );
 
           try {
-            await loadCurrentTimelineState(
+            await loadCurrentGameState(
               nextGame.gameId,
             );
           } catch (error) {
@@ -951,7 +968,7 @@ export function RecordPage() {
         );
       }
     }, [
-      loadCurrentTimelineState,
+      loadCurrentGameState,
       requestedGameId,
     ]);
 
@@ -1080,21 +1097,32 @@ export function RecordPage() {
           "",
         );
 
-        const timeline =
-          await getMyTimeline({
-            gameId:
-              game.gameId,
-            limit: 1,
-          });
+        /**
+         * 저장 직전 서버 상태를 다시 조회한다.
+         *
+         * 기록 화면을 오래 열어둔 경우
+         * 이닝/초·말이 변경될 수 있기 때문.
+         */
+        const stateHistory =
+          await getGameStateHistory(
+            game.gameId,
+          );
+
+        const latestState =
+          getLatestGameState(
+            stateHistory.states,
+          );
 
         const inning =
           requestedInning ??
-          timeline.currentInning;
+          latestState?.inning;
 
         const half =
-          timeline.currentHalf;
+          latestState?.half;
 
         if (
+          typeof inning !==
+            "number" ||
           !Number.isInteger(
             inning,
           ) ||

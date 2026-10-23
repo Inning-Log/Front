@@ -153,7 +153,7 @@ export function MainPage() {
 
   return (
     <div className="relative h-dvh overflow-hidden bg-white">
-      <main className="scrollbar-hide h-full overflow-y-auto px-[11px] pb-[72px] pt-[50px]">
+      <main className="scrollbar-hide h-full overflow-y-auto px-[11px] pb-[72px] pt-[20px]">
         <PageHeader
           title="홈"
           showBackButton={false}
@@ -225,7 +225,7 @@ export function MainPage() {
           </button>
         </div>
 
-        <div className="relative min-h-[531px]">
+        <div className="relative">
           <InningCalendar
             month={month}
             records={calendarRecords}
@@ -260,7 +260,7 @@ export function MainPage() {
           </div>
         )}
 
-        <div className="mt-[18px] flex justify-center">
+        <div className="mt-[8px] flex justify-center">
           <Button onClick={() => navigate("/home/record")}>
             <span className="text-label-2 text-white">
               기록하기

@@ -46,3 +46,19 @@ export type GameListResponse = {
   scheduleData: ScheduleDataResponse;
   games: GameResponse[];
 };
+
+export type GameStateResponse = {
+  stateId: number;
+  observedAt: string;
+  status: string;
+  inning: number;
+  half: string;
+  homeScore: number;
+  awayScore: number;
+  source: string;
+};
+
+export type GameStateHistoryResponse = {
+  gameId: number;
+  states: GameStateResponse[];
+};

@@ -792,7 +792,7 @@ export function MyPage() {
   if (loadErrorMessage) {
     return (
       <div className="flex min-h-dvh w-full flex-col bg-[#F1F2F1]">
-        <div className="bg-[#F1F2F1] pt-[45px]">
+        <div className="bg-[#F1F2F1] pt-[20px]">
           <PageHeader
             title="마이페이지"
           />
@@ -822,7 +822,7 @@ export function MyPage() {
   if (isSelectingTeam) {
     return (
       <div className="min-h-dvh w-full bg-[#F1F2F1] pb-[110px]">
-        <div className="bg-[#F1F2F1] pt-[45px]">
+        <div className="bg-[#F1F2F1] pt-[20px]">
           <PageHeader
             title="프로필 수정"
             onBack={() =>
@@ -910,7 +910,7 @@ export function MyPage() {
 
   return (
     <div className="min-h-dvh w-full bg-[#F1F2F1] pb-[110px]">
-      <div className="bg-[#F1F2F1] pt-[45px]">
+      <div className="bg-[#F1F2F1] pt-[20px]">
         <PageHeader
           title={
             isEditing
