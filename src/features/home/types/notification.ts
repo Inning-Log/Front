@@ -1,3 +1,15 @@
+export type NotificationType =
+  | "FRIEND_REQUEST"
+  | "FRIEND_ACCEPTED"
+  | "TIMELINE_COMMENT"
+  | "TIMELINE_REACTION"
+  | "GAME_INNING_STARTED"
+  | "GAME_INNING_ENDED"
+  | "GAME_SCORE_CHANGED"
+  | "RECORD_REMINDER"
+  | "GENERATED_VIDEO_READY"
+  | "GENERATED_VIDEO_FAILED";
+
 export type NotificationSettingsResponse = {
   gameProgressEnabled: boolean;
   recordReminderEnabled: boolean;
@@ -10,12 +22,22 @@ export type UpdateNotificationSettingsRequest = {
   socialReactionEnabled?: boolean;
 };
 
+export type NotificationData = {
+  actorUserId?: string;
+  type?: NotificationType;
+  friendshipId?: string;
+  requestRevision?: string;
+  screen?: string;
+
+  [key: string]: string | undefined;
+};
+
 export type NotificationResponse = {
   id: number;
-  type: string;
+  type: NotificationType;
   title: string;
   body: string;
-  data: Record<string, string>;
+  data: NotificationData;
   readAt: string | null;
   createdAt: string;
 };
