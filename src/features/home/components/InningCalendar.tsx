@@ -9,14 +9,19 @@ import {
 import { useMemo } from "react";
 
 import rightArrowIcon from "../../../assets/icons/rightarrow.svg";
+import { getTeamByName } from "../../../shared/constants/teams";
+import { TeamMascot } from "../../../shared/ui/TeamMascot";
 
 type GameResult = "win" | "lose" | "draw";
 
 export type CalendarRecord = {
   date: string;
+  gameId?: number;
   result?: GameResult;
   emphasized?: boolean;
   highlighted?: boolean;
+  opponentTeamName?: string;
+  opponentTeamLogoUrl?: string | null;
 };
 
 type InningCalendarProps = {
@@ -47,9 +52,12 @@ export function InningCalendar({
   onRecordClick,
 }: InningCalendarProps) {
   const recordsByDate = useMemo(() => {
-    return records.reduce<Record<string, CalendarRecord>>(
+    return records.reduce<Record<string, CalendarRecord[]>>(
       (result, record) => {
-        result[record.date] = record;
+        result[record.date] = [
+          ...(result[record.date] ?? []),
+          record,
+        ];
         return result;
       },
       {},
@@ -66,11 +74,16 @@ export function InningCalendar({
     } = props;
 
     const date = day.date;
-    const record = recordsByDate[toDateKey(date)];
+    const dayRecords = recordsByDate[toDateKey(date)] ?? [];
+    const record =
+      dayRecords.find((candidate) => candidate.emphasized) ??
+      dayRecords[0];
+    const gameCount = dayRecords.filter(
+      (candidate) => candidate.gameId !== undefined,
+    ).length;
 
     const isOutside = modifiers.outside;
     const isSunday = date.getDay() === 0;
-    const isMonday = date.getDay() === 1;
 
     const dayNumberColor = isOutside
       ? "text-text-tertiary"
@@ -78,8 +91,9 @@ export function InningCalendar({
         ? "text-danger"
         : "text-black";
 
-    const result = record?.result ?? "win";
-    const canOpenRecord = Boolean(record && onRecordClick);
+    const canOpenRecord = Boolean(
+      record?.gameId !== undefined && onRecordClick,
+    );
 
     const handleRecordClick = () => {
       if (!record) {
@@ -98,7 +112,7 @@ export function InningCalendar({
             disabled={!canOpenRecord}
             aria-label={`${toDateKey(date)} 경기 기록 보기`}
             className={[
-              "mx-auto flex h-[80px] w-[82%] max-w-[42px] flex-col items-center rounded-[21px] bg-accent-deep pt-[4px]",
+              "relative mx-auto flex h-[80px] w-[82%] max-w-[42px] flex-col items-center rounded-[21px] bg-accent-deep pt-[4px]",
               canOpenRecord
                 ? "cursor-pointer"
                 : "cursor-default",
@@ -108,16 +122,24 @@ export function InningCalendar({
               {date.getDate()}
             </span>
 
-            <span className="mt-[8px] h-[24px] w-[24px] rounded-full bg-surface-placeholder" />
+            <CalendarTeamIcon record={record} />
 
-            <span
-              className={[
-                "mt-[4px] text-caption",
-                resultTextColors[result],
-              ].join(" ")}
-            >
-              {resultLabels[result]}
-            </span>
+            {record.result && (
+              <span
+                className={[
+                  "mt-[4px] text-caption",
+                  resultTextColors[record.result],
+                ].join(" ")}
+              >
+                {resultLabels[record.result]}
+              </span>
+            )}
+
+            {gameCount > 1 && (
+              <span className="absolute right-[-2px] top-[27px] rounded-full bg-white px-[3px] text-[8px] leading-[12px] text-accent-deep">
+                +{gameCount - 1}
+              </span>
+            )}
 
             <span className="sr-only">{children}</span>
           </button>
@@ -137,7 +159,7 @@ export function InningCalendar({
               : undefined
           }
           className={[
-            "mx-auto flex h-[80px] w-[82%] max-w-[42px] flex-col items-center pt-[4px]",
+            "relative mx-auto flex h-[80px] w-[82%] max-w-[42px] flex-col items-center pt-[4px]",
             canOpenRecord
               ? "cursor-pointer"
               : "cursor-default",
@@ -155,18 +177,26 @@ export function InningCalendar({
             {date.getDate()}
           </span>
 
-          {record && !isMonday && (
+          {record?.gameId !== undefined && (
             <>
-              <span className="mt-[5px] h-[24px] w-[24px] rounded-full bg-surface-placeholder" />
+              <CalendarTeamIcon record={record} />
 
-              <span
-                className={[
-                  "mt-[4px] text-caption",
-                  resultTextColors[result],
-                ].join(" ")}
-              >
-                {resultLabels[result]}
-              </span>
+              {record.result && (
+                <span
+                  className={[
+                    "mt-[4px] text-caption",
+                    resultTextColors[record.result],
+                  ].join(" ")}
+                >
+                  {resultLabels[record.result]}
+                </span>
+              )}
+
+              {gameCount > 1 && (
+                <span className="absolute right-[-2px] top-[27px] rounded-full bg-accent-deep px-[3px] text-[8px] leading-[12px] text-white">
+                  +{gameCount - 1}
+                </span>
+              )}
             </>
           )}
 
@@ -265,4 +295,35 @@ function toDateKey(date: Date) {
     2,
     "0",
   )}`;
+}
+
+function CalendarTeamIcon({ record }: { record: CalendarRecord }) {
+  const team = record.opponentTeamName
+    ? getTeamByName(record.opponentTeamName)
+    : undefined;
+
+  if (team) {
+    return (
+      <TeamMascot
+        team={team}
+        containerSize={24}
+        className="mt-[5px]"
+        decorative
+      />
+    );
+  }
+
+  if (record.opponentTeamLogoUrl) {
+    return (
+      <img
+        src={record.opponentTeamLogoUrl}
+        alt=""
+        className="mt-[5px] h-[24px] w-[24px] object-contain"
+      />
+    );
+  }
+
+  return (
+    <span className="mt-[5px] h-[24px] w-[24px] rounded-full bg-surface-placeholder" />
+  );
 }
