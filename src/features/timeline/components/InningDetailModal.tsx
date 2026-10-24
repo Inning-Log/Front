@@ -741,6 +741,9 @@ export function InningDetailModal({
       <VideoCommentSheet
         isOpen={isCommentOpen}
         videoId={videoId}
+        initialCommentId={
+          initialCommentId
+        }
         onClose={() =>
           setIsCommentOpen(
             false,
