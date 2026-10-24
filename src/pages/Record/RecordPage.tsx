@@ -1367,7 +1367,7 @@ export function RecordPage() {
     };
 
   return (
-    <main className="relative mx-auto min-h-dvh w-full max-w-[390px] overflow-hidden bg-bg-primary px-4 pb-[33px] pt-[79px]">
+    <main className="relative mx-auto min-h-dvh w-full max-w-[390px] overflow-hidden bg-bg-primary px-4 pb-[33px] pt-[20px]">
       <InningIndicator
         currentInning={
           currentInning
