@@ -177,7 +177,7 @@ export function NotificationSettingPage() {
     };
 
   return (
-    <main className="min-h-dvh w-full bg-bg-primary pt-[45px]">
+    <main className="min-h-dvh w-full bg-bg-primary pt-[20px]">
       <PageHeader title="알림 설정" />
 
       <section className="mx-auto mt-[25px] w-full max-w-[340px]">

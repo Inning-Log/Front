@@ -692,7 +692,7 @@ export function NotificationPage() {
     };
 
   return (
-    <div className="min-h-dvh w-full bg-white pt-[45px]">
+    <div className="min-h-dvh w-full bg-white pt-[20px]">
       <PageHeader
         title="알림"
         rightText="알림 설정"
