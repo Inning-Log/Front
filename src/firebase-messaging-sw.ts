@@ -1,65 +1,83 @@
 /// <reference lib="webworker" />
 /// <reference types="vite/client" />
 
-import { initializeApp } from "firebase/app";
+import {
+  initializeApp,
+} from "firebase/app";
+
 import {
   getMessaging,
   onBackgroundMessage,
 } from "firebase/messaging/sw";
 
-import { clientsClaim } from "workbox-core";
+import {
+  clientsClaim,
+} from "workbox-core";
 
 import {
   cleanupOutdatedCaches,
-  precacheAndRoute,
   matchPrecache,
+  precacheAndRoute,
 } from "workbox-precaching";
 
-import { registerRoute } from "workbox-routing";
-import { NetworkFirst } from "workbox-strategies";
+import {
+  registerRoute,
+} from "workbox-routing";
 
-declare let self: ServiceWorkerGlobalScope & {
-  __WB_MANIFEST: Array<{
-    url: string;
-    revision?: string | null;
-  }>;
-};
+import {
+  NetworkFirst,
+} from "workbox-strategies";
 
-// ========================================
-// PWA 서비스워커 자동 업데이트
-// ========================================
+declare let self:
+  ServiceWorkerGlobalScope & {
+    __WB_MANIFEST:
+      Array<{
+        url: string;
+        revision?:
+          string | null;
+      }>;
+  };
 
-// 새 서비스워커 설치 후 즉시 활성화
 self.skipWaiting();
-
-// 새 서비스워커가 기존 페이지 제어
 clientsClaim();
 
-// ========================================
-// HTML 네트워크 우선 캐싱
-// ========================================
+const navigationStrategy =
+  new NetworkFirst({
+    cacheName:
+      "inninglog-pages-v1",
+    networkTimeoutSeconds:
+      5,
+  });
 
-const navigationStrategy = new NetworkFirst({
-  cacheName: "inninglog-pages-v1",
-  networkTimeoutSeconds: 5,
-});
-
-// HTML 요청은 네트워크 우선
 registerRoute(
-  ({ request }) => request.mode === "navigate",
+  (
+    {
+      request,
+    },
+  ) =>
+    request.mode ===
+    "navigate",
 
-  async ({ event, request }) => {
+  async ({
+    event,
+    request,
+  }) => {
     try {
-      return await navigationStrategy.handle({
-        event,
-        request,
-      });
+      return await navigationStrategy.handle(
+        {
+          event,
+          request,
+        },
+      );
     } catch {
-      // 네트워크 실패 시 PWA HTML 캐시 사용
       const cachedPage =
-        await matchPrecache("/index.html");
+        await matchPrecache(
+          "/index.html",
+        );
 
-      if (cachedPage) {
+      if (
+        cachedPage
+      ) {
         return cachedPage;
       }
 
@@ -67,91 +85,111 @@ registerRoute(
     }
   },
 );
-// ========================================
-// 정적 파일 캐싱
-// ========================================
 
-// 이전 버전의 불필요한 Workbox 캐시 정리
 cleanupOutdatedCaches();
+precacheAndRoute(
+  self.__WB_MANIFEST,
+);
 
-// JS, CSS, 이미지 등 빌드 파일 캐싱
-precacheAndRoute(self.__WB_MANIFEST);
+const firebaseApp =
+  initializeApp({
+    apiKey:
+      import.meta.env
+        .VITE_FIREBASE_API_KEY,
 
-// ========================================
-// Firebase 초기화
-// ========================================
+    authDomain:
+      import.meta.env
+        .VITE_FIREBASE_AUTH_DOMAIN,
 
-const firebaseApp = initializeApp({
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+    projectId:
+      import.meta.env
+        .VITE_FIREBASE_PROJECT_ID,
 
-  authDomain:
-    import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+    storageBucket:
+      import.meta.env
+        .VITE_FIREBASE_STORAGE_BUCKET,
 
-  projectId:
-    import.meta.env.VITE_FIREBASE_PROJECT_ID,
+    messagingSenderId:
+      import.meta.env
+        .VITE_FIREBASE_MESSAGING_SENDER_ID,
 
-  storageBucket:
-    import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-
-  messagingSenderId:
-    import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
-});
-
-const messaging = getMessaging(firebaseApp);
-
-// ========================================
-// IndexedDB 설정
-// ========================================
-
-const DB_NAME = "inninglog-push";
-const STORE_NAME = "settings";
-const DB_VERSION = 1;
-
-function openDatabase(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(
-      DB_NAME,
-      DB_VERSION,
-    );
-
-    request.onupgradeneeded = () => {
-      const database = request.result;
-
-      if (
-        !database.objectStoreNames.contains(
-          STORE_NAME,
-        )
-      ) {
-        database.createObjectStore(
-          STORE_NAME,
-        );
-      }
-    };
-
-    request.onsuccess = () => {
-      resolve(request.result);
-    };
-
-    request.onerror = () => {
-      reject(request.error);
-    };
+    appId:
+      import.meta.env
+        .VITE_FIREBASE_APP_ID,
   });
-}
 
-// ========================================
-// IndexedDB 값 저장
-// ========================================
+const messaging =
+  getMessaging(
+    firebaseApp,
+  );
+
+const DB_NAME =
+  "inninglog-push";
+
+const STORE_NAME =
+  "settings";
+
+const DB_VERSION =
+  1;
+
+function openDatabase():
+  Promise<IDBDatabase> {
+  return new Promise(
+    (
+      resolve,
+      reject,
+    ) => {
+      const request =
+        indexedDB.open(
+          DB_NAME,
+          DB_VERSION,
+        );
+
+      request.onupgradeneeded =
+        () => {
+          const database =
+            request.result;
+
+          if (
+            !database.objectStoreNames.contains(
+              STORE_NAME,
+            )
+          ) {
+            database.createObjectStore(
+              STORE_NAME,
+            );
+          }
+        };
+
+      request.onsuccess =
+        () => {
+          resolve(
+            request.result,
+          );
+        };
+
+      request.onerror =
+        () => {
+          reject(
+            request.error,
+          );
+        };
+    },
+  );
+}
 
 async function setValue(
   key: string,
   value: unknown,
 ) {
-  const database = await openDatabase();
+  const database =
+    await openDatabase();
 
   return new Promise<void>(
-    (resolve, reject) => {
+    (
+      resolve,
+      reject,
+    ) => {
       const transaction =
         database.transaction(
           STORE_NAME,
@@ -163,32 +201,44 @@ async function setValue(
           STORE_NAME,
         );
 
-      store.put(value, key);
+      store.put(
+        value,
+        key,
+      );
 
-      transaction.oncomplete = () => {
-        database.close();
-        resolve();
-      };
+      transaction.oncomplete =
+        () => {
+          database.close();
+          resolve();
+        };
 
-      transaction.onerror = () => {
-        database.close();
-        reject(transaction.error);
-      };
+      transaction.onerror =
+        () => {
+          database.close();
+
+          reject(
+            transaction.error,
+          );
+        };
     },
   );
 }
 
-// ========================================
-// IndexedDB 값 조회
-// ========================================
-
 async function getValue<T>(
   key: string,
-): Promise<T | undefined> {
-  const database = await openDatabase();
+): Promise<
+  T | undefined
+> {
+  const database =
+    await openDatabase();
 
-  return new Promise<T | undefined>(
-    (resolve, reject) => {
+  return new Promise<
+    T | undefined
+  >(
+    (
+      resolve,
+      reject,
+    ) => {
       const transaction =
         database.transaction(
           STORE_NAME,
@@ -200,33 +250,43 @@ async function getValue<T>(
           STORE_NAME,
         );
 
-      const request = store.get(key);
-
-      request.onsuccess = () => {
-        resolve(
-          request.result as T | undefined,
+      const request =
+        store.get(
+          key,
         );
-      };
 
-      transaction.oncomplete = () => {
-        database.close();
-      };
+      request.onsuccess =
+        () => {
+          resolve(
+            request.result as
+              | T
+              | undefined,
+          );
+        };
 
-      transaction.onerror = () => {
-        database.close();
-        reject(transaction.error);
-      };
+      transaction.oncomplete =
+        () => {
+          database.close();
+        };
+
+      transaction.onerror =
+        () => {
+          database.close();
+
+          reject(
+            transaction.error,
+          );
+        };
     },
   );
 }
 
-// ========================================
-// 현재 로그인 사용자 ID 동기화
-// ========================================
-
 self.addEventListener(
   "message",
-  (event: ExtendableMessageEvent) => {
+  (
+    event:
+      ExtendableMessageEvent,
+  ) => {
     if (
       event.data?.type !==
       "SET_CURRENT_USER_ID"
@@ -243,17 +303,18 @@ self.addEventListener(
   },
 );
 
-// ========================================
-// 중복 알림 방지
-// ========================================
-
 async function markNotificationAsHandled(
-  notificationId: string,
+  notificationId:
+    string,
 ) {
   const handledIds =
-    (await getValue<string[]>(
-      "handledNotificationIds",
-    )) ?? [];
+    (
+      await getValue<
+        string[]
+      >(
+        "handledNotificationIds",
+      )
+    ) ?? [];
 
   if (
     handledIds.includes(
@@ -266,7 +327,10 @@ async function markNotificationAsHandled(
   const nextIds = [
     notificationId,
     ...handledIds,
-  ].slice(0, 100);
+  ].slice(
+    0,
+    100,
+  );
 
   await setValue(
     "handledNotificationIds",
@@ -276,50 +340,148 @@ async function markNotificationAsHandled(
   return true;
 }
 
-// ========================================
-// 안전한 알림 이동 링크 검증
-// ========================================
+function parsePositiveIntegerString(
+  value?: string,
+) {
+  if (!value) {
+    return null;
+  }
 
+  const parsed =
+    Number(value);
+
+  if (
+    !Number.isSafeInteger(
+      parsed,
+    ) ||
+    parsed <= 0
+  ) {
+    return null;
+  }
+
+  return String(
+    parsed,
+  );
+}
+
+/**
+ * 서버가 절대 URL 또는 /timeline/... 같은 상대 경로를
+ * 보내도 현재 프론트 origin 기준으로 안전하게 해석한다.
+ */
 function getSafeLink(
   link?: string,
-): string | null {
+): URL | null {
   if (!link) {
     return null;
   }
 
   try {
-    const url = new URL(link);
+    const sourceUrl =
+      new URL(
+        link,
+        self.location.origin,
+      );
 
-    if (url.protocol !== "https:") {
+    if (
+      sourceUrl.protocol !==
+        "https:" &&
+      sourceUrl.protocol !==
+        "http:"
+    ) {
       return null;
     }
 
-    return url.toString();
+    /*
+     * 서버가 Production origin의 절대 URL을 보내더라도
+     * 현재 실행 중인 앱 origin에서 같은 pathname/query를 연다.
+     * Preview/localhost 검증에서도 동일하게 동작한다.
+     */
+    return new URL(
+      `${sourceUrl.pathname}${sourceUrl.search}${sourceUrl.hash}`,
+      self.location.origin,
+    );
   } catch {
     return null;
   }
 }
 
-// ========================================
-// Firebase 백그라운드 알림 처리
-// ========================================
+function buildNotificationLink(
+  data:
+    Record<
+      string,
+      string
+    >,
+) {
+  const safeUrl =
+    getSafeLink(
+      data.link,
+    );
+
+  if (!safeUrl) {
+    return null;
+  }
+
+  if (
+    data.type ===
+    "TIMELINE_COMMENT"
+  ) {
+    const recordId =
+      parsePositiveIntegerString(
+        data.recordId,
+      );
+
+    const videoId =
+      parsePositiveIntegerString(
+        data.videoId,
+      );
+
+    const commentId =
+      parsePositiveIntegerString(
+        data.commentId,
+      );
+
+    if (recordId) {
+      safeUrl.searchParams.set(
+        "recordId",
+        recordId,
+      );
+    }
+
+    if (videoId) {
+      safeUrl.searchParams.set(
+        "videoId",
+        videoId,
+      );
+    }
+
+    if (commentId) {
+      safeUrl.searchParams.set(
+        "commentId",
+        commentId,
+      );
+    }
+  }
+
+  return safeUrl.toString();
+}
 
 onBackgroundMessage(
   messaging,
-  async (payload) => {
-    const data = payload.data;
+  async (
+    payload,
+  ) => {
+    const data =
+      payload.data;
 
     if (!data) {
       return;
     }
 
-    // 현재 로그인 사용자 확인
     const currentUserId =
       await getValue<string>(
         "currentUserId",
       );
 
-    // 다른 사용자 알림 차단
     if (
       !currentUserId ||
       !data.audienceUserId ||
@@ -332,105 +494,134 @@ onBackgroundMessage(
     const notificationId =
       data.notificationId;
 
-    if (!notificationId) {
+    if (
+      !notificationId
+    ) {
       return;
     }
 
-    // 중복 알림 방지
     const shouldHandle =
       await markNotificationAsHandled(
         notificationId,
       );
 
-    if (!shouldHandle) {
+    if (
+      !shouldHandle
+    ) {
       return;
     }
 
     const title =
-      payload.notification?.title ??
+      payload.notification
+        ?.title ??
       data.title ??
       "이닝로그";
 
     const body =
-      payload.notification?.body ??
+      payload.notification
+        ?.body ??
       data.body ??
       "";
 
-    const link = getSafeLink(
-      data.link,
-    );
+    const link =
+      buildNotificationLink(
+        data,
+      );
 
-    // 푸시 알림 표시
     await self.registration.showNotification(
       title,
       {
         body,
-        tag: notificationId,
+        tag:
+          notificationId,
         data: {
           link,
           notificationId,
+
+          recordId:
+            data.recordId,
+          videoId:
+            data.videoId,
+          commentId:
+            data.commentId,
         },
       },
     );
   },
 );
 
-// ========================================
-// 푸시 알림 클릭 이벤트
-// ========================================
-
 self.addEventListener(
   "notificationclick",
-  (event: NotificationEvent) => {
+  (
+    event:
+      NotificationEvent,
+  ) => {
     event.notification.close();
 
     const link =
-      event.notification.data?.link;
+      event.notification.data
+        ?.link;
 
     if (
-      typeof link !== "string" ||
+      typeof link !==
+        "string" ||
       !link
     ) {
       return;
     }
 
-    const safeLink =
-      getSafeLink(link);
+    const safeUrl =
+      getSafeLink(
+        link,
+      );
 
-    if (!safeLink) {
+    if (
+      !safeUrl
+    ) {
       return;
     }
+
+    const safeLink =
+      safeUrl.toString();
 
     event.waitUntil(
       self.clients
         .matchAll({
-          type: "window",
-          includeUncontrolled: true,
+          type:
+            "window",
+          includeUncontrolled:
+            true,
         })
-        .then(async (clientList) => {
-          const targetUrl =
-            new URL(safeLink);
-
-          for (const client of clientList) {
-            const clientUrl =
-              new URL(client.url);
-
-            if (
-              clientUrl.origin ===
-              targetUrl.origin
+        .then(
+          async (
+            clientList,
+          ) => {
+            for (
+              const client of
+              clientList
             ) {
-              await client.focus();
+              const clientUrl =
+                new URL(
+                  client.url,
+                );
 
-              return client.navigate(
-                safeLink,
-              );
+              if (
+                clientUrl.origin ===
+                safeUrl.origin
+              ) {
+                await client.focus();
+
+                return client.navigate(
+                  safeLink,
+                );
+              }
             }
-          }
 
-          return self.clients.openWindow(
-            safeLink,
-          );
-        }),
+            return self.clients.openWindow(
+              safeLink,
+            );
+          },
+        ),
     );
   },
 );
