@@ -16,7 +16,9 @@ import {
   type CalendarRecord,
 } from "../../features/home/components/InningCalendar";
 import type { HomeCalendarResponse } from "../../features/home/types/home";
+import { KBO_TEAMS } from "../../shared/constants/teams";
 import { Button } from "../../shared/ui/Button";
+import { TeamMascot } from "../../shared/ui/TeamMascot";
 
 export function MainPage() {
   const navigate = useNavigate();
@@ -28,6 +30,7 @@ export function MainPage() {
   });
   const [winRate, setWinRate] = useState<number | null>();
   const [winRateError, setWinRateError] = useState("");
+  const [favoriteTeamId, setFavoriteTeamId] = useState<number | null>(null);
   const [calendarRecords, setCalendarRecords] = useState<
     CalendarRecord[]
   >([]);
@@ -83,6 +86,7 @@ export function MainPage() {
 
         if (!isCancelled) {
           setCalendarRecords(toCalendarRecords(data));
+          setFavoriteTeamId(data.favoriteTeamId);
         }
       } catch (error) {
         if (!isCancelled) {
@@ -151,12 +155,32 @@ export function MainPage() {
     navigate(`/timeline/history/${record.gameId}`);
   };
 
+  const favoriteTeam = KBO_TEAMS.find(
+    (team) => team.id === favoriteTeamId,
+  );
+
   return (
     <div className="relative h-dvh overflow-hidden bg-white">
       <main className="scrollbar-hide h-full overflow-y-auto px-[11px] pb-[72px] pt-[20px]">
         <PageHeader
-          title="홈"
+          title={
+            <>
+              <span className="sr-only">홈</span>
+
+              <TeamMascot
+                team={favoriteTeam}
+                containerSize={40}
+                decorative
+              />
+            </>
+          }
           showBackButton={false}
+          leftContent={
+            <HomeWinRateSummary
+              winRate={winRate}
+              errorMessage={winRateError}
+            />
+          }
           rightContent={
             <div className="flex items-center gap-[13px]">
               <HeaderIconLink
@@ -175,25 +199,7 @@ export function MainPage() {
           }
         />
 
-        <section className="mt-[13px] text-center">
-          <p className="text-body text-black">승률</p>
-
-          <p className="-mt-[10px] flex items-baseline justify-center gap-[2px] text-center font-akatab text-[48px] font-extrabold leading-normal tracking-[-1.44px] text-accent-deep">
-            {formatWinRate(winRate)}
-
-            <span className="font-akatab text-[20px] font-black leading-normal tracking-[6.8px]">
-              %
-            </span>
-          </p>
-
-          {winRateError && (
-            <p role="alert" className="text-caption text-danger">
-              {winRateError}
-            </p>
-          )}
-        </section>
-
-        <div className="mb-[20px] mt-[5px] flex h-[28px] items-center justify-between px-[5px]">
+        <div className="mb-[20px] mt-[12px] flex h-[28px] items-center justify-between px-[5px]">
           <button
             type="button"
             onClick={goToPreviousMonth}
@@ -270,6 +276,45 @@ export function MainPage() {
       </main>
 
       <BottomBar />
+    </div>
+  );
+}
+
+type HomeWinRateSummaryProps = {
+  winRate: number | null | undefined;
+  errorMessage: string;
+};
+
+function HomeWinRateSummary({
+  winRate,
+  errorMessage,
+}: HomeWinRateSummaryProps) {
+  const formattedWinRate = formatWinRate(winRate);
+
+  return (
+    <div
+      className="ml-[8px] flex min-w-[40px] items-baseline"
+      aria-label={`직관 승률 ${formattedWinRate}${typeof winRate === "number" ? "%" : ""}`}
+    >
+      <span className="mr-[5px] font-akatab text-[15px] font-bold leading-none text-accent-deep">
+        승률
+      </span>
+
+      <span className="flex items-baseline font-akatab text-[20px] font-extrabold leading-none text-accent-deep">
+        {formattedWinRate}
+
+        {typeof winRate === "number" && (
+          <span className="ml-[1px] text-[16px] font-black">
+            %
+          </span>
+        )}
+      </span>
+
+      {errorMessage && (
+        <span role="alert" className="sr-only">
+          {errorMessage}
+        </span>
+      )}
     </div>
   );
 }

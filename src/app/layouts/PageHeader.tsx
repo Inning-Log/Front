@@ -4,7 +4,8 @@ import type { ReactNode } from "react";
 import backArrowIcon from "../../assets/icons/backarrow.svg";
 
 type PageHeaderProps = {
-  title?: string;
+  title?: ReactNode;
+  leftContent?: ReactNode;
   rightText?: string;
   rightTo?: string;
   onRightClick?: () => void;
@@ -15,6 +16,7 @@ type PageHeaderProps = {
 
 export function PageHeader({
   title = "",
+  leftContent,
   rightText = "",
   rightTo = "",
   onRightClick,
@@ -47,6 +49,12 @@ export function PageHeader({
 
   return (
     <header className="relative flex h-[46px] w-full items-center justify-center px-5">
+      {leftContent && (
+        <div className="absolute left-0">
+          {leftContent}
+        </div>
+      )}
+
       {showBackButton && (
         <button
           type="button"
