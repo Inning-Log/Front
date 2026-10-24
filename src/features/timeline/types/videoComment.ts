@@ -13,6 +13,7 @@ export type VideoComment = {
   createdAt: string;
   updatedAt: string;
   isMine: boolean;
+  parentCommentId: number | null;
 };
 
 export type VideoCommentListResponse = {
@@ -25,6 +26,7 @@ export type VideoCommentListResponse = {
 export type CreateVideoCommentRequest = {
   clientCommentId: string;
   content: string;
+  parentCommentId?: number | null;
 };
 
 export type UpdateVideoCommentRequest = {

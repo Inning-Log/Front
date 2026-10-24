@@ -36,14 +36,12 @@ export type InningDetailMode =
   | "edit";
 
 type InningDetailModalProps = {
-  record:
-    InningRecord | null;
-
-  mode?:
-    InningDetailMode;
-
-  onClose:
-    () => void;
+  record: InningRecord | null;
+  mode?: InningDetailMode;
+  onClose: () => void;
+  openCommentsInitially?: boolean;
+  initialVideoId?: number | null;
+  initialCommentId?: number | null;
 
   onUpdated?: (
     record:
@@ -55,9 +53,7 @@ function formatRecordedTime(
   recordedAt: string,
 ) {
   const date =
-    new Date(
-      recordedAt,
-    );
+    new Date(recordedAt);
 
   if (
     Number.isNaN(
@@ -70,15 +66,9 @@ function formatRecordedTime(
   return date.toLocaleTimeString(
     "ko-KR",
     {
-      hour:
-        "2-digit",
-
-      minute:
-        "2-digit",
-
-      hour12:
-        false,
-
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
       timeZone:
         "Asia/Seoul",
     },
@@ -88,6 +78,9 @@ function formatRecordedTime(
 export function InningDetailModal({
   record,
   mode = "view",
+  openCommentsInitially = false,
+  initialVideoId = null,
+  initialCommentId = null,
   onClose,
   onUpdated,
 }: InningDetailModalProps) {
@@ -128,9 +121,6 @@ export function InningDetailModal({
   ] =
     useState("");
 
-  /*
-   * 영상
-   */
   const [
     videoUrl,
     setVideoUrl,
@@ -153,9 +143,6 @@ export function InningDetailModal({
   ] =
     useState(false);
 
-  /*
-   * 댓글
-   */
   const [
     isCommentOpen,
     setIsCommentOpen,
@@ -165,35 +152,14 @@ export function InningDetailModal({
   const isEditing =
     mode === "edit";
 
-  /*
-   * 기록 상세 조회
-   */
   useEffect(() => {
     if (!record) {
-      setDetail(
-        null,
-      );
-
-      setEditText(
-        "",
-      );
-
-      setErrorMessage(
-        "",
-      );
-
-      setVideoUrl(
-        null,
-      );
-
-      setVideoId(
-        null,
-      );
-
-      setIsCommentOpen(
-        false,
-      );
-
+      setDetail(null);
+      setEditText("");
+      setErrorMessage("");
+      setVideoUrl(null);
+      setVideoId(null);
+      setIsCommentOpen(false);
       return;
     }
 
@@ -202,9 +168,7 @@ export function InningDetailModal({
     );
 
     const id =
-      Number(
-        record.id,
-      );
+      Number(record.id);
 
     if (
       !Number.isSafeInteger(
@@ -215,8 +179,7 @@ export function InningDetailModal({
       return;
     }
 
-    let cancelled =
-      false;
+    let cancelled = false;
 
     const fetchDetail =
       async () => {
@@ -234,9 +197,7 @@ export function InningDetailModal({
               id,
             );
 
-          if (
-            cancelled
-          ) {
+          if (cancelled) {
             return;
           }
 
@@ -247,12 +208,8 @@ export function InningDetailModal({
           setEditText(
             response.text,
           );
-        } catch (
-          error
-        ) {
-          if (
-            cancelled
-          ) {
+        } catch (error) {
+          if (cancelled) {
             return;
           }
 
@@ -263,14 +220,12 @@ export function InningDetailModal({
 
           setErrorMessage(
             error instanceof
-                Error
+              Error
               ? error.message
               : "이닝 기록을 불러오지 못했습니다.",
           );
         } finally {
-          if (
-            !cancelled
-          ) {
+          if (!cancelled) {
             setIsLoading(
               false,
             );
@@ -281,19 +236,10 @@ export function InningDetailModal({
     void fetchDetail();
 
     return () => {
-      cancelled =
-        true;
+      cancelled = true;
     };
-  }, [
-    record,
-  ]);
+  }, [record]);
 
-  /*
-   * 영상 조회
-   *
-   * 상세 API 또는 timeline record에서
-   * videoStatus가 READY이면 조회.
-   */
   useEffect(() => {
     if (!record) {
       return;
@@ -307,21 +253,13 @@ export function InningDetailModal({
       status !==
       "READY"
     ) {
-      setVideoUrl(
-        null,
-      );
-
-      setVideoId(
-        null,
-      );
-
+      setVideoUrl(null);
+      setVideoId(null);
       return;
     }
 
     const recordId =
-      Number(
-        record.id,
-      );
+      Number(record.id);
 
     if (
       !Number.isSafeInteger(
@@ -332,8 +270,7 @@ export function InningDetailModal({
       return;
     }
 
-    let cancelled =
-      false;
+    let cancelled = false;
 
     const loadVideo =
       async () => {
@@ -347,9 +284,7 @@ export function InningDetailModal({
               recordId,
             );
 
-          if (
-            cancelled
-          ) {
+          if (cancelled) {
             return;
           }
 
@@ -366,37 +301,21 @@ export function InningDetailModal({
               response.videoId,
             );
           } else {
-            setVideoUrl(
-              null,
-            );
-
-            setVideoId(
-              null,
-            );
+            setVideoUrl(null);
+            setVideoId(null);
           }
-        } catch (
-          error
-        ) {
+        } catch (error) {
           console.error(
             "이닝 기록 영상 조회 실패:",
             error,
           );
 
-          if (
-            !cancelled
-          ) {
-            setVideoUrl(
-              null,
-            );
-
-            setVideoId(
-              null,
-            );
+          if (!cancelled) {
+            setVideoUrl(null);
+            setVideoId(null);
           }
         } finally {
-          if (
-            !cancelled
-          ) {
+          if (!cancelled) {
             setIsVideoLoading(
               false,
             );
@@ -407,17 +326,48 @@ export function InningDetailModal({
     void loadVideo();
 
     return () => {
-      cancelled =
-        true;
+      cancelled = true;
     };
   }, [
     detail?.videoStatus,
     record,
   ]);
 
-  /*
-   * 수정 모드 자동 포커스
-   */
+  useEffect(() => {
+    if (
+      !record ||
+      isEditing ||
+      !openCommentsInitially ||
+      videoId ===
+        null
+    ) {
+      return;
+    }
+
+    if (
+      initialVideoId !==
+        null &&
+      initialVideoId !==
+        videoId
+    ) {
+      setErrorMessage(
+        "알림 대상 영상을 찾을 수 없습니다.",
+      );
+
+      return;
+    }
+
+    setIsCommentOpen(
+      true,
+    );
+  }, [
+    initialVideoId,
+    isEditing,
+    openCommentsInitially,
+    record,
+    videoId,
+  ]);
+
   useEffect(() => {
     if (
       !record ||
@@ -454,28 +404,23 @@ export function InningDetailModal({
     record,
   ]);
 
-  /*
-   * ESC / body scroll
-   */
   useEffect(() => {
     if (!record) {
       return;
     }
 
-    const handleKeyDown =
-      (
-        event:
-          KeyboardEvent,
-      ) => {
-        if (
-          event.key ===
-            "Escape" &&
-          !isSaving &&
-          !isCommentOpen
-        ) {
-          onClose();
-        }
-      };
+    const handleKeyDown = (
+      event: KeyboardEvent,
+    ) => {
+      if (
+        event.key ===
+          "Escape" &&
+        !isSaving &&
+        !isCommentOpen
+      ) {
+        onClose();
+      }
+    };
 
     const originalOverflow =
       document.body.style
@@ -510,9 +455,7 @@ export function InningDetailModal({
   }
 
   const recordId =
-    Number(
-      record.id,
-    );
+    Number(record.id);
 
   const displayInning =
     detail?.inning ??
@@ -576,9 +519,7 @@ export function InningDetailModal({
         );
 
         onClose();
-      } catch (
-        error
-      ) {
+      } catch (error) {
         console.error(
           "이닝 기록 수정 실패:",
           error,
@@ -586,7 +527,7 @@ export function InningDetailModal({
 
         setErrorMessage(
           error instanceof
-              Error
+            Error
             ? error.message
             : "이닝 기록을 수정하지 못했습니다.",
         );
@@ -602,19 +543,13 @@ export function InningDetailModal({
       {createPortal(
         <div
           role="presentation"
-          onPointerDown={(
-            event,
-          ) => {
+          onPointerDown={(event) => {
             event.stopPropagation();
           }}
-          onPointerMove={(
-            event,
-          ) => {
+          onPointerMove={(event) => {
             event.stopPropagation();
           }}
-          onPointerUp={(
-            event,
-          ) => {
+          onPointerUp={(event) => {
             event.stopPropagation();
           }}
           onClick={() => {
@@ -635,35 +570,24 @@ export function InningDetailModal({
                 ? "수정"
                 : "상세"
             }`}
-            onPointerDown={(
-              event,
-            ) => {
+            onPointerDown={(event) => {
               event.stopPropagation();
             }}
-            onPointerMove={(
-              event,
-            ) => {
+            onPointerMove={(event) => {
               event.stopPropagation();
             }}
-            onPointerUp={(
-              event,
-            ) => {
+            onPointerUp={(event) => {
               event.stopPropagation();
             }}
-            onClick={(
-              event,
-            ) => {
+            onClick={(event) => {
               event.stopPropagation();
             }}
             className="relative h-[min(608px,calc(100dvh-48px))] w-full max-w-[358px] overflow-hidden rounded-[25px] bg-[#5A5A5A] text-white"
           >
-            {/* 영상 배경 */}
             {videoUrl && (
               <>
                 <video
-                  src={
-                    videoUrl
-                  }
+                  src={videoUrl}
                   autoPlay
                   muted
                   loop
@@ -681,24 +605,15 @@ export function InningDetailModal({
                 <div className="absolute inset-0 bg-[#5A5A5A]" />
               )}
 
-            {/* 이닝 */}
             <div className="absolute left-[27px] top-[20px] z-20 flex size-[27px] items-center justify-center rounded-full bg-white text-bg-dark">
               <span className="font-akatab text-[18px] font-bold leading-none">
-                {
-                  displayInning
-                }
+                {displayInning}
               </span>
             </div>
 
-            {/* 점수 */}
             <p className="absolute left-1/2 top-[28px] z-20 -translate-x-1/2 text-title-2 text-white">
-              {
-                displayHomeScore
-              }
-              :
-              {
-                displayAwayScore
-              }
+              {displayHomeScore}:
+              {displayAwayScore}
             </p>
 
             {isLoading ? (
@@ -715,30 +630,20 @@ export function InningDetailModal({
                   }
                   className="text-[36px] font-extrabold leading-[140%] tracking-[-0.36px]"
                 >
-                  {
-                    displayRecordedAt
-                  }
+                  {displayRecordedAt}
                 </time>
 
                 <textarea
-                  ref={
-                    textareaRef
-                  }
-                  value={
-                    editText
-                  }
-                  onChange={(
-                    event,
-                  ) =>
+                  ref={textareaRef}
+                  value={editText}
+                  onChange={(event) =>
                     setEditText(
                       event.target
                         .value,
                     )
                   }
                   placeholder="문구를 입력해주세요"
-                  maxLength={
-                    100
-                  }
+                  maxLength={100}
                   aria-label="캡션 수정"
                   className="mt-[18px] h-[130px] w-full resize-none rounded-[16px] bg-black/25 px-[16px] py-[14px] text-center text-title-2 text-white outline-none placeholder:text-white/50"
                 />
@@ -748,21 +653,15 @@ export function InningDetailModal({
                     role="alert"
                     className="mt-[8px] text-center text-caption text-red-200"
                   >
-                    {
-                      errorMessage
-                    }
+                    {errorMessage}
                   </p>
                 )}
 
                 <div className="mt-[18px] flex w-full gap-[10px]">
                   <button
                     type="button"
-                    onClick={
-                      onClose
-                    }
-                    disabled={
-                      isSaving
-                    }
+                    onClick={onClose}
+                    disabled={isSaving}
                     className="flex h-[46px] flex-1 items-center justify-center rounded-[23px] bg-white/15 text-label-3 text-white disabled:opacity-60"
                   >
                     취소
@@ -773,9 +672,7 @@ export function InningDetailModal({
                     onClick={() =>
                       void handleSave()
                     }
-                    disabled={
-                      isSaving
-                    }
+                    disabled={isSaving}
                     className="flex h-[46px] flex-1 items-center justify-center rounded-[23px] bg-accent-primary text-label-3 text-white disabled:opacity-60"
                   >
                     {isSaving
@@ -794,15 +691,11 @@ export function InningDetailModal({
                   }
                   className="text-[36px] font-extrabold leading-[140%] tracking-[-0.36px]"
                 >
-                  {
-                    displayRecordedAt
-                  }
+                  {displayRecordedAt}
                 </time>
 
                 <p className="mt-[-2px] whitespace-pre-wrap break-words text-title-2 text-white">
-                  {
-                    displayText
-                  }
+                  {displayText}
                 </p>
 
                 {errorMessage && (
@@ -810,31 +703,22 @@ export function InningDetailModal({
                     role="alert"
                     className="mt-[14px] text-caption text-red-200"
                   >
-                    {
-                      errorMessage
-                    }
+                    {errorMessage}
                   </p>
                 )}
               </div>
             )}
 
-            {/* 댓글 버튼 */}
             {!isEditing &&
-              videoId !==
-                null && (
+              videoId !== null && (
                 <button
                   type="button"
                   aria-label="영상 댓글 보기"
-                  onPointerDown={(
-                    event,
-                  ) => {
+                  onPointerDown={(event) => {
                     event.stopPropagation();
                   }}
-                  onClick={(
-                    event,
-                  ) => {
+                  onClick={(event) => {
                     event.stopPropagation();
-
                     setIsCommentOpen(
                       true,
                     );
@@ -842,9 +726,7 @@ export function InningDetailModal({
                   className="absolute bottom-[22px] right-[22px] z-30 flex size-[38px] items-center justify-center rounded-full bg-white/90 shadow-[0_2px_8px_rgba(0,0,0,0.22)]"
                 >
                   <img
-                    src={
-                      commentIcon
-                    }
+                    src={commentIcon}
                     alt=""
                     aria-hidden="true"
                     className="size-[20px] object-contain"
@@ -857,11 +739,10 @@ export function InningDetailModal({
       )}
 
       <VideoCommentSheet
-        isOpen={
-          isCommentOpen
-        }
-        videoId={
-          videoId
+        isOpen={isCommentOpen}
+        videoId={videoId}
+        initialCommentId={
+          initialCommentId
         }
         onClose={() =>
           setIsCommentOpen(

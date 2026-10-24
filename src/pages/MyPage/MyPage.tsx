@@ -26,10 +26,6 @@ import {
 } from "../../features/auth/api/authApi";
 
 import {
-  unregisterPushNotification,
-} from "../../features/home/api/notificationApi";
-
-import {
   checkUsernameAvailability,
   getMyPage,
   updateFavoriteTeam,
@@ -71,11 +67,9 @@ type ProfileInputProps = {
   value: string;
   disabled?: boolean;
   message?: string;
-
   messageType?:
     | "success"
     | "error";
-
   onChange?: (
     value: string,
   ) => void;
@@ -104,15 +98,13 @@ const ALLOWED_PROFILE_IMAGE_TYPES =
     "image/png",
   ]);
 
-const emptyProfile: ProfileForm =
-  {
+const emptyProfile:
+  ProfileForm = {
     nickname: "",
     userId: "",
     email: "",
-
     favoriteTeamId:
       null,
-
     profileImage:
       defaultProfileIcon,
   };
@@ -174,18 +166,18 @@ function ProfileInput({
           className={[
             "mt-[14px] block w-full bg-transparent px-[10px]",
             "pb-[6px] text-label-3 font-medium leading-none outline-none",
-
             disabled
               ? "cursor-not-allowed text-surface-secondary"
               : "text-text-secondary",
-
             message
               ? messageType ===
                 "error"
                 ? "border-b-[1.5px] border-danger"
                 : "border-b-[1.5px] border-accent-primary"
               : "border-b-[1.5px] border-surface-secondary",
-          ].join(" ")}
+          ].join(
+            " ",
+          )}
         />
       </label>
 
@@ -193,12 +185,13 @@ function ProfileInput({
         <p
           className={[
             "mt-[4px] px-[10px] text-caption",
-
             messageType ===
             "error"
               ? "text-danger"
               : "text-accent-primary",
-          ].join(" ")}
+          ].join(
+            " ",
+          )}
         >
           {
             message
@@ -238,9 +231,9 @@ export function MyPage() {
     );
 
   const previewImageUrlRef =
-    useRef<string | null>(
-      null,
-    );
+    useRef<
+      string | null
+    >(null);
 
   const usernameCheckRequestIdRef =
     useRef(0);
@@ -301,9 +294,9 @@ export function MyPage() {
     selectedProfileImageFile,
     setSelectedProfileImageFile,
   ] =
-    useState<File | null>(
-      null,
-    );
+    useState<
+      File | null
+    >(null);
 
   const [
     userIdStatus,
@@ -350,18 +343,21 @@ export function MyPage() {
     );
 
   const clearPreviewImage =
-    useCallback(() => {
-      if (
-        previewImageUrlRef.current
-      ) {
-        URL.revokeObjectURL(
-          previewImageUrlRef.current,
-        );
+    useCallback(
+      () => {
+        if (
+          previewImageUrlRef.current
+        ) {
+          URL.revokeObjectURL(
+            previewImageUrlRef.current,
+          );
 
-        previewImageUrlRef.current =
-          null;
-      }
-    }, []);
+          previewImageUrlRef.current =
+            null;
+        }
+      },
+      [],
+    );
 
   const loadMyPage =
     useCallback(
@@ -378,22 +374,18 @@ export function MyPage() {
           const data =
             await getMyPage();
 
-          const profileData: ProfileForm =
-            {
+          const profileData:
+            ProfileForm = {
               nickname:
                 data.nickname,
-
               userId:
                 data.username,
-
               email:
                 data.email,
-
               favoriteTeamId:
                 data.favoriteTeam
                   ?.id ??
                 null,
-
               profileImage:
                 data.profileImageUrl ||
                 defaultProfileIcon,
@@ -406,7 +398,9 @@ export function MyPage() {
           setForm(
             profileData,
           );
-        } catch (error) {
+        } catch (
+          error
+        ) {
           if (
             error instanceof
               ApiError &&
@@ -414,7 +408,6 @@ export function MyPage() {
               401
           ) {
             await redirectToLogin();
-
             return;
           }
 
@@ -460,9 +453,6 @@ export function MyPage() {
     clearPreviewImage,
   ]);
 
-  /*
-   * 아이디 중복 검사
-   */
   useEffect(() => {
     if (!isEditing) {
       return;
@@ -549,7 +539,6 @@ export function MyPage() {
                     401
                 ) {
                   await redirectToLogin();
-
                   return;
                 }
 
@@ -712,9 +701,6 @@ export function MyPage() {
       );
     };
 
-  /*
-   * 프로필 이미지 파일 선택
-   */
   const handleProfileImageChange =
     (
       event:
@@ -723,7 +709,9 @@ export function MyPage() {
       const imageFile =
         event.target.files?.[0];
 
-      if (!imageFile) {
+      if (
+        !imageFile
+      ) {
         return;
       }
 
@@ -731,10 +719,6 @@ export function MyPage() {
         "",
       );
 
-      /*
-       * Swagger:
-       * JPEG / PNG 지원
-       */
       if (
         !ALLOWED_PROFILE_IMAGE_TYPES.has(
           imageFile.type,
@@ -750,10 +734,6 @@ export function MyPage() {
         return;
       }
 
-      /*
-       * Swagger:
-       * 기본 최대 10MB
-       */
       if (
         imageFile.size >
         MAX_PROFILE_IMAGE_SIZE
@@ -787,16 +767,11 @@ export function MyPage() {
           previous,
         ) => ({
           ...previous,
-
           profileImage:
             imageUrl,
         }),
       );
 
-      /*
-       * 같은 파일을 다시 선택해도
-       * change 이벤트가 발생하게 초기화
-       */
       event.target.value =
         "";
     };
@@ -810,16 +785,12 @@ export function MyPage() {
           previous,
         ) => ({
           ...previous,
-
           favoriteTeamId:
             teamId,
         }),
       );
     };
 
-  /*
-   * 프로필 수정 완료
-   */
   const handleCompleteEditing =
     async () => {
       const trimmedNickname =
@@ -869,9 +840,6 @@ export function MyPage() {
         let updatedProfile =
           null;
 
-        /*
-         * 닉네임 / 아이디 수정
-         */
         if (
           isNicknameChanged ||
           isUserIdChanged
@@ -881,16 +849,12 @@ export function MyPage() {
               {
                 username:
                   trimmedUserId,
-
                 nickname:
                   trimmedNickname,
               },
             );
         }
 
-        /*
-         * 응원 팀 수정
-         */
         if (
           isFavoriteTeamChanged
         ) {
@@ -909,13 +873,6 @@ export function MyPage() {
             );
         }
 
-        /*
-         * 프로필 이미지 파일 업로드
-         *
-         * 1. upload-url
-         * 2. S3 PUT
-         * 3. complete
-         */
         if (
           selectedProfileImageFile
         ) {
@@ -925,9 +882,6 @@ export function MyPage() {
             );
         }
 
-        /*
-         * 변경 사항이 없는 경우
-         */
         if (
           !updatedProfile
         ) {
@@ -950,27 +904,19 @@ export function MyPage() {
           return;
         }
 
-        /*
-         * complete / profile / favorite-team 응답은
-         * 모두 MyPageResponse이므로 동일하게 반영
-         */
-        const profileData: ProfileForm =
-          {
+        const profileData:
+          ProfileForm = {
             nickname:
               updatedProfile.nickname,
-
             userId:
               updatedProfile.username,
-
             email:
               updatedProfile.email,
-
             favoriteTeamId:
               updatedProfile
                 .favoriteTeam
                 ?.id ??
               form.favoriteTeamId,
-
             profileImage:
               updatedProfile
                 .profileImageUrl ||
@@ -1006,7 +952,9 @@ export function MyPage() {
         setIsEditing(
           false,
         );
-      } catch (error) {
+      } catch (
+        error
+      ) {
         if (
           error instanceof
             ApiError &&
@@ -1014,18 +962,14 @@ export function MyPage() {
             401
         ) {
           await redirectToLogin();
-
           return;
         }
 
-        const message =
+        setUpdateErrorMessage(
           error instanceof
               Error
             ? error.message
-            : "프로필 수정에 실패했습니다.";
-
-        setUpdateErrorMessage(
-          message,
+            : "프로필 수정에 실패했습니다.",
         );
 
         console.error(
@@ -1058,23 +1002,14 @@ export function MyPage() {
       const installationId =
         getPushInstallationId();
 
-      if (
-        installationId
-      ) {
-        try {
-          await unregisterPushNotification(
-            installationId,
-          );
-        } catch (error) {
-          console.error(
-            "푸시 알림 비활성화 실패:",
-            error,
-          );
-        }
-      }
-
       try {
-        await logout();
+        /*
+         * 서버가 현재 installationId의 푸시 등록 해제와
+         * 로그아웃을 한 요청에서 함께 처리한다.
+         */
+        await logout(
+          installationId,
+        );
 
         await clearAuthSession();
 
@@ -1085,7 +1020,9 @@ export function MyPage() {
               true,
           },
         );
-      } catch (error) {
+      } catch (
+        error
+      ) {
         if (
           error instanceof
             ApiError &&
@@ -1141,7 +1078,9 @@ export function MyPage() {
         profile.favoriteTeamId,
     );
 
-  if (isLoading) {
+  if (
+    isLoading
+  ) {
     return (
       <div className="flex min-h-dvh w-full items-center justify-center bg-[#F1F2F1]">
         <p className="text-label-3 text-text-secondary">
@@ -1156,7 +1095,7 @@ export function MyPage() {
   ) {
     return (
       <div className="flex min-h-dvh w-full flex-col bg-[#F1F2F1]">
-        <div className="bg-[#F1F2F1] pt-[20px]">
+        <div className="bg-[#F1F2F1] pt-[45px]">
           <PageHeader
             title="마이페이지"
           />
@@ -1190,7 +1129,7 @@ export function MyPage() {
   ) {
     return (
       <div className="min-h-dvh w-full bg-[#F1F2F1] pb-[110px]">
-        <div className="bg-[#F1F2F1] pt-[20px]">
+        <div className="bg-[#F1F2F1] pt-[45px]">
           <PageHeader
             title="프로필 수정"
             onBack={() =>
@@ -1226,7 +1165,6 @@ export function MyPage() {
                       className={[
                         "flex h-[64px] w-full items-center rounded-[32px]",
                         "px-[18px] text-left text-label-1 text-black",
-
                         isSelected
                           ? "bg-bg-primary"
                           : "",
@@ -1292,7 +1230,7 @@ export function MyPage() {
 
   return (
     <div className="min-h-dvh w-full bg-[#F1F2F1] pb-[110px]">
-      <div className="bg-[#F1F2F1] pt-[20px]">
+      <div className="bg-[#F1F2F1] pt-[45px]">
         <PageHeader
           title={
             isEditing

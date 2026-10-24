@@ -28,6 +28,14 @@ export type NotificationData = {
   friendshipId?: string;
   requestRevision?: string;
   screen?: string;
+  link?: string;
+
+  gameId?: string;
+  recordId?: string;
+  videoId?: string;
+  commentId?: string;
+  parentCommentId?: string;
+  audienceUserId?: string;
 
   [key: string]: string | undefined;
 };

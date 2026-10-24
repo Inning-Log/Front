@@ -40,6 +40,7 @@ import {
 
 import {
   deleteInningRecord,
+  getInningRecord,
 } from "../../features/record/api/inningRecordApi";
 import {
   deleteUserGameLog,
@@ -88,6 +89,11 @@ type DragState = {
   scrollLeft: number;
 };
 
+type NotificationCommentTarget = {
+  videoId: number | null;
+  commentId: number | null;
+};
+
 /**
  * 서버 record → 화면용 record 변환
  */
@@ -120,6 +126,53 @@ function mapTimelineRecord(
     awayScore: record.awayScore,
     text: record.text,
 
+    videoStatus:
+      record.videoStatus,
+  };
+}
+
+function mapInningRecordResponse(
+  record:
+    InningRecordResponse,
+): InningRecord {
+  const recordedDate =
+    new Date(
+      record.recordedAt,
+    );
+
+  const recordedAt =
+    Number.isNaN(
+      recordedDate.getTime(),
+    )
+      ? record.recordedAt
+      : recordedDate.toLocaleTimeString(
+          "ko-KR",
+          {
+            hour:
+              "2-digit",
+            minute:
+              "2-digit",
+            hour12:
+              false,
+            timeZone:
+              "Asia/Seoul",
+          },
+        );
+
+  return {
+    id:
+      String(
+        record.id,
+      ),
+    inning:
+      record.inning,
+    recordedAt,
+    homeScore:
+      record.homeScore,
+    awayScore:
+      record.awayScore,
+    text:
+      record.text,
     videoStatus:
       record.videoStatus,
   };
@@ -374,6 +427,21 @@ export function TimelinePage() {
       "gameId",
     );
 
+  const notificationRecordId =
+    searchParams.get(
+      "recordId",
+    );
+
+  const notificationVideoId =
+    searchParams.get(
+      "videoId",
+    );
+
+  const notificationCommentId =
+    searchParams.get(
+      "commentId",
+    );
+
   const userId =
     queryUserId ??
     pathUserId ??
@@ -394,6 +462,51 @@ export function TimelinePage() {
     gameId !== null &&
     gameId !== ""
       ? Number(gameId)
+      : null;
+
+  const parsedNotificationRecordId =
+    notificationRecordId &&
+    Number.isSafeInteger(
+      Number(
+        notificationRecordId,
+      ),
+    ) &&
+    Number(
+      notificationRecordId,
+    ) > 0
+      ? Number(
+          notificationRecordId,
+        )
+      : null;
+
+  const parsedNotificationVideoId =
+    notificationVideoId &&
+    Number.isSafeInteger(
+      Number(
+        notificationVideoId,
+      ),
+    ) &&
+    Number(
+      notificationVideoId,
+    ) > 0
+      ? Number(
+          notificationVideoId,
+        )
+      : null;
+
+  const parsedNotificationCommentId =
+    notificationCommentId &&
+    Number.isSafeInteger(
+      Number(
+        notificationCommentId,
+      ),
+    ) &&
+    Number(
+      notificationCommentId,
+    ) > 0
+      ? Number(
+          notificationCommentId,
+        )
       : null;
 
   const isFriendTimeline =
@@ -461,6 +574,19 @@ export function TimelinePage() {
     setSelectedRecord,
   ] =
     useState<InningRecord | null>(
+      null,
+    );
+
+  const [
+    notificationCommentTarget,
+    setNotificationCommentTarget,
+  ] =
+    useState<NotificationCommentTarget | null>(
+      null,
+    );
+
+  const handledNotificationTargetRef =
+    useRef<string | null>(
       null,
     );
 
@@ -852,6 +978,150 @@ export function TimelinePage() {
     parsedUserId,
     isFriendTimeline,
     isPastTimeline,
+  ]);
+
+  /**
+   * 알림으로 들어온 특정 기록/댓글 자동 열기
+   */
+  useEffect(() => {
+    if (
+      !timeline ||
+      parsedNotificationRecordId ===
+        null
+    ) {
+      return;
+    }
+
+    const targetKey =
+      [
+        parsedNotificationRecordId,
+        parsedNotificationVideoId ??
+          "",
+        parsedNotificationCommentId ??
+          "",
+      ].join(
+        ":",
+      );
+
+    if (
+      handledNotificationTargetRef.current ===
+      targetKey
+    ) {
+      return;
+    }
+
+    let cancelled =
+      false;
+
+    const openNotificationTarget =
+      async () => {
+        let targetRecord:
+          InningRecord | null =
+          null;
+
+        const loadedRecord =
+          records.find(
+            (record) =>
+              record.id ===
+              parsedNotificationRecordId,
+          );
+
+        if (
+          loadedRecord
+        ) {
+          targetRecord =
+            mapTimelineRecord(
+              loadedRecord,
+            );
+        } else {
+          try {
+            const detail =
+              await getInningRecord(
+                parsedNotificationRecordId,
+              );
+
+            if (
+              cancelled
+            ) {
+              return;
+            }
+
+            targetRecord =
+              mapInningRecordResponse(
+                detail,
+              );
+          } catch (error) {
+            console.error(
+              "알림 대상 기록 조회 실패:",
+              error,
+            );
+
+            if (
+              !cancelled
+            ) {
+              handledNotificationTargetRef.current =
+                targetKey;
+
+              setFeedbackMessage(
+                "알림 대상 기록을 찾을 수 없습니다.",
+              );
+            }
+
+            return;
+          }
+        }
+
+        if (
+          cancelled ||
+          !targetRecord
+        ) {
+          return;
+        }
+
+        setSelectedRecordMode(
+          "view",
+        );
+
+        setSelectedRecord(
+          targetRecord,
+        );
+
+        if (
+          parsedNotificationVideoId !==
+            null ||
+          parsedNotificationCommentId !==
+            null
+        ) {
+          setNotificationCommentTarget(
+            {
+              videoId:
+                parsedNotificationVideoId,
+              commentId:
+                parsedNotificationCommentId,
+            },
+          );
+        } else {
+          setNotificationCommentTarget(
+            null,
+          );
+        }
+
+        handledNotificationTargetRef.current =
+          targetKey;
+      };
+
+    void openNotificationTarget();
+
+    return () => {
+      cancelled =
+        true;
+    };
+  }, [
+    parsedNotificationCommentId,
+    parsedNotificationRecordId,
+    parsedNotificationVideoId,
+    records,
+    timeline,
   ]);
 
   /**
@@ -1748,7 +2018,7 @@ export function TimelinePage() {
    */
   if (isLoading) {
     return (
-      <div className="flex min-h-dvh w-full flex-col pt-[20px]">
+      <div className="flex min-h-dvh w-full flex-col pt-[45px]">
         <PageHeader title="타임라인" />
 
         {!isPastTimeline && (
@@ -1779,7 +2049,7 @@ export function TimelinePage() {
     !timeline
   ) {
     return (
-      <div className="flex min-h-dvh w-full flex-col pt-[20px]">
+      <div className="flex min-h-dvh w-full flex-col pt-[45px]">
         <PageHeader title="타임라인" />
 
         {!isPastTimeline && (
@@ -1814,7 +2084,7 @@ export function TimelinePage() {
    */
   if (!timeline) {
     return (
-      <div className="flex min-h-dvh w-full flex-col pt-[20px]">
+      <div className="flex min-h-dvh w-full flex-col pt-[45px]">
         <PageHeader title="타임라인" />
 
         {!isPastTimeline && (
@@ -1871,7 +2141,7 @@ export function TimelinePage() {
     "";
 
   return (
-    <div className="min-h-dvh w-full pt-[20px]">
+    <div className="min-h-dvh w-full pt-[45px]">
       <div className="relative">
         <PageHeader title="타임라인" />
 
@@ -2108,6 +2378,20 @@ export function TimelinePage() {
         mode={
           selectedRecordMode
         }
+        openCommentsInitially={
+          notificationCommentTarget !==
+          null
+        }
+        initialVideoId={
+          notificationCommentTarget
+            ?.videoId ??
+          null
+        }
+        initialCommentId={
+          notificationCommentTarget
+            ?.commentId ??
+          null
+        }
         onClose={() => {
           setSelectedRecord(
             null,
@@ -2115,6 +2399,10 @@ export function TimelinePage() {
 
           setSelectedRecordMode(
             "view",
+          );
+
+          setNotificationCommentTarget(
+            null,
           );
         }}
         onUpdated={
