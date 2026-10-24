@@ -37,3 +37,7 @@ export type CurrentUserResponse = {
   authorities: string[];
   user?: UserResponse | null;
 };
+
+export type LogoutRequest = {
+  installationId: string;
+};
