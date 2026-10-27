@@ -10,7 +10,9 @@ import {
   useNavigate,
 } from "react-router-dom";
 
-import { getCurrentUser } from "../../features/auth/api/authApi";
+import {
+  getCurrentUser,
+} from "../../features/auth/api/authApi";
 
 import {
   getGames,
@@ -22,50 +24,89 @@ import type {
   GameStateResponse,
 } from "../../features/games/types/game";
 
-import { CameraControls } from "../../features/record/CameraControls";
+import {
+  CameraControls,
+} from "../../features/record/CameraControls";
 
-import type { CameraDirection } from "../../features/record/CameraControls";
+import type {
+  CameraDirection,
+} from "../../features/record/CameraControls";
 
 import {
   CameraPreview,
   type CameraPreviewMode,
 } from "../../features/record/CameraPreview";
 
-import { InningIndicator } from "../../features/record/InningIndicator";
+import {
+  InningIndicator,
+} from "../../features/record/InningIndicator";
 
 import {
   WatchingLocationSheet,
   type WatchingLocation,
 } from "../../features/record/WatchingLocationSheet";
 
-import { createInningRecord } from "../../features/record/api/inningRecordApi";
+import {
+  createInningRecord,
+} from "../../features/record/api/inningRecordApi";
 
-import { uploadInningRecordVideo } from "../../features/record/api/inningRecordVideoApi";
+import {
+  uploadInningRecordVideo,
+} from "../../features/record/api/inningRecordVideoApi";
 
-import { createUserGameLog } from "../../features/record/api/userGameLogApi";
+import {
+  createUserGameLog,
+} from "../../features/record/api/userGameLogApi";
 
-import type { ViewingType } from "../../features/record/types/userGameLog";
+import type {
+  ViewingType,
+} from "../../features/record/types/userGameLog";
 
-import { Toast } from "../../shared/ui/Toast";
+import {
+  Toast,
+} from "../../shared/ui/Toast";
 
 type RecordLocationState = {
   inning?: number;
   gameId?: number;
 };
 
+/**
+ * 촬영 버튼을 누른 시점의 기록 정보.
+ *
+ * 촬영 이후 서버 경기 상태가 변경되어도
+ * 이 값은 절대 변경하지 않는다.
+ */
+type CapturedRecordContext = {
+  gameId: number;
+  inning: number;
+  half: string;
+  recordedAt: string;
+  clientRecordId: string;
+};
+
 function getTodayDate() {
-  const today = new Date();
+  const today =
+    new Date();
 
   const year =
     today.getFullYear();
 
-  const month = String(
-    today.getMonth() + 1,
-  ).padStart(2, "0");
+  const month =
+    String(
+      today.getMonth() + 1,
+    ).padStart(
+      2,
+      "0",
+    );
 
-  const date = String(
-    today.getDate(),
-  ).padStart(2, "0");
+  const date =
+    String(
+      today.getDate(),
+    ).padStart(
+      2,
+      "0",
+    );
 
   return `${year}-${month}-${date}`;
 }
@@ -75,9 +116,12 @@ function getWatchingLocationKey() {
 }
 
 function getLatestGameState(
-  states: GameStateResponse[],
+  states:
+    GameStateResponse[],
 ) {
-  return states.at(-1);
+  return states.at(
+    -1,
+  );
 }
 
 function getSupportedRecorderMimeType() {
@@ -109,9 +153,12 @@ function getCameraErrorMessage(
   error: unknown,
 ) {
   if (
-    error instanceof DOMException
+    error instanceof
+    DOMException
   ) {
-    switch (error.name) {
+    switch (
+      error.name
+    ) {
       case "NotAllowedError":
         return "카메라 권한이 거부되었습니다. 브라우저 설정에서 카메라 권한을 허용해주세요.";
 
@@ -177,20 +224,34 @@ export function RecordPage() {
     );
 
   const recordedChunksRef =
-    useRef<BlobPart[]>([]);
+    useRef<BlobPart[]>(
+      [],
+    );
 
   const recordingTimerRef =
     useRef<number | null>(
       null,
     );
 
-  const clientRecordIdRef =
-    useRef<string | null>(
+  /**
+   * 촬영 시점 정보.
+   *
+   * caption 화면에서 저장을 늦게 눌러도
+   * 이 값은 다시 계산하지 않는다.
+   */
+  const capturedRecordContextRef =
+    useRef<CapturedRecordContext | null>(
       null,
     );
 
-  const capturedAtRef =
-    useRef<string | null>(
+  /**
+   * createInningRecord가 성공한 뒤의 recordId.
+   *
+   * 영상 업로드가 실패해 저장 버튼을 다시 눌러도
+   * 동일한 이닝 기록을 사용한다.
+   */
+  const createdRecordIdRef =
+    useRef<number | null>(
       null,
     );
 
@@ -219,6 +280,16 @@ export function RecordPage() {
   const [
     isRequestingCamera,
     setIsRequestingCamera,
+  ] =
+    useState(false);
+
+  /**
+   * 촬영 직전 서버의 현재 이닝/초말을
+   * 조회하는 동안 중복 촬영 방지.
+   */
+  const [
+    isPreparingCapture,
+    setIsPreparingCapture,
   ] =
     useState(false);
 
@@ -275,9 +346,11 @@ export function RecordPage() {
   const [
     currentInning,
     setCurrentInning,
-  ] = useState(
-    requestedInning ?? 1,
-  );
+  ] =
+    useState(
+      requestedInning ??
+        1,
+    );
 
   const [
     isLoadingGame,
@@ -310,28 +383,31 @@ export function RecordPage() {
     useState("");
 
   const stopCamera =
-    useCallback(() => {
-      cameraStreamRef.current
-        ?.getTracks()
-        .forEach(
-          (track) =>
-            track.stop(),
-        );
+    useCallback(
+      () => {
+        cameraStreamRef.current
+          ?.getTracks()
+          .forEach(
+            (track) =>
+              track.stop(),
+          );
 
-      cameraStreamRef.current =
-        null;
-
-      if (
-        videoRef.current
-      ) {
-        videoRef.current.srcObject =
+        cameraStreamRef.current =
           null;
-      }
 
-      setIsCameraActive(
-        false,
-      );
-    }, []);
+        if (
+          videoRef.current
+        ) {
+          videoRef.current.srcObject =
+            null;
+        }
+
+        setIsCameraActive(
+          false,
+        );
+      },
+      [],
+    );
 
   const startCamera =
     useCallback(
@@ -396,7 +472,9 @@ export function RecordPage() {
                         : "environment",
                   },
                 },
-                audio: false,
+
+                audio:
+                  false,
               },
             );
 
@@ -491,7 +569,8 @@ export function RecordPage() {
 
   useEffect(() => {
     if (
-      previewMode !== "camera" ||
+      previewMode !==
+        "camera" ||
       isCameraActive ||
       isRequestingCamera
     ) {
@@ -506,222 +585,366 @@ export function RecordPage() {
     startCamera,
   ]);
 
+  /**
+   * 실제 MediaRecorder 시작.
+   *
+   * context는 촬영 전에 이미 확정된 값을 받는다.
+   */
   const startRecording =
-    useCallback(() => {
-      const stream =
-        cameraStreamRef.current;
+    useCallback(
+      (
+        context:
+          CapturedRecordContext,
+      ) => {
+        const stream =
+          cameraStreamRef.current;
 
-      if (!stream) {
-        setRecordErrorMessage(
-          "카메라가 활성화되지 않았습니다.",
-        );
+        if (!stream) {
+          setRecordErrorMessage(
+            "카메라가 활성화되지 않았습니다.",
+          );
 
-        return;
-      }
+          return;
+        }
 
-      if (
-        typeof MediaRecorder ===
-        "undefined"
-      ) {
-        setRecordErrorMessage(
-          "현재 브라우저에서는 영상 녹화를 지원하지 않습니다.",
-        );
+        if (
+          typeof MediaRecorder ===
+          "undefined"
+        ) {
+          setRecordErrorMessage(
+            "현재 브라우저에서는 영상 녹화를 지원하지 않습니다.",
+          );
 
-        return;
-      }
+          return;
+        }
 
-      try {
-        const mimeType =
-          getSupportedRecorderMimeType();
+        try {
+          const mimeType =
+            getSupportedRecorderMimeType();
 
-        const recorder =
-          mimeType
-            ? new MediaRecorder(
-                stream,
-                {
-                  mimeType,
-                },
-              )
-            : new MediaRecorder(
-                stream,
-              );
+          const recorder =
+            mimeType
+              ? new MediaRecorder(
+                  stream,
+                  {
+                    mimeType,
+                  },
+                )
+              : new MediaRecorder(
+                  stream,
+                );
 
-        recordedChunksRef.current =
-          [];
+          recordedChunksRef.current =
+            [];
 
-        recorder.addEventListener(
-          "dataavailable",
-          (event) => {
-            if (
-              event.data.size >
-              0
-            ) {
-              recordedChunksRef.current.push(
-                event.data,
-              );
-            }
-          },
-        );
-
-        recorder.addEventListener(
-          "stop",
-          () => {
-            const type =
-              recorder.mimeType ||
-              "video/webm";
-
-            const blob =
-              new Blob(
-                recordedChunksRef.current,
-                {
-                  type,
-                },
-              );
-
-            mediaRecorderRef.current =
-              null;
-
-            recordedChunksRef.current =
-              [];
-
-            if (
-              recordingTimerRef.current !==
-              null
-            ) {
-              window.clearTimeout(
-                recordingTimerRef.current,
-              );
-
-              recordingTimerRef.current =
-                null;
-            }
-
-            setIsRecording(
-              false,
-            );
-
-            if (
-              blob.size <= 0
-            ) {
-              setRecordErrorMessage(
-                "촬영된 영상이 없습니다.",
-              );
-
-              return;
-            }
-
-            setRecordedVideo(
-              blob,
-            );
-
-            stopCamera();
-
-            setPreviewMode(
-              "caption",
-            );
-          },
-          {
-            once: true,
-          },
-        );
-
-        recorder.addEventListener(
-          "error",
-          () => {
-            if (
-              recordingTimerRef.current !==
-              null
-            ) {
-              window.clearTimeout(
-                recordingTimerRef.current,
-              );
-
-              recordingTimerRef.current =
-                null;
-            }
-
-            setIsRecording(
-              false,
-            );
-
-            setRecordErrorMessage(
-              "영상 녹화 중 오류가 발생했습니다.",
-            );
-          },
-          {
-            once: true,
-          },
-        );
-
-        mediaRecorderRef.current =
-          recorder;
-
-        capturedAtRef.current =
-          new Date().toISOString();
-
-        clientRecordIdRef.current =
-          crypto.randomUUID();
-
-        setRecordedVideo(
-          null,
-        );
-
-        setRecordErrorMessage(
-          "",
-        );
-
-        recorder.start(
-          250,
-        );
-
-        setIsRecording(
-          true,
-        );
-
-        /*
-         * 정확히 2초 후 자동 종료
-         */
-        recordingTimerRef.current =
-          window.setTimeout(
-            () => {
-              const currentRecorder =
-                mediaRecorderRef.current;
-
+          recorder.addEventListener(
+            "dataavailable",
+            (event) => {
               if (
-                currentRecorder &&
-                currentRecorder.state !==
-                  "inactive"
+                event.data
+                  .size > 0
               ) {
-                currentRecorder.stop();
+                recordedChunksRef.current.push(
+                  event.data,
+                );
               }
             },
-            2000,
           );
-      } catch (error) {
-        console.error(
-          "영상 녹화 시작 실패:",
-          error,
-        );
 
-        setRecordErrorMessage(
-          "영상 녹화를 시작하지 못했습니다.",
-        );
-      }
-    }, [
-      stopCamera,
-    ]);
+          recorder.addEventListener(
+            "stop",
+            () => {
+              const type =
+                recorder.mimeType ||
+                "video/webm";
 
+              const blob =
+                new Blob(
+                  recordedChunksRef.current,
+                  {
+                    type,
+                  },
+                );
+
+              mediaRecorderRef.current =
+                null;
+
+              recordedChunksRef.current =
+                [];
+
+              if (
+                recordingTimerRef.current !==
+                null
+              ) {
+                window.clearTimeout(
+                  recordingTimerRef.current,
+                );
+
+                recordingTimerRef.current =
+                  null;
+              }
+
+              setIsRecording(
+                false,
+              );
+
+              if (
+                blob.size <=
+                0
+              ) {
+                capturedRecordContextRef.current =
+                  null;
+
+                setRecordErrorMessage(
+                  "촬영된 영상이 없습니다.",
+                );
+
+                return;
+              }
+
+              setRecordedVideo(
+                blob,
+              );
+
+              stopCamera();
+
+              setPreviewMode(
+                "caption",
+              );
+            },
+            {
+              once:
+                true,
+            },
+          );
+
+          recorder.addEventListener(
+            "error",
+            () => {
+              if (
+                recordingTimerRef.current !==
+                null
+              ) {
+                window.clearTimeout(
+                  recordingTimerRef.current,
+                );
+
+                recordingTimerRef.current =
+                  null;
+              }
+
+              mediaRecorderRef.current =
+                null;
+
+              capturedRecordContextRef.current =
+                null;
+
+              createdRecordIdRef.current =
+                null;
+
+              setIsRecording(
+                false,
+              );
+
+              setRecordErrorMessage(
+                "영상 녹화 중 오류가 발생했습니다.",
+              );
+            },
+            {
+              once:
+                true,
+            },
+          );
+
+          mediaRecorderRef.current =
+            recorder;
+
+          /*
+           * 이 시점부터 해당 영상의 서버 기록 정보는
+           * 변경하지 않는다.
+           */
+          capturedRecordContextRef.current =
+            context;
+
+          createdRecordIdRef.current =
+            null;
+
+          setCurrentInning(
+            context.inning,
+          );
+
+          setRecordedVideo(
+            null,
+          );
+
+          setRecordErrorMessage(
+            "",
+          );
+
+          recorder.start(
+            250,
+          );
+
+          setIsRecording(
+            true,
+          );
+
+          /*
+           * 정확히 2초 후 자동 종료.
+           */
+          recordingTimerRef.current =
+            window.setTimeout(
+              () => {
+                const currentRecorder =
+                  mediaRecorderRef.current;
+
+                if (
+                  currentRecorder &&
+                  currentRecorder.state !==
+                    "inactive"
+                ) {
+                  currentRecorder.stop();
+                }
+              },
+              2000,
+            );
+        } catch (error) {
+          capturedRecordContextRef.current =
+            null;
+
+          createdRecordIdRef.current =
+            null;
+
+          console.error(
+            "영상 녹화 시작 실패:",
+            error,
+          );
+
+          setRecordErrorMessage(
+            "영상 녹화를 시작하지 못했습니다.",
+          );
+        }
+      },
+      [
+        stopCamera,
+      ],
+    );
+
+  /**
+   * 촬영 버튼 클릭.
+   *
+   * 서버의 현재 이닝/초말 상태를 먼저 확인한 뒤
+   * 해당 값을 촬영 컨텍스트로 고정한다.
+   */
   const handleCapture =
-    () => {
+    async () => {
       if (
         isRequestingCamera ||
+        isPreparingCapture ||
         !isCameraActive ||
         isRecording
       ) {
         return;
       }
 
-      startRecording();
+      const game =
+        favoriteTeamGame;
+
+      if (!game) {
+        setRecordErrorMessage(
+          gameFeedbackMessage ||
+            "현재 경기 정보를 확인할 수 없습니다.",
+        );
+
+        return;
+      }
+
+      try {
+        setIsPreparingCapture(
+          true,
+        );
+
+        setRecordErrorMessage(
+          "",
+        );
+
+        const stateHistory =
+          await getGameStateHistory(
+            game.gameId,
+          );
+
+        const latestState =
+          getLatestGameState(
+            stateHistory.states,
+          );
+
+        const inning =
+          requestedInning ??
+          latestState?.inning;
+
+        const half =
+          latestState?.half;
+
+        if (
+          typeof inning !==
+            "number" ||
+          !Number.isInteger(
+            inning,
+          ) ||
+          inning <= 0
+        ) {
+          throw new Error(
+            "현재 이닝 정보를 확인할 수 없습니다.",
+          );
+        }
+
+        if (!half) {
+          throw new Error(
+            "현재 이닝의 초·말 정보를 확인할 수 없습니다.",
+          );
+        }
+
+        /*
+         * 네트워크 조회가 완료된 바로 이 시점의
+         * 게임 상태를 이번 촬영의 값으로 확정한다.
+         */
+        const context:
+          CapturedRecordContext =
+          {
+            gameId:
+              game.gameId,
+
+            inning,
+
+            half,
+
+            recordedAt:
+              new Date().toISOString(),
+
+            clientRecordId:
+              crypto.randomUUID(),
+          };
+
+        startRecording(
+          context,
+        );
+      } catch (error) {
+        console.error(
+          "촬영 시점 경기 상태 조회 실패:",
+          error,
+        );
+
+        setRecordErrorMessage(
+          error instanceof
+            Error
+            ? error.message
+            : "현재 경기 상태를 확인하지 못했습니다.",
+        );
+      } finally {
+        setIsPreparingCapture(
+          false,
+        );
+      }
     };
 
   const handleCameraDirectionChange =
@@ -736,9 +959,12 @@ export function RecordPage() {
         return;
       }
 
-      if (isRecording) {
+      if (
+        isRecording ||
+        isPreparingCapture
+      ) {
         setRecordErrorMessage(
-          "녹화 중에는 카메라를 전환할 수 없습니다.",
+          "촬영 중에는 카메라를 전환할 수 없습니다.",
         );
 
         return;
@@ -783,7 +1009,9 @@ export function RecordPage() {
   }, []);
 
   useEffect(() => {
-    if (!recordedVideo) {
+    if (
+      !recordedVideo
+    ) {
       setRecordedVideoUrl(
         null,
       );
@@ -810,7 +1038,11 @@ export function RecordPage() {
   ]);
 
   /**
-   * 서버에서 현재 이닝 / 초·말 상태 조회
+   * 현재 이닝 표시를 위한 서버 상태 조회.
+   *
+   * 이 함수에서 가져온 값은 화면 표시용이고,
+   * 실제 저장 값은 촬영 시 capturedRecordContext에
+   * 별도로 고정한다.
    */
   const loadCurrentGameState =
     useCallback(
@@ -829,7 +1061,8 @@ export function RecordPage() {
 
         if (
           latestState &&
-          latestState.inning > 0
+          latestState.inning >
+            0
         ) {
           setCurrentInning(
             requestedInning ??
@@ -845,26 +1078,118 @@ export function RecordPage() {
     );
 
   const loadFavoriteTeamGame =
-    useCallback(async () => {
-      try {
-        const [
-          currentUser,
-          gameList,
-        ] = await Promise.all([
-          getCurrentUser(),
-          getGames(
-            getTodayDate(),
-          ),
-        ]);
+    useCallback(
+      async () => {
+        try {
+          const [
+            currentUser,
+            gameList,
+          ] =
+            await Promise.all([
+              getCurrentUser(),
 
-        const nextFavoriteTeamId =
-          currentUser.user
-            ?.favoriteTeamId;
+              getGames(
+                getTodayDate(),
+              ),
+            ]);
 
-        if (
-          nextFavoriteTeamId ===
-          undefined
-        ) {
+          const nextFavoriteTeamId =
+            currentUser.user
+              ?.favoriteTeamId;
+
+          if (
+            nextFavoriteTeamId ===
+            undefined
+          ) {
+            setFavoriteTeamId(
+              null,
+            );
+
+            setFavoriteTeamGame(
+              null,
+            );
+
+            setGameFeedbackMessage(
+              "응원팀 설정을 확인하지 못했습니다.",
+            );
+
+            return;
+          }
+
+          setFavoriteTeamId(
+            nextFavoriteTeamId,
+          );
+
+          const requestedGame =
+            requestedGameId !==
+            undefined
+              ? gameList.games.find(
+                  (game) =>
+                    game.gameId ===
+                    requestedGameId,
+                )
+              : undefined;
+
+          const favoriteTeamGames =
+            gameList.games.filter(
+              (game) =>
+                game.homeTeam
+                  .id ===
+                  nextFavoriteTeamId ||
+                game.awayTeam
+                  .id ===
+                  nextFavoriteTeamId,
+            );
+
+          const nextGame =
+            requestedGame ??
+            selectCurrentGame(
+              favoriteTeamGames,
+            );
+
+          setFavoriteTeamGame(
+            nextGame,
+          );
+
+          if (!nextGame) {
+            setGameFeedbackMessage(
+              gameList
+                .scheduleData
+                .state ===
+                "NOT_IMPORTED"
+                ? "오늘 경기 일정이 아직 준비되지 않았습니다."
+                : "오늘 응원팀 경기가 없습니다.",
+            );
+
+            return;
+          }
+
+          if (
+            nextGame.myViewing
+              ?.viewingType
+          ) {
+            localStorage.setItem(
+              getWatchingLocationKey(),
+
+              toWatchingLocation(
+                nextGame
+                  .myViewing
+                  .viewingType,
+              ),
+            );
+
+            try {
+              await loadCurrentGameState(
+                nextGame.gameId,
+              );
+            } catch (error) {
+              console.error(
+                "현재 이닝 조회 실패:",
+                error,
+              );
+            }
+          }
+        } catch (error) {
           setFavoriteTeamId(
             null,
           );
@@ -874,103 +1199,22 @@ export function RecordPage() {
           );
 
           setGameFeedbackMessage(
-            "응원팀 설정을 확인하지 못했습니다.",
+            error instanceof
+              Error
+              ? error.message
+              : "오늘 경기 정보를 불러오지 못했습니다.",
           );
-
-          return;
+        } finally {
+          setIsLoadingGame(
+            false,
+          );
         }
-
-        setFavoriteTeamId(
-          nextFavoriteTeamId,
-        );
-
-        const requestedGame =
-          requestedGameId !==
-          undefined
-            ? gameList.games.find(
-                (game) =>
-                  game.gameId ===
-                  requestedGameId,
-              )
-            : undefined;
-
-        const favoriteTeamGames =
-          gameList.games.filter(
-            (game) =>
-              game.homeTeam.id ===
-                nextFavoriteTeamId ||
-              game.awayTeam.id ===
-                nextFavoriteTeamId,
-          );
-
-        const nextGame =
-          requestedGame ??
-          selectCurrentGame(
-            favoriteTeamGames,
-          );
-
-        setFavoriteTeamGame(
-          nextGame,
-        );
-
-        if (!nextGame) {
-          setGameFeedbackMessage(
-            gameList.scheduleData
-              .state ===
-              "NOT_IMPORTED"
-              ? "오늘 경기 일정이 아직 준비되지 않았습니다."
-              : "오늘 응원팀 경기가 없습니다.",
-          );
-
-          return;
-        }
-
-        if (
-          nextGame.myViewing
-            ?.viewingType
-        ) {
-          localStorage.setItem(
-            getWatchingLocationKey(),
-            toWatchingLocation(
-              nextGame.myViewing
-                .viewingType,
-            ),
-          );
-
-          try {
-            await loadCurrentGameState(
-              nextGame.gameId,
-            );
-          } catch (error) {
-            console.error(
-              "현재 이닝 조회 실패:",
-              error,
-            );
-          }
-        }
-      } catch (error) {
-        setFavoriteTeamId(
-          null,
-        );
-
-        setFavoriteTeamGame(
-          null,
-        );
-
-        setGameFeedbackMessage(
-          error instanceof Error
-            ? error.message
-            : "오늘 경기 정보를 불러오지 못했습니다.",
-        );
-      } finally {
-        setIsLoadingGame(
-          false,
-        );
-      }
-    }, [
-      loadCurrentGameState,
-      requestedGameId,
-    ]);
+      },
+      [
+        loadCurrentGameState,
+        requestedGameId,
+      ],
+    );
 
   useEffect(() => {
     const timerId =
@@ -1015,31 +1259,38 @@ export function RecordPage() {
       void loadFavoriteTeamGame();
     };
 
+  const resetCapturedRecord =
+    () => {
+      setCaption(
+        "",
+      );
+
+      setRecordedVideo(
+        null,
+      );
+
+      setIsLocationSheetOpen(
+        false,
+      );
+
+      capturedRecordContextRef.current =
+        null;
+
+      createdRecordIdRef.current =
+        null;
+    };
+
   const handleClose =
     () => {
       if (
         previewMode ===
         "caption"
       ) {
+        resetCapturedRecord();
+
         setPreviewMode(
           "camera",
         );
-
-        setCaption("");
-
-        setRecordedVideo(
-          null,
-        );
-
-        setIsLocationSheetOpen(
-          false,
-        );
-
-        capturedAtRef.current =
-          null;
-
-        clientRecordIdRef.current =
-          null;
 
         return;
       }
@@ -1067,12 +1318,24 @@ export function RecordPage() {
 
       stopCamera();
 
-      navigate("/home");
+      navigate(
+        "/home",
+      );
     };
 
+  /**
+   * 이닝 기록 + 영상 저장.
+   *
+   * 중요:
+   * 여기에서는 경기 상태를 다시 조회하지 않는다.
+   *
+   * 촬영 당시 저장된
+   * capturedRecordContext만 사용한다.
+   */
   const submitInningRecord =
     async (
-      game: GameResponse,
+      game:
+        GameResponse,
     ) => {
       if (
         isSubmittingRecord
@@ -1080,9 +1343,35 @@ export function RecordPage() {
         return;
       }
 
-      if (!recordedVideo) {
+      if (
+        !recordedVideo
+      ) {
         setRecordErrorMessage(
           "촬영된 영상이 없습니다.",
+        );
+
+        return;
+      }
+
+      const capturedContext =
+        capturedRecordContextRef.current;
+
+      if (
+        !capturedContext
+      ) {
+        setRecordErrorMessage(
+          "촬영 정보를 확인할 수 없습니다. 다시 촬영해주세요.",
+        );
+
+        return;
+      }
+
+      if (
+        capturedContext.gameId !==
+        game.gameId
+      ) {
+        setRecordErrorMessage(
+          "촬영한 경기와 현재 경기 정보가 일치하지 않습니다. 다시 촬영해주세요.",
         );
 
         return;
@@ -1097,93 +1386,68 @@ export function RecordPage() {
           "",
         );
 
-        /**
-         * 저장 직전 서버 상태를 다시 조회한다.
-         *
-         * 기록 화면을 오래 열어둔 경우
-         * 이닝/초·말이 변경될 수 있기 때문.
-         */
-        const stateHistory =
-          await getGameStateHistory(
-            game.gameId,
-          );
-
-        const latestState =
-          getLatestGameState(
-            stateHistory.states,
-          );
-
-        const inning =
-          requestedInning ??
-          latestState?.inning;
-
-        const half =
-          latestState?.half;
-
-        if (
-          typeof inning !==
-            "number" ||
-          !Number.isInteger(
-            inning,
-          ) ||
-          inning <= 0
-        ) {
-          throw new Error(
-            "현재 이닝 정보를 확인할 수 없습니다.",
-          );
-        }
-
-        if (!half) {
-          throw new Error(
-            "현재 이닝의 초·말 정보를 확인할 수 없습니다.",
-          );
-        }
-
         setCurrentInning(
-          inning,
+          capturedContext.inning,
         );
 
-        const clientRecordId =
-          clientRecordIdRef
-            .current ??
-          crypto.randomUUID();
+        /*
+         * 이미 기록 생성이 성공했다면
+         * 영상 재시도에서는 기록을 다시 만들지 않는다.
+         */
+        let recordId =
+          createdRecordIdRef.current;
 
-        clientRecordIdRef.current =
-          clientRecordId;
+        if (
+          recordId ===
+          null
+        ) {
+          const inningRecord =
+            await createInningRecord(
+              {
+                gameId:
+                  capturedContext.gameId,
 
-        const recordedAt =
-          capturedAtRef
-            .current ??
-          new Date().toISOString();
+                clientRecordId:
+                  capturedContext.clientRecordId,
 
-        const inningRecord =
-          await createInningRecord(
-            {
-              gameId:
-                game.gameId,
+                inning:
+                  capturedContext.inning,
 
-              clientRecordId,
+                half:
+                  capturedContext.half,
 
-              inning,
+                recordedAt:
+                  capturedContext.recordedAt,
 
-              half,
+                text:
+                  caption,
+              },
+            );
 
-              recordedAt,
+          recordId =
+            inningRecord.id;
 
-              text:
-                caption,
-            },
-          );
+          /*
+           * 이 값을 성공 직후 바로 저장해야
+           * 이후 영상 업로드 실패 때 동일 record를 사용한다.
+           */
+          createdRecordIdRef.current =
+            inningRecord.id;
+        }
 
         await uploadInningRecordVideo(
-          inningRecord.id,
+          recordId,
           recordedVideo,
         );
 
-        clientRecordIdRef.current =
+        /*
+         * 기록과 영상 모두 완료된 경우에만
+         * 촬영 컨텍스트를 초기화한다.
+         */
+        capturedRecordContextRef.current =
           null;
 
-        capturedAtRef.current =
+        createdRecordIdRef.current =
           null;
 
         setRecordedVideo(
@@ -1193,7 +1457,8 @@ export function RecordPage() {
         navigate(
           `/timeline?gameId=${game.gameId}`,
           {
-            replace: true,
+            replace:
+              true,
           },
         );
       } catch (error) {
@@ -1202,8 +1467,17 @@ export function RecordPage() {
           error,
         );
 
+        /*
+         * 여기서 capturedRecordContext와
+         * createdRecordId를 지우지 않는다.
+         *
+         * 사용자가 저장 버튼을 다시 누르면
+         * 동일한 기록/동일한 영상을 가지고
+         * 업로드만 이어서 재시도할 수 있다.
+         */
         setRecordErrorMessage(
-          error instanceof Error
+          error instanceof
+            Error
             ? error.message
             : "기록을 저장하지 못했습니다.",
         );
@@ -1256,7 +1530,9 @@ export function RecordPage() {
       watchingLocation:
         WatchingLocation,
     ) => {
-      if (isLoadingGame) {
+      if (
+        isLoadingGame
+      ) {
         setGameFeedbackMessage(
           "오늘 경기를 확인하고 있습니다.",
         );
@@ -1304,10 +1580,12 @@ export function RecordPage() {
 
         localStorage.setItem(
           getWatchingLocationKey(),
+
           watchingLocation,
         );
 
-        const updatedGame: GameResponse =
+        const updatedGame:
+          GameResponse =
           {
             ...favoriteTeamGame,
 
@@ -1341,7 +1619,8 @@ export function RecordPage() {
         );
 
         setGameFeedbackMessage(
-          error instanceof Error
+          error instanceof
+            Error
             ? error.message
             : "관람 정보를 저장하지 못했습니다.",
         );
@@ -1367,7 +1646,7 @@ export function RecordPage() {
     };
 
   return (
-    <main className="relative mx-auto min-h-dvh w-full max-w-[390px] overflow-hidden bg-bg-primary px-4 pb-[33px] pt-[20px]">
+    <main className="relative mx-auto min-h-dvh w-full max-w-[390px] overflow-hidden bg-bg-primary px-4 pb-[33px] pt-[79px]">
       <InningIndicator
         currentInning={
           currentInning
@@ -1395,7 +1674,8 @@ export function RecordPage() {
             isCameraActive
           }
           isRequestingCamera={
-            isRequestingCamera
+            isRequestingCamera ||
+            isPreparingCapture
           }
           isRecording={
             isRecording
@@ -1406,9 +1686,9 @@ export function RecordPage() {
           onClose={
             handleClose
           }
-          onCapture={
-            handleCapture
-          }
+          onCapture={() => {
+            void handleCapture();
+          }}
           onLocationClick={
             handleLocationClick
           }
@@ -1502,7 +1782,8 @@ const GAME_STATUS_PRIORITY: Record<
 };
 
 function selectCurrentGame(
-  games: GameResponse[],
+  games:
+    GameResponse[],
 ) {
   const availableGames =
     games.filter(
@@ -1519,12 +1800,16 @@ function selectCurrentGame(
         game.myViewing,
     );
 
-  if (registeredGame) {
+  if (
+    registeredGame
+  ) {
     return registeredGame;
   }
 
   return (
-    [...availableGames].sort(
+    [
+      ...availableGames,
+    ].sort(
       (
         first,
         second,
