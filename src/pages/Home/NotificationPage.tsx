@@ -113,9 +113,7 @@ function parsePositiveInteger(
   }
 
   const parsed =
-    Number(
-      value,
-    );
+    Number(value);
 
   if (
     !Number.isSafeInteger(
@@ -185,10 +183,6 @@ function buildCommentFallbackTarget(
     return null;
   }
 
-  /*
-   * 알림 수신자 자신의 영상이라면
-   * 내 타임라인으로 이동.
-   */
   if (
     audienceUserId &&
     ownerUserId ===
@@ -197,13 +191,6 @@ function buildCommentFallbackTarget(
     return `/timeline?gameId=${gameId}`;
   }
 
-  /*
-   * 다른 사용자의 영상이라면
-   * 영상 소유자의 타임라인으로 이동.
-   *
-   * 댓글 작성자인 actorUserId는
-   * fallback 경로 결정에 사용하지 않는다.
-   */
   return `/timeline/${ownerUserId}?gameId=${gameId}`;
 }
 
@@ -235,11 +222,6 @@ function buildNotificationTarget(
         : "/mypage/friends";
   }
 
-  /*
-   * 댓글 알림의 link가 없거나
-   * 현재 앱에서 허용되지 않는 link인 경우
-   * 영상 소유자/수신자 기준으로 경로 결정.
-   */
   if (
     !target &&
     notification.type ===
@@ -283,36 +265,24 @@ function buildNotificationTarget(
       data.commentId,
     );
 
-  if (
-    recordId
-  ) {
+  if (recordId) {
     targetUrl.searchParams.set(
       "recordId",
-      String(
-        recordId,
-      ),
+      String(recordId),
     );
   }
 
-  if (
-    videoId
-  ) {
+  if (videoId) {
     targetUrl.searchParams.set(
       "videoId",
-      String(
-        videoId,
-      ),
+      String(videoId),
     );
   }
 
-  if (
-    commentId
-  ) {
+  if (commentId) {
     targetUrl.searchParams.set(
       "commentId",
-      String(
-        commentId,
-      ),
+      String(commentId),
     );
   }
 
@@ -389,9 +359,7 @@ export function NotificationPage() {
               20,
             );
 
-          if (
-            cancelled
-          ) {
+          if (cancelled) {
             return;
           }
 
@@ -406,12 +374,8 @@ export function NotificationPage() {
           setHasNext(
             data.hasNext,
           );
-        } catch (
-          error
-        ) {
-          if (
-            cancelled
-          ) {
+        } catch (error) {
+          if (cancelled) {
             return;
           }
 
@@ -428,21 +392,15 @@ export function NotificationPage() {
           const data =
             await getReceivedFriendRequests();
 
-          if (
-            cancelled
-          ) {
+          if (cancelled) {
             return;
           }
 
           setFriendRequests(
             data,
           );
-        } catch (
-          error
-        ) {
-          if (
-            cancelled
-          ) {
+        } catch (error) {
+          if (cancelled) {
             return;
           }
 
@@ -471,13 +429,19 @@ export function NotificationPage() {
         "FRIEND_REQUEST",
     );
 
+  /*
+   * 첫 페이지에 FRIEND_REQUEST만 있어도
+   * 다음 페이지가 존재하면
+   * 일반 알림 탭에서 더보기 버튼을 보여준다.
+   */
   const hasNotifications =
     activeTab ===
     "request"
       ? friendRequests.length >
         0
       : generalNotifications.length >
-        0;
+          0 ||
+        hasNext;
 
   const removeFriendRequest =
     (
@@ -514,13 +478,10 @@ export function NotificationPage() {
 
         setToast({
           open: true,
-
           message:
             "친구 신청을 수락했습니다!",
         });
-      } catch (
-        error
-      ) {
+      } catch (error) {
         console.error(
           "친구 신청 수락 실패:",
           error,
@@ -544,13 +505,10 @@ export function NotificationPage() {
 
         setToast({
           open: true,
-
           message:
             "친구 신청을 거절했습니다.",
         });
-      } catch (
-        error
-      ) {
+      } catch (error) {
         console.error(
           "친구 신청 거절 실패:",
           error,
@@ -618,9 +576,7 @@ export function NotificationPage() {
         setHasNext(
           data.hasNext,
         );
-      } catch (
-        error
-      ) {
+      } catch (error) {
         console.error(
           "알림 추가 조회 실패:",
           error,
@@ -628,7 +584,6 @@ export function NotificationPage() {
 
         setToast({
           open: true,
-
           message:
             "이전 알림을 불러오지 못했습니다.",
         });
@@ -669,16 +624,13 @@ export function NotificationPage() {
                   notification.id
                     ? {
                         ...item,
-
                         readAt:
                           new Date().toISOString(),
                       }
                     : item,
               ),
           );
-        } catch (
-          error
-        ) {
+        } catch (error) {
           console.error(
             "알림 읽음 처리 실패:",
             error,
@@ -689,7 +641,6 @@ export function NotificationPage() {
       if (!target) {
         setToast({
           open: true,
-
           message:
             "이동할 수 없는 알림입니다.",
         });
@@ -709,25 +660,25 @@ export function NotificationPage() {
           previousToast,
         ) => ({
           ...previousToast,
-
-          open:
-            false,
+          open: false,
         }),
       );
     };
 
   return (
-    <div className="min-h-dvh w-full bg-white pt-[45px]">
-      <PageHeader
-        title="알림"
-        rightText="알림 설정"
-        rightTo="/home/notifications/settings"
-      />
+    <div className="flex h-dvh w-full flex-col overflow-hidden bg-white pt-[45px]">
+      <div className="shrink-0">
+        <PageHeader
+          title="알림"
+          rightText="알림 설정"
+          rightTo="/home/notifications/settings"
+        />
+      </div>
 
       <div
         role="tablist"
         aria-label="알림 유형"
-        className="grid h-[53px] w-full grid-cols-2"
+        className="grid h-[53px] w-full shrink-0 grid-cols-2"
       >
         <button
           type="button"
@@ -744,7 +695,6 @@ export function NotificationPage() {
           className={[
             "relative flex items-center justify-center",
             "font-pretendard text-[16px] font-medium leading-6 tracking-[0.32px]",
-
             activeTab ===
             "request"
               ? "text-black"
@@ -774,7 +724,6 @@ export function NotificationPage() {
           className={[
             "relative flex items-center justify-center",
             "font-pretendard text-[16px] font-medium leading-6 tracking-[0.32px]",
-
             activeTab ===
             "game"
               ? "text-black"
@@ -790,7 +739,13 @@ export function NotificationPage() {
         </button>
       </div>
 
-      <main className="flex min-h-[calc(100dvh-151px)] flex-col items-center gap-[8px] bg-[#F5F5F5] pb-[24px] pt-[20px]">
+      <main
+        className="flex min-h-0 flex-1 flex-col items-center gap-[8px] overflow-y-auto overscroll-y-contain bg-[#F5F5F5] pb-[24px] pt-[20px]"
+        style={{
+          WebkitOverflowScrolling:
+            "touch",
+        }}
+      >
         {hasNotifications ? (
           activeTab ===
           "request" ? (
@@ -847,7 +802,7 @@ export function NotificationPage() {
                         notification,
                       )
                     }
-                    className="w-full"
+                    className="w-full shrink-0"
                   >
                     <NotificationItem
                       category={getNotificationCategory(
@@ -874,7 +829,7 @@ export function NotificationPage() {
                   disabled={
                     isLoadingMore
                   }
-                  className="mt-[8px] rounded-full border border-surface-secondary bg-white px-[22px] py-[10px] text-label-4 text-black disabled:opacity-50"
+                  className="mt-[8px] shrink-0 rounded-full border border-surface-secondary bg-white px-[22px] py-[10px] text-label-4 text-black disabled:opacity-50"
                 >
                   {isLoadingMore
                     ? "불러오는 중..."
@@ -885,7 +840,7 @@ export function NotificationPage() {
               {!hasNext &&
                 generalNotifications.length >
                   0 && (
-                  <p className="py-[12px] text-caption text-text-tertiary">
+                  <p className="shrink-0 py-[12px] text-caption text-text-tertiary">
                     모든 알림을 확인했습니다.
                   </p>
                 )}
