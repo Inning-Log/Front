@@ -113,7 +113,9 @@ function parsePositiveInteger(
   }
 
   const parsed =
-    Number(value);
+    Number(
+      value,
+    );
 
   if (
     !Number.isSafeInteger(
@@ -154,6 +156,57 @@ function normalizeAppLink(
   }
 }
 
+function buildCommentFallbackTarget(
+  notification:
+    NotificationResponse,
+) {
+  const data =
+    notification.data;
+
+  const ownerUserId =
+    parsePositiveInteger(
+      data.ownerUserId,
+    );
+
+  const audienceUserId =
+    parsePositiveInteger(
+      data.audienceUserId,
+    );
+
+  const gameId =
+    parsePositiveInteger(
+      data.gameId,
+    );
+
+  if (
+    !ownerUserId ||
+    !gameId
+  ) {
+    return null;
+  }
+
+  /*
+   * 알림 수신자 자신의 영상이라면
+   * 내 타임라인으로 이동.
+   */
+  if (
+    audienceUserId &&
+    ownerUserId ===
+      audienceUserId
+  ) {
+    return `/timeline?gameId=${gameId}`;
+  }
+
+  /*
+   * 다른 사용자의 영상이라면
+   * 영상 소유자의 타임라인으로 이동.
+   *
+   * 댓글 작성자인 actorUserId는
+   * fallback 경로 결정에 사용하지 않는다.
+   */
+  return `/timeline/${ownerUserId}?gameId=${gameId}`;
+}
+
 function buildNotificationTarget(
   notification:
     NotificationResponse,
@@ -166,9 +219,6 @@ function buildNotificationTarget(
       data.link,
     );
 
-  /*
-   * 친구 수락 알림 fallback
-   */
   if (
     !target &&
     notification.type ===
@@ -186,44 +236,25 @@ function buildNotificationTarget(
   }
 
   /*
-   * 댓글 알림에서 link가 없는 경우 fallback
+   * 댓글 알림의 link가 없거나
+   * 현재 앱에서 허용되지 않는 link인 경우
+   * 영상 소유자/수신자 기준으로 경로 결정.
    */
   if (
     !target &&
     notification.type ===
       "TIMELINE_COMMENT"
   ) {
-    const actorUserId =
-      parsePositiveInteger(
-        data.actorUserId,
+    target =
+      buildCommentFallbackTarget(
+        notification,
       );
-
-    const gameId =
-      parsePositiveInteger(
-        data.gameId,
-      );
-
-    if (
-      actorUserId &&
-      gameId
-    ) {
-      target =
-        `/timeline/${actorUserId}?gameId=${gameId}`;
-    } else if (
-      gameId
-    ) {
-      target =
-        `/timeline?gameId=${gameId}`;
-    }
   }
 
   if (!target) {
     return null;
   }
 
-  /*
-   * 일반 알림이면 link 그대로 사용
-   */
   if (
     notification.type !==
     "TIMELINE_COMMENT"
@@ -231,11 +262,6 @@ function buildNotificationTarget(
     return target;
   }
 
-  /*
-   * 댓글 알림이면
-   * recordId / videoId / commentId도
-   * query parameter로 전달
-   */
   const targetUrl =
     new URL(
       target,
@@ -257,7 +283,9 @@ function buildNotificationTarget(
       data.commentId,
     );
 
-  if (recordId) {
+  if (
+    recordId
+  ) {
     targetUrl.searchParams.set(
       "recordId",
       String(
@@ -266,7 +294,9 @@ function buildNotificationTarget(
     );
   }
 
-  if (videoId) {
+  if (
+    videoId
+  ) {
     targetUrl.searchParams.set(
       "videoId",
       String(
@@ -275,7 +305,9 @@ function buildNotificationTarget(
     );
   }
 
-  if (commentId) {
+  if (
+    commentId
+  ) {
     targetUrl.searchParams.set(
       "commentId",
       String(
@@ -430,10 +462,6 @@ export function NotificationPage() {
     };
   }, []);
 
-  /*
-   * FRIEND_REQUEST는 신청 대기 탭에서
-   * 친구 신청 API 결과로 별도 표시
-   */
   const generalNotifications =
     notifications.filter(
       (
@@ -486,6 +514,7 @@ export function NotificationPage() {
 
         setToast({
           open: true,
+
           message:
             "친구 신청을 수락했습니다!",
         });
@@ -515,6 +544,7 @@ export function NotificationPage() {
 
         setToast({
           open: true,
+
           message:
             "친구 신청을 거절했습니다.",
         });
@@ -528,9 +558,6 @@ export function NotificationPage() {
       }
     };
 
-  /*
-   * 알림 추가 조회
-   */
   const handleLoadMore =
     async () => {
       if (
@@ -601,6 +628,7 @@ export function NotificationPage() {
 
         setToast({
           open: true,
+
           message:
             "이전 알림을 불러오지 못했습니다.",
         });
@@ -611,12 +639,6 @@ export function NotificationPage() {
       }
     };
 
-  /*
-   * 알림 클릭
-   *
-   * 읽은 알림도 이동 가능.
-   * 안 읽은 알림만 read API 호출.
-   */
   const handleNotificationClick =
     async (
       notification:
@@ -667,6 +689,7 @@ export function NotificationPage() {
       if (!target) {
         setToast({
           open: true,
+
           message:
             "이동할 수 없는 알림입니다.",
         });
@@ -686,13 +709,15 @@ export function NotificationPage() {
           previousToast,
         ) => ({
           ...previousToast,
-          open: false,
+
+          open:
+            false,
         }),
       );
     };
 
   return (
-    <div className="min-h-dvh w-full bg-white pt-[20px]">
+    <div className="min-h-dvh w-full bg-white pt-[45px]">
       <PageHeader
         title="알림"
         rightText="알림 설정"
@@ -718,7 +743,6 @@ export function NotificationPage() {
           }
           className={[
             "relative flex items-center justify-center",
-
             "font-pretendard text-[16px] font-medium leading-6 tracking-[0.32px]",
 
             activeTab ===
@@ -749,7 +773,6 @@ export function NotificationPage() {
           }
           className={[
             "relative flex items-center justify-center",
-
             "font-pretendard text-[16px] font-medium leading-6 tracking-[0.32px]",
 
             activeTab ===
