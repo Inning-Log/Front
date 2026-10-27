@@ -1606,6 +1606,56 @@ export function RecordPage() {
         return;
       }
 
+      /*
+      * 직관 사용자는 경기장 내 플래시 사용 방지
+      */
+      if (
+        favoriteTeamGame
+          ?.myViewing
+          ?.viewingType ===
+        "STADIUM"
+      ) {
+        if (
+          isFlashOn
+        ) {
+          const videoTrack =
+            cameraStreamRef.current
+              ?.getVideoTracks()[0];
+
+          if (
+            videoTrack
+          ) {
+            try {
+              await videoTrack.applyConstraints(
+                {
+                  advanced: [
+                    {
+                      torch:
+                        false,
+                    } as TorchConstraint,
+                  ],
+                },
+              );
+            } catch (error) {
+              console.error(
+                "플래시 종료 실패:",
+                error,
+              );
+            }
+          }
+
+          setIsFlashOn(
+            false,
+          );
+        }
+
+        setRecordErrorMessage(
+          "야구장 관람 중에는 플래시를 사용할 수 없습니다.",
+        );
+
+        return;
+      }
+
       if (
         cameraDirection !==
         "rear"
@@ -1631,7 +1681,9 @@ export function RecordPage() {
         cameraStreamRef.current
           ?.getVideoTracks()[0];
 
-      if (!videoTrack) {
+      if (
+        !videoTrack
+      ) {
         setRecordErrorMessage(
           "카메라를 확인할 수 없습니다.",
         );
@@ -1649,8 +1701,7 @@ export function RecordPage() {
               {
                 torch:
                   nextFlashOn,
-              } as
-                TorchConstraint,
+              } as TorchConstraint,
             ],
           },
         );
