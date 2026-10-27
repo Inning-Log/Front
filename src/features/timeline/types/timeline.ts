@@ -90,6 +90,20 @@ export type TimelineRecord = {
 // 내 / 친구 경기 타임라인 응답
 export type TimelineResponse = {
   today: string;
+
+  /*
+   * 현재 타임라인 기준 날짜.
+   * 서버 리셋 전에는 실제 달력 날짜(today)보다
+   * 하루 이전 날짜일 수 있다.
+   */
+  timelineDate: string;
+
+  /*
+   * 다음 타임라인 리셋 시각.
+   * UTC ISO-8601 문자열.
+   */
+  nextResetAt: string;
+
   timezone: string;
 
   owner: TimelineUser;
@@ -124,9 +138,13 @@ export type TimelineProfile = TimelineUser & {
   games: TimelineProfileGame[];
 };
 
-// 오늘의 타임라인 프로필 응답
+// 타임라인 프로필 응답
 export type TimelineProfilesResponse = {
   today: string;
+
+  timelineDate: string;
+
+  nextResetAt: string;
 
   me: TimelineProfile;
 
@@ -150,7 +168,7 @@ export type GetFriendTimelineParams = {
   limit?: number;
 };
 
-// 오늘의 프로필 조회 파라미터
+// 타임라인 프로필 조회 파라미터
 export type GetTimelineProfilesParams = {
   afterUserId?: number;
   limit?: number;
