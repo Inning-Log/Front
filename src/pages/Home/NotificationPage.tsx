@@ -189,11 +189,12 @@ function buildCommentFallbackTarget(
    */
   if (
     recipientUserId &&
-    ownerUserId ===
-      recipientUserId
+    ownerUserId === recipientUserId
   ) {
-    return `/timeline?gameId=${gameId}`;
+    return `/timeline/history/${gameId}`;
   }
+
+  return `/timeline/${ownerUserId}?gameId=${gameId}`;
 
   /*
    * 영상 소유자와 알림 수신자가 다르면
