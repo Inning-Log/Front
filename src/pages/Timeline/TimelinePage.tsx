@@ -2018,7 +2018,7 @@ export function TimelinePage() {
    */
   if (isLoading) {
     return (
-      <div className="flex min-h-dvh w-full flex-col pt-[45px]">
+      <div className="flex h-dvh w-full flex-col overflow-y-auto overscroll-y-contain pt-[45px]">
         <PageHeader title="타임라인" />
 
         {!isPastTimeline && (
@@ -2049,7 +2049,7 @@ export function TimelinePage() {
     !timeline
   ) {
     return (
-      <div className="flex min-h-dvh w-full flex-col pt-[45px]">
+      <div className="flex h-dvh w-full flex-col overflow-y-auto overscroll-y-contain pt-[45px]">
         <PageHeader title="타임라인" />
 
         {!isPastTimeline && (
@@ -2084,7 +2084,7 @@ export function TimelinePage() {
    */
   if (!timeline) {
     return (
-      <div className="flex min-h-dvh w-full flex-col pt-[45px]">
+      <div className="flex h-dvh w-full flex-col overflow-y-auto overscroll-y-contain pt-[45px]">
         <PageHeader title="타임라인" />
 
         {!isPastTimeline && (
@@ -2093,7 +2093,9 @@ export function TimelinePage() {
 
         <main className="flex flex-1 items-center justify-center">
           <p className="text-label-3 text-text-tertiary">
-            오늘 경기가 없습니다.
+            {isFriendTimeline
+              ? "친구의 관람 기록이 없습니다."
+              : "오늘 경기가 없습니다."}
           </p>
         </main>
 
@@ -2141,7 +2143,7 @@ export function TimelinePage() {
     "";
 
   return (
-    <div className="min-h-dvh w-full pt-[45px]">
+    <div className="h-dvh w-full overflow-y-auto overscroll-y-contain pt-[45px]">
       <div className="relative">
         <PageHeader title="타임라인" />
 
