@@ -442,7 +442,7 @@ function buildNotificationLink(
 
       const fallbackPath =
         isOwnTimeline
-          ? `/timeline?gameId=${gameId}`
+          ? `/timeline/history/${gameId}`
           : `/timeline/${ownerUserId}?gameId=${gameId}`;
 
       safeUrl =
