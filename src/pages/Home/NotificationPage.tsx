@@ -166,9 +166,9 @@ function buildCommentFallbackTarget(
       data.ownerUserId,
     );
 
-  const audienceUserId =
+  const recipientUserId =
     parsePositiveInteger(
-      data.audienceUserId,
+      data.recipientUserId,
     );
 
   const gameId =
@@ -183,14 +183,22 @@ function buildCommentFallbackTarget(
     return null;
   }
 
+  /*
+   * 알림 수신자가 영상 소유자라면
+   * 내 타임라인으로 이동
+   */
   if (
-    audienceUserId &&
+    recipientUserId &&
     ownerUserId ===
-      audienceUserId
+      recipientUserId
   ) {
     return `/timeline?gameId=${gameId}`;
   }
 
+  /*
+   * 영상 소유자와 알림 수신자가 다르면
+   * 영상 소유자의 친구 타임라인으로 이동
+   */
   return `/timeline/${ownerUserId}?gameId=${gameId}`;
 }
 
@@ -429,11 +437,6 @@ export function NotificationPage() {
         "FRIEND_REQUEST",
     );
 
-  /*
-   * 첫 페이지에 FRIEND_REQUEST만 있어도
-   * 다음 페이지가 존재하면
-   * 일반 알림 탭에서 더보기 버튼을 보여준다.
-   */
   const hasNotifications =
     activeTab ===
     "request"

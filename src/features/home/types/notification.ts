@@ -23,14 +23,20 @@ export type UpdateNotificationSettingsRequest = {
 };
 
 export type NotificationData = {
+  /*
+   * 댓글/답글 작성자
+   */
   actorUserId?: string;
 
   /*
-   * 댓글이 달린 영상/타임라인의 소유자.
-   *
-   * 댓글 알림 fallback 경로 결정에 사용.
+   * 댓글이 달린 영상/타임라인의 소유자
    */
   ownerUserId?: string;
+
+  /*
+   * 해당 알림을 받는 사용자
+   */
+  recipientUserId?: string;
 
   type?: NotificationType;
 
@@ -46,11 +52,6 @@ export type NotificationData = {
   commentId?: string;
 
   parentCommentId?: string;
-
-  /*
-   * 해당 알림을 받는 사용자.
-   */
-  audienceUserId?: string;
 
   [
     key: string

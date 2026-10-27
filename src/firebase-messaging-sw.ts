@@ -87,6 +87,7 @@ registerRoute(
 );
 
 cleanupOutdatedCaches();
+
 precacheAndRoute(
   self.__WB_MANIFEST,
 );
@@ -209,6 +210,7 @@ async function setValue(
       transaction.oncomplete =
         () => {
           database.close();
+
           resolve();
         };
 
@@ -364,10 +366,6 @@ function parsePositiveIntegerString(
   );
 }
 
-/**
- * 서버가 절대 URL 또는 /timeline/... 같은 상대 경로를
- * 보내도 현재 프론트 origin 기준으로 안전하게 해석한다.
- */
 function getSafeLink(
   link?: string,
 ): URL | null {
@@ -391,11 +389,6 @@ function getSafeLink(
       return null;
     }
 
-    /*
-     * 서버가 Production origin의 절대 URL을 보내더라도
-     * 현재 실행 중인 앱 origin에서 같은 pathname/query를 연다.
-     * Preview/localhost 검증에서도 동일하게 동작한다.
-     */
     return new URL(
       `${sourceUrl.pathname}${sourceUrl.search}${sourceUrl.hash}`,
       self.location.origin,
@@ -417,12 +410,6 @@ function buildNotificationLink(
       data.link,
     );
 
-  /*
-   * 댓글 알림인데 data.link가 없거나
-   * 허용할 수 없는 주소라면
-   * 영상 소유자와 알림 수신자를 기준으로
-   * 대체 경로를 만든다.
-   */
   if (
     !safeUrl &&
     data.type ===
@@ -433,9 +420,9 @@ function buildNotificationLink(
         data.ownerUserId,
       );
 
-    const audienceUserId =
+    const recipientUserId =
       parsePositiveIntegerString(
-        data.audienceUserId,
+        data.recipientUserId,
       );
 
     const gameId =
@@ -448,10 +435,10 @@ function buildNotificationLink(
       gameId
     ) {
       const isOwnTimeline =
-        audienceUserId !==
+        recipientUserId !==
           null &&
         ownerUserId ===
-          audienceUserId;
+          recipientUserId;
 
       const fallbackPath =
         isOwnTimeline
@@ -466,9 +453,7 @@ function buildNotificationLink(
     }
   }
 
-  if (
-    !safeUrl
-  ) {
+  if (!safeUrl) {
     return null;
   }
 
@@ -491,27 +476,21 @@ function buildNotificationLink(
         data.commentId,
       );
 
-    if (
-      recordId
-    ) {
+    if (recordId) {
       safeUrl.searchParams.set(
         "recordId",
         recordId,
       );
     }
 
-    if (
-      videoId
-    ) {
+    if (videoId) {
       safeUrl.searchParams.set(
         "videoId",
         videoId,
       );
     }
 
-    if (
-      commentId
-    ) {
+    if (commentId) {
       safeUrl.searchParams.set(
         "commentId",
         commentId,
@@ -539,10 +518,14 @@ onBackgroundMessage(
         "currentUserId",
       );
 
+    /*
+     * 현재 로그인한 사용자와
+     * 알림 수신자가 일치하는 경우에만 표시.
+     */
     if (
       !currentUserId ||
-      !data.audienceUserId ||
-      data.audienceUserId !==
+      !data.recipientUserId ||
+      data.recipientUserId !==
         currentUserId
     ) {
       return;
@@ -551,9 +534,7 @@ onBackgroundMessage(
     const notificationId =
       data.notificationId;
 
-    if (
-      !notificationId
-    ) {
+    if (!notificationId) {
       return;
     }
 
@@ -589,10 +570,13 @@ onBackgroundMessage(
       title,
       {
         body,
+
         tag:
           notificationId,
+
         data: {
           link,
+
           notificationId,
 
           recordId:
@@ -610,8 +594,11 @@ onBackgroundMessage(
           ownerUserId:
             data.ownerUserId,
 
-          audienceUserId:
-            data.audienceUserId,
+          recipientUserId:
+            data.recipientUserId,
+
+          actorUserId:
+            data.actorUserId,
         },
       },
     );
@@ -643,9 +630,7 @@ self.addEventListener(
         link,
       );
 
-    if (
-      !safeUrl
-    ) {
+    if (!safeUrl) {
       return;
     }
 
@@ -657,6 +642,7 @@ self.addEventListener(
         .matchAll({
           type:
             "window",
+
           includeUncontrolled:
             true,
         })
