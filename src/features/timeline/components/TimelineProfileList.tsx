@@ -71,6 +71,25 @@ export function TimelineProfileList() {
   ] =
     useState(true);
 
+  const [
+    nextResetAt,
+    setNextResetAt,
+  ] =
+    useState<string | null>(
+      null,
+    );
+
+  const [
+    refreshVersion,
+    setRefreshVersion,
+  ] =
+    useState(0);
+
+  const lastTriggeredResetAtRef =
+    useRef<string | null>(
+      null,
+    );
+
   const scrollContainerRef =
     useRef<HTMLElement>(
       null,
@@ -207,12 +226,20 @@ export function TimelineProfileList() {
             return;
           }
 
+          /*
+           * 서버가 내려주는 현재 타임라인 기준의
+           * games / hasRecordedToday 값을 그대로 사용.
+           */
           setProfiles(
             firstPage,
           );
 
           setFriends(
             allFriends,
+          );
+
+          setNextResetAt(
+            firstPage.nextResetAt,
           );
         } catch (error) {
           console.error(
@@ -234,7 +261,131 @@ export function TimelineProfileList() {
       cancelled =
         true;
     };
-  }, []);
+  }, [
+    refreshVersion,
+  ]);
+
+  /*
+   * 서버가 내려준 nextResetAt에 맞춰
+   * 프로필 목록을 다시 조회한다.
+   *
+   * 자정 기준 로직은 사용하지 않는다.
+   */
+  useEffect(() => {
+    let resetTimerId:
+      number | null =
+      null;
+
+    const scheduleResetRefresh =
+      () => {
+        if (!nextResetAt) {
+          return;
+        }
+
+        const resetTime =
+          Date.parse(
+            nextResetAt,
+          );
+
+        if (
+          Number.isNaN(
+            resetTime,
+          )
+        ) {
+          return;
+        }
+
+        const delay =
+          resetTime -
+          Date.now();
+
+        if (
+          delay <= 0
+        ) {
+          /*
+           * 동일한 nextResetAt으로
+           * 무한 재조회되는 상황 방지.
+           */
+          if (
+            lastTriggeredResetAtRef.current !==
+            nextResetAt
+          ) {
+            lastTriggeredResetAtRef.current =
+              nextResetAt;
+
+            setRefreshVersion(
+              (
+                version,
+              ) =>
+                version + 1,
+            );
+          }
+
+          return;
+        }
+
+        resetTimerId =
+          window.setTimeout(
+            () => {
+              lastTriggeredResetAtRef.current =
+                nextResetAt;
+
+              setRefreshVersion(
+                (
+                  version,
+                ) =>
+                  version + 1,
+              );
+            },
+            delay + 250,
+          );
+      };
+
+    /*
+     * 다른 앱/탭에 있다가
+     * 다시 이닝로그로 돌아온 경우에도
+     * 서버의 최신 타임라인 기준을 조회.
+     */
+    const handleVisibilityChange =
+      () => {
+        if (
+          document.visibilityState ===
+          "visible"
+        ) {
+          setRefreshVersion(
+            (
+              version,
+            ) =>
+              version + 1,
+          );
+        }
+      };
+
+    scheduleResetRefresh();
+
+    document.addEventListener(
+      "visibilitychange",
+      handleVisibilityChange,
+    );
+
+    return () => {
+      if (
+        resetTimerId !==
+        null
+      ) {
+        window.clearTimeout(
+          resetTimerId,
+        );
+      }
+
+      document.removeEventListener(
+        "visibilitychange",
+        handleVisibilityChange,
+      );
+    };
+  }, [
+    nextResetAt,
+  ]);
 
   const handlePointerDown =
     (
@@ -358,8 +509,7 @@ export function TimelineProfileList() {
 
       /*
        * 관람 기록이 없어도
-       * 친구 타임라인 페이지 자체에는
-       * 진입할 수 있도록 한다.
+       * 친구 타임라인 페이지는 진입 가능.
        */
       if (!game) {
         navigate(
