@@ -14,43 +14,67 @@ import {
 
 import defaultProfileIcon from "../../../assets/icons/defaultprofile.svg";
 
-import { getTimelineProfiles } from "../api/timelineApi";
+import {
+  getTimelineProfiles,
+} from "../api/timelineApi";
 
 import type {
   TimelineProfile,
   TimelineProfilesResponse,
 } from "../types/timeline";
 
-import { TimelineProfileItem } from "./TimelineProfileItem";
+import {
+  TimelineProfileItem,
+} from "./TimelineProfileItem";
 
-const DRAG_THRESHOLD = 10;
+const DRAG_THRESHOLD =
+  10;
 
 type TimelineParams = {
   userId?: string;
 };
 
 export function TimelineProfileList() {
-  const navigate = useNavigate();
+  const navigate =
+    useNavigate();
 
-  const { userId: pathUserId } =
+  const {
+    userId:
+      pathUserId,
+  } =
     useParams<TimelineParams>();
 
-  const [searchParams] =
+  const [
+    searchParams,
+  ] =
     useSearchParams();
 
-  const [profiles, setProfiles] =
+  const [
+    profiles,
+    setProfiles,
+  ] =
     useState<TimelineProfilesResponse | null>(
       null,
     );
 
-  const [friends, setFriends] =
-    useState<TimelineProfile[]>([]);
+  const [
+    friends,
+    setFriends,
+  ] =
+    useState<TimelineProfile[]>(
+      [],
+    );
 
-  const [isLoading, setIsLoading] =
+  const [
+    isLoading,
+    setIsLoading,
+  ] =
     useState(true);
 
   const scrollContainerRef =
-    useRef<HTMLElement>(null);
+    useRef<HTMLElement>(
+      null,
+    );
 
   const dragStartXRef =
     useRef(0);
@@ -65,7 +89,9 @@ export function TimelineProfileList() {
     useRef(false);
 
   const queryUserId =
-    searchParams.get("userId");
+    searchParams.get(
+      "userId",
+    );
 
   const selectedUserId =
     queryUserId ??
@@ -73,21 +99,30 @@ export function TimelineProfileList() {
     null;
 
   const isViewingFriendTimeline =
-    selectedUserId !== null;
+    selectedUserId !==
+    null;
 
   useEffect(() => {
-    let cancelled = false;
+    let cancelled =
+      false;
 
     const fetchProfiles =
       async () => {
         try {
-          setIsLoading(true);
+          setIsLoading(
+            true,
+          );
 
           const firstPage =
-            await getTimelineProfiles({
-              afterUserId: 0,
-              limit: 50,
-            });
+            await getTimelineProfiles(
+              {
+                afterUserId:
+                  0,
+
+                limit:
+                  50,
+              },
+            );
 
           if (cancelled) {
             return;
@@ -122,11 +157,15 @@ export function TimelineProfileList() {
             );
 
             const nextPage =
-              await getTimelineProfiles({
-                afterUserId:
-                  nextAfterUserId,
-                limit: 50,
-              });
+              await getTimelineProfiles(
+                {
+                  afterUserId:
+                    nextAfterUserId,
+
+                  limit:
+                    50,
+                },
+              );
 
             if (cancelled) {
               return;
@@ -135,14 +174,18 @@ export function TimelineProfileList() {
             const existingIds =
               new Set(
                 allFriends.map(
-                  (friend) =>
+                  (
+                    friend,
+                  ) =>
                     friend.userId,
                 ),
               );
 
             allFriends.push(
               ...nextPage.friends.filter(
-                (friend) =>
+                (
+                  friend,
+                ) =>
                   !existingIds.has(
                     friend.userId,
                   ),
@@ -164,8 +207,13 @@ export function TimelineProfileList() {
             return;
           }
 
-          setProfiles(firstPage);
-          setFriends(allFriends);
+          setProfiles(
+            firstPage,
+          );
+
+          setFriends(
+            allFriends,
+          );
         } catch (error) {
           console.error(
             "타임라인 프로필 조회 실패:",
@@ -173,7 +221,9 @@ export function TimelineProfileList() {
           );
         } finally {
           if (!cancelled) {
-            setIsLoading(false);
+            setIsLoading(
+              false,
+            );
           }
         }
       };
@@ -181,131 +231,148 @@ export function TimelineProfileList() {
     void fetchProfiles();
 
     return () => {
-      cancelled = true;
+      cancelled =
+        true;
     };
   }, []);
 
-  const handlePointerDown = (
-    event: PointerEvent<HTMLElement>,
-  ) => {
-    const container =
-      scrollContainerRef.current;
+  const handlePointerDown =
+    (
+      event:
+        PointerEvent<HTMLElement>,
+    ) => {
+      const container =
+        scrollContainerRef.current;
 
-    if (
-      !container ||
-      !event.isPrimary
-    ) {
-      return;
-    }
-
-    isPointerDownRef.current =
-      true;
-
-    hasMovedRef.current =
-      false;
-
-    dragStartXRef.current =
-      event.clientX;
-
-    dragStartScrollLeftRef.current =
-      container.scrollLeft;
-  };
-
-  const handlePointerMove = (
-    event: PointerEvent<HTMLElement>,
-  ) => {
-    const container =
-      scrollContainerRef.current;
-
-    if (
-      !container ||
-      !isPointerDownRef.current
-    ) {
-      return;
-    }
-
-    const movedDistance =
-      event.clientX -
-      dragStartXRef.current;
-
-    if (
-      !hasMovedRef.current
-    ) {
       if (
-        Math.abs(
-          movedDistance,
-        ) < DRAG_THRESHOLD
+        !container ||
+        !event.isPrimary
       ) {
         return;
       }
 
-      hasMovedRef.current =
+      isPointerDownRef.current =
         true;
 
-      container.setPointerCapture(
-        event.pointerId,
+      hasMovedRef.current =
+        false;
+
+      dragStartXRef.current =
+        event.clientX;
+
+      dragStartScrollLeftRef.current =
+        container.scrollLeft;
+    };
+
+  const handlePointerMove =
+    (
+      event:
+        PointerEvent<HTMLElement>,
+    ) => {
+      const container =
+        scrollContainerRef.current;
+
+      if (
+        !container ||
+        !isPointerDownRef.current
+      ) {
+        return;
+      }
+
+      const movedDistance =
+        event.clientX -
+        dragStartXRef.current;
+
+      if (
+        !hasMovedRef.current
+      ) {
+        if (
+          Math.abs(
+            movedDistance,
+          ) <
+          DRAG_THRESHOLD
+        ) {
+          return;
+        }
+
+        hasMovedRef.current =
+          true;
+
+        container.setPointerCapture(
+          event.pointerId,
+        );
+      }
+
+      container.scrollLeft =
+        dragStartScrollLeftRef.current -
+        movedDistance;
+    };
+
+  const handlePointerEnd =
+    (
+      event:
+        PointerEvent<HTMLElement>,
+    ) => {
+      const container =
+        scrollContainerRef.current;
+
+      isPointerDownRef.current =
+        false;
+
+      if (
+        container?.hasPointerCapture(
+          event.pointerId,
+        )
+      ) {
+        container.releasePointerCapture(
+          event.pointerId,
+        );
+      }
+    };
+
+  const handleClickCapture =
+    (
+      event:
+        MouseEvent<HTMLElement>,
+    ) => {
+      if (
+        !hasMovedRef.current
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+
+      hasMovedRef.current =
+        false;
+    };
+
+  const handleFriendProfileClick =
+    (
+      friend:
+        TimelineProfile,
+    ) => {
+      const game =
+        friend.games[0];
+
+      /*
+       * 관람 기록이 없어도
+       * 친구 타임라인 페이지 자체에는
+       * 진입할 수 있도록 한다.
+       */
+      if (!game) {
+        navigate(
+          `/timeline/${friend.userId}`,
+        );
+
+        return;
+      }
+
+      navigate(
+        `/timeline/${friend.userId}?gameId=${game.gameId}`,
       );
-    }
-
-    container.scrollLeft =
-      dragStartScrollLeftRef.current -
-      movedDistance;
-  };
-
-  const handlePointerEnd = (
-    event: PointerEvent<HTMLElement>,
-  ) => {
-    const container =
-      scrollContainerRef.current;
-
-    isPointerDownRef.current =
-      false;
-
-    if (
-      container?.hasPointerCapture(
-        event.pointerId,
-      )
-    ) {
-      container.releasePointerCapture(
-        event.pointerId,
-      );
-    }
-  };
-
-  const handleClickCapture = (
-    event: MouseEvent<HTMLElement>,
-  ) => {
-    if (
-      !hasMovedRef.current
-    ) {
-      return;
-    }
-
-    event.preventDefault();
-    event.stopPropagation();
-
-    hasMovedRef.current =
-      false;
-  };
-
-  const handleFriendProfileClick = (
-    friend: TimelineProfile,
-  ) => {
-    const game =
-      friend.games[0];
-
-    if (!game) {
-      console.log(
-        "친구가 오늘 관람한 경기가 없습니다.",
-      );
-
-      return;
-    }
-
-    navigate(
-      `/timeline/${friend.userId}?gameId=${game.gameId}`,
-    );
-  };
+    };
 
   const handleRecordClick =
     () => {
@@ -316,7 +383,9 @@ export function TimelineProfileList() {
 
   const handleBackToMyTimeline =
     () => {
-      navigate("/timeline");
+      navigate(
+        "/timeline",
+      );
     };
 
   if (isLoading) {
@@ -329,7 +398,8 @@ export function TimelineProfileList() {
     return null;
   }
 
-  const me = profiles.me;
+  const me =
+    profiles.me;
 
   return (
     <section
@@ -352,6 +422,10 @@ export function TimelineProfileList() {
         handleClickCapture
       }
       className="scrollbar-hide w-full cursor-grab touch-pan-x select-none overflow-x-auto px-[16px] py-[12px] active:cursor-grabbing"
+      style={{
+        WebkitOverflowScrolling:
+          "touch",
+      }}
     >
       <div className="flex min-w-max items-start gap-[18px]">
         <TimelineProfileItem
@@ -376,7 +450,9 @@ export function TimelineProfileList() {
         />
 
         {friends.map(
-          (friend) => (
+          (
+            friend,
+          ) => (
             <TimelineProfileItem
               key={
                 friend.userId
@@ -386,7 +462,9 @@ export function TimelineProfileList() {
                 friend.profileImageUrl ||
                 defaultProfileIcon
               }
-              isMe={false}
+              isMe={
+                false
+              }
               hasRecordedToday={
                 friend.hasRecordedToday
               }
