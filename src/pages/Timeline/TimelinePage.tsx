@@ -2143,7 +2143,7 @@ export function TimelinePage() {
     "";
 
   return (
-    <div className="h-dvh w-full overflow-y-auto overscroll-y-contain pt-[45px]">
+    <div className="scrollbar-hide h-dvh w-full overflow-y-auto overscroll-y-contain pt-[45px]">
       <div className="relative">
         <PageHeader title="타임라인" />
 
