@@ -24,9 +24,19 @@ export type UpdateNotificationSettingsRequest = {
 
 export type NotificationData = {
   actorUserId?: string;
+
+  /*
+   * 댓글이 달린 영상/타임라인의 소유자.
+   *
+   * 댓글 알림 fallback 경로 결정에 사용.
+   */
+  ownerUserId?: string;
+
   type?: NotificationType;
+
   friendshipId?: string;
   requestRevision?: string;
+
   screen?: string;
   link?: string;
 
@@ -34,38 +44,74 @@ export type NotificationData = {
   recordId?: string;
   videoId?: string;
   commentId?: string;
+
   parentCommentId?: string;
+
+  /*
+   * 해당 알림을 받는 사용자.
+   */
   audienceUserId?: string;
 
-  [key: string]: string | undefined;
+  [
+    key: string
+  ]:
+    | string
+    | undefined;
 };
 
 export type NotificationResponse = {
   id: number;
-  type: NotificationType;
+
+  type:
+    NotificationType;
+
   title: string;
   body: string;
-  data: NotificationData;
-  readAt: string | null;
-  createdAt: string;
+
+  data:
+    NotificationData;
+
+  readAt:
+    string | null;
+
+  createdAt:
+    string;
 };
 
 export type NotificationListResponse = {
-  items: NotificationResponse[];
-  nextCursor: number | null;
-  hasNext: boolean;
-  unreadCount: number;
+  items:
+    NotificationResponse[];
+
+  nextCursor:
+    number | null;
+
+  hasNext:
+    boolean;
+
+  unreadCount:
+    number;
 };
 
 export type PushRegistrationRequest = {
-  platform: "WEB";
-  installationId: string;
+  platform:
+    "WEB";
+
+  installationId:
+    string;
 };
 
 export type PushRegistrationResponse = {
   id: number;
-  platform: string;
-  installationId: string;
-  enabled: boolean;
-  lastSeenAt: string;
+
+  platform:
+    string;
+
+  installationId:
+    string;
+
+  enabled:
+    boolean;
+
+  lastSeenAt:
+    string;
 };
