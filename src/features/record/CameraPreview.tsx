@@ -5,14 +5,26 @@ import type {
 import cameraDeleteIcon from "../../assets/icons/camera_delete.svg";
 import upArrowIcon from "../../assets/icons/uparrow.svg";
 
+import type {
+  CameraDirection,
+} from "./CameraControls";
+
 export type CameraPreviewMode =
   | "camera"
   | "caption";
 
 type CameraPreviewProps = {
-  mode: CameraPreviewMode;
+  mode:
+    CameraPreviewMode;
 
-  caption: string;
+  caption:
+    string;
+
+  cameraDirection:
+    CameraDirection;
+
+  countdown:
+    number | null;
 
   captionInputRef:
     RefObject<HTMLTextAreaElement | null>;
@@ -23,9 +35,14 @@ type CameraPreviewProps = {
   recordedVideoUrl:
     string | null;
 
-  isCameraActive: boolean;
-  isRequestingCamera: boolean;
-  isRecording: boolean;
+  isCameraActive:
+    boolean;
+
+  isRequestingCamera:
+    boolean;
+
+  isRecording:
+    boolean;
 
   onCaptionChange: (
     value: string,
@@ -39,6 +56,8 @@ type CameraPreviewProps = {
 export function CameraPreview({
   mode,
   caption,
+  cameraDirection,
+  countdown,
   captionInputRef,
   videoRef,
   recordedVideoUrl,
@@ -51,7 +70,12 @@ export function CameraPreview({
   onLocationClick,
 }: CameraPreviewProps) {
   const isCaptionMode =
-    mode === "caption";
+    mode ===
+    "caption";
+
+  const isCountingDown =
+    countdown !==
+    null;
 
   return (
     <section
@@ -64,11 +88,26 @@ export function CameraPreview({
       {!isCaptionMode && (
         <>
           <video
-            ref={videoRef}
+            ref={
+              videoRef
+            }
             autoPlay
             muted
             playsInline
-            className="absolute inset-0 h-full w-full object-cover"
+            className={[
+              "absolute inset-0 h-full w-full object-cover",
+              /*
+               * 전면카메라는 미리보기만
+               * 거울처럼 보여준다.
+               *
+               * MediaRecorder 원본에는
+               * 이 CSS가 적용되지 않는다.
+               */
+              cameraDirection ===
+              "front"
+                ? "scale-x-[-1]"
+                : "",
+            ].join(" ")}
           />
 
           {isRecording && (
@@ -77,6 +116,16 @@ export function CameraPreview({
 
               <span className="text-caption text-white">
                 REC
+              </span>
+            </div>
+          )}
+
+          {isCountingDown && (
+            <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/20">
+              <span className="font-pretendard text-[96px] font-bold leading-none text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.5)]">
+                {
+                  countdown
+                }
               </span>
             </div>
           )}
@@ -91,13 +140,18 @@ export function CameraPreview({
                 recordedVideoUrl
               }
               autoPlay
-              muted
               loop
               playsInline
+              /*
+               * 촬영된 영상에서는
+               * 실제 녹음된 소리를 재생한다.
+               */
+              muted={
+                false
+              }
               className="absolute inset-0 h-full w-full object-cover"
             />
 
-            {/* 글자가 영상 위에서도 잘 보이도록 살짝 어둡게 */}
             <div className="absolute inset-0 bg-black/30" />
           </>
         )}
@@ -107,16 +161,25 @@ export function CameraPreview({
         onClick={
           onClose
         }
+        disabled={
+          isCountingDown ||
+          isRecording
+        }
         aria-label={
           isCaptionMode
             ? "촬영 결과 취소"
             : "촬영 화면 닫기"
         }
-        className={`absolute top-[18px] z-30 flex h-[28px] w-[28px] items-center justify-center ${
+        className={[
+          "absolute top-[18px] z-50 flex h-[28px] w-[28px] items-center justify-center",
           isCaptionMode
             ? "left-[18px]"
-            : "right-[18px]"
-        }`}
+            : "right-[18px]",
+          isCountingDown ||
+          isRecording
+            ? "opacity-50"
+            : "",
+        ].join(" ")}
       >
         <img
           src={
@@ -178,12 +241,15 @@ export function CameraPreview({
           disabled={
             isRequestingCamera ||
             isRecording ||
+            isCountingDown ||
             !isCameraActive
           }
           aria-label={
-            isRecording
-              ? "영상 촬영 중"
-              : "영상 촬영 시작"
+            isCountingDown
+              ? "촬영 타이머 진행 중"
+              : isRecording
+                ? "영상 촬영 중"
+                : "영상 촬영 시작"
           }
           className={[
             "absolute bottom-[35px] left-1/2 z-30 h-[71px] w-[71px] -translate-x-1/2 rounded-full border-[5px] border-accent-primary",
@@ -192,6 +258,7 @@ export function CameraPreview({
               : "bg-bg-primary",
             isRequestingCamera ||
             isRecording ||
+            isCountingDown ||
             !isCameraActive
               ? "opacity-70"
               : "",
