@@ -412,12 +412,63 @@ function buildNotificationLink(
       string
     >,
 ) {
-  const safeUrl =
+  let safeUrl =
     getSafeLink(
       data.link,
     );
 
-  if (!safeUrl) {
+  /*
+   * 댓글 알림인데 data.link가 없거나
+   * 허용할 수 없는 주소라면
+   * 영상 소유자와 알림 수신자를 기준으로
+   * 대체 경로를 만든다.
+   */
+  if (
+    !safeUrl &&
+    data.type ===
+      "TIMELINE_COMMENT"
+  ) {
+    const ownerUserId =
+      parsePositiveIntegerString(
+        data.ownerUserId,
+      );
+
+    const audienceUserId =
+      parsePositiveIntegerString(
+        data.audienceUserId,
+      );
+
+    const gameId =
+      parsePositiveIntegerString(
+        data.gameId,
+      );
+
+    if (
+      ownerUserId &&
+      gameId
+    ) {
+      const isOwnTimeline =
+        audienceUserId !==
+          null &&
+        ownerUserId ===
+          audienceUserId;
+
+      const fallbackPath =
+        isOwnTimeline
+          ? `/timeline?gameId=${gameId}`
+          : `/timeline/${ownerUserId}?gameId=${gameId}`;
+
+      safeUrl =
+        new URL(
+          fallbackPath,
+          self.location.origin,
+        );
+    }
+  }
+
+  if (
+    !safeUrl
+  ) {
     return null;
   }
 
@@ -440,21 +491,27 @@ function buildNotificationLink(
         data.commentId,
       );
 
-    if (recordId) {
+    if (
+      recordId
+    ) {
       safeUrl.searchParams.set(
         "recordId",
         recordId,
       );
     }
 
-    if (videoId) {
+    if (
+      videoId
+    ) {
       safeUrl.searchParams.set(
         "videoId",
         videoId,
       );
     }
 
-    if (commentId) {
+    if (
+      commentId
+    ) {
       safeUrl.searchParams.set(
         "commentId",
         commentId,
@@ -540,10 +597,21 @@ onBackgroundMessage(
 
           recordId:
             data.recordId,
+
           videoId:
             data.videoId,
+
           commentId:
             data.commentId,
+
+          gameId:
+            data.gameId,
+
+          ownerUserId:
+            data.ownerUserId,
+
+          audienceUserId:
+            data.audienceUserId,
         },
       },
     );
