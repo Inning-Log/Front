@@ -55,6 +55,17 @@ import {
 } from "../../features/record/api/inningRecordVideoApi";
 
 import {
+  clearRecordDraft,
+  getRecordDraft,
+  saveRecordDraft,
+  type CapturedRecordContext,
+} from "../../features/record/storage/recordDraftStorage";
+
+import type {
+  CreateInningRecordRequest,
+} from "../../features/record/types/inningRecord";
+
+import {
   createUserGameLog,
 } from "../../features/record/api/userGameLogApi";
 
@@ -71,19 +82,25 @@ type RecordLocationState = {
   gameId?: number;
 };
 
-/**
- * 촬영 버튼을 누른 시점의 기록 정보.
- *
- * 촬영 이후 서버 경기 상태가 변경되어도
- * 이 값은 절대 변경하지 않는다.
- */
-type CapturedRecordContext = {
-  gameId: number;
-  inning: number;
-  half: string;
-  recordedAt: string;
-  clientRecordId: string;
-};
+const RECORD_OPERATION_KEY =
+  "inninglog-record-operation-active";
+
+function setRecordOperationActive(
+  active: boolean,
+) {
+  if (active) {
+    sessionStorage.setItem(
+      RECORD_OPERATION_KEY,
+      "1",
+    );
+
+    return;
+  }
+
+  sessionStorage.removeItem(
+    RECORD_OPERATION_KEY,
+  );
+}
 
 function getTodayDate() {
   const today =
@@ -233,22 +250,26 @@ export function RecordPage() {
       null,
     );
 
-  /**
-   * 촬영 시점 정보.
-   *
-   * caption 화면에서 저장을 늦게 눌러도
-   * 이 값은 다시 계산하지 않는다.
-   */
   const capturedRecordContextRef =
     useRef<CapturedRecordContext | null>(
       null,
     );
 
-  /**
-   * createInningRecord가 성공한 뒤의 recordId.
+  /*
+   * 첫 저장 버튼 클릭 시 생성한 요청을 고정한다.
    *
-   * 영상 업로드가 실패해 저장 버튼을 다시 눌러도
-   * 동일한 이닝 기록을 사용한다.
+   * 저장 요청의 응답이 유실되더라도
+   * 동일 clientRecordId + 동일 payload로
+   * 다시 요청할 수 있다.
+   */
+  const frozenCreateRequestRef =
+    useRef<CreateInningRecordRequest | null>(
+      null,
+    );
+
+  /*
+   * 기록 생성에 성공했다면
+   * 영상 업로드 실패 이후에도 같은 recordId 사용.
    */
   const createdRecordIdRef =
     useRef<number | null>(
@@ -283,10 +304,6 @@ export function RecordPage() {
   ] =
     useState(false);
 
-  /**
-   * 촬영 직전 서버의 현재 이닝/초말을
-   * 조회하는 동안 중복 촬영 방지.
-   */
   const [
     isPreparingCapture,
     setIsPreparingCapture,
@@ -567,6 +584,103 @@ export function RecordPage() {
       ],
     );
 
+  /*
+   * 새로고침/배포 후 저장되지 않은 촬영본 복구.
+   */
+  useEffect(() => {
+    let cancelled =
+      false;
+
+    const restoreDraft =
+      async () => {
+        try {
+          const draft =
+            await getRecordDraft();
+
+          if (
+            cancelled ||
+            !draft
+          ) {
+            return;
+          }
+
+          const updatedAt =
+            Date.parse(
+              draft.updatedAt,
+            );
+
+          /*
+           * 지나치게 오래된 임시 촬영본은
+           * 다음 경기에서 잘못 복구되지 않도록 삭제.
+           */
+          if (
+            Number.isNaN(
+              updatedAt,
+            ) ||
+            Date.now() -
+                updatedAt >
+              24 *
+                60 *
+                60 *
+                1000
+          ) {
+            await clearRecordDraft();
+
+            setRecordOperationActive(
+              false,
+            );
+
+            return;
+          }
+
+          capturedRecordContextRef.current =
+            draft.context;
+
+          frozenCreateRequestRef.current =
+            draft.createRequest;
+
+          createdRecordIdRef.current =
+            draft.recordId;
+
+          setRecordedVideo(
+            draft.video,
+          );
+
+          setCaption(
+            draft.caption,
+          );
+
+          setCurrentInning(
+            draft.context.inning,
+          );
+
+          setRecordOperationActive(
+            true,
+          );
+
+          stopCamera();
+
+          setPreviewMode(
+            "caption",
+          );
+        } catch (error) {
+          console.error(
+            "촬영 임시 데이터 복구 실패:",
+            error,
+          );
+        }
+      };
+
+    void restoreDraft();
+
+    return () => {
+      cancelled =
+        true;
+    };
+  }, [
+    stopCamera,
+  ]);
+
   useEffect(() => {
     if (
       previewMode !==
@@ -585,11 +699,6 @@ export function RecordPage() {
     startCamera,
   ]);
 
-  /**
-   * 실제 MediaRecorder 시작.
-   *
-   * context는 촬영 전에 이미 확정된 값을 받는다.
-   */
   const startRecording =
     useCallback(
       (
@@ -600,6 +709,10 @@ export function RecordPage() {
           cameraStreamRef.current;
 
         if (!stream) {
+          setRecordOperationActive(
+            false,
+          );
+
           setRecordErrorMessage(
             "카메라가 활성화되지 않았습니다.",
           );
@@ -611,6 +724,10 @@ export function RecordPage() {
           typeof MediaRecorder ===
           "undefined"
         ) {
+          setRecordOperationActive(
+            false,
+          );
+
           setRecordErrorMessage(
             "현재 브라우저에서는 영상 녹화를 지원하지 않습니다.",
           );
@@ -641,8 +758,8 @@ export function RecordPage() {
             "dataavailable",
             (event) => {
               if (
-                event.data
-                  .size > 0
+                event.data.size >
+                0
               ) {
                 recordedChunksRef.current.push(
                   event.data,
@@ -695,6 +812,16 @@ export function RecordPage() {
                 capturedRecordContextRef.current =
                   null;
 
+                frozenCreateRequestRef.current =
+                  null;
+
+                createdRecordIdRef.current =
+                  null;
+
+                setRecordOperationActive(
+                  false,
+                );
+
                 setRecordErrorMessage(
                   "촬영된 영상이 없습니다.",
                 );
@@ -702,8 +829,45 @@ export function RecordPage() {
                 return;
               }
 
+              capturedRecordContextRef.current =
+                context;
+
+              frozenCreateRequestRef.current =
+                null;
+
+              createdRecordIdRef.current =
+                null;
+
               setRecordedVideo(
                 blob,
+              );
+
+              void saveRecordDraft(
+                {
+                  context,
+
+                  video:
+                    blob,
+
+                  caption:
+                    "",
+
+                  createRequest:
+                    null,
+
+                  recordId:
+                    null,
+
+                  updatedAt:
+                    new Date().toISOString(),
+                },
+              ).catch(
+                (error) => {
+                  console.error(
+                    "촬영 임시 데이터 저장 실패:",
+                    error,
+                  );
+                },
               );
 
               stopCamera();
@@ -739,8 +903,15 @@ export function RecordPage() {
               capturedRecordContextRef.current =
                 null;
 
+              frozenCreateRequestRef.current =
+                null;
+
               createdRecordIdRef.current =
                 null;
+
+              setRecordOperationActive(
+                false,
+              );
 
               setIsRecording(
                 false,
@@ -759,12 +930,11 @@ export function RecordPage() {
           mediaRecorderRef.current =
             recorder;
 
-          /*
-           * 이 시점부터 해당 영상의 서버 기록 정보는
-           * 변경하지 않는다.
-           */
           capturedRecordContextRef.current =
             context;
+
+          frozenCreateRequestRef.current =
+            null;
 
           createdRecordIdRef.current =
             null;
@@ -789,9 +959,6 @@ export function RecordPage() {
             true,
           );
 
-          /*
-           * 정확히 2초 후 자동 종료.
-           */
           recordingTimerRef.current =
             window.setTimeout(
               () => {
@@ -812,8 +979,15 @@ export function RecordPage() {
           capturedRecordContextRef.current =
             null;
 
+          frozenCreateRequestRef.current =
+            null;
+
           createdRecordIdRef.current =
             null;
+
+          setRecordOperationActive(
+            false,
+          );
 
           console.error(
             "영상 녹화 시작 실패:",
@@ -830,12 +1004,6 @@ export function RecordPage() {
       ],
     );
 
-  /**
-   * 촬영 버튼 클릭.
-   *
-   * 서버의 현재 이닝/초말 상태를 먼저 확인한 뒤
-   * 해당 값을 촬영 컨텍스트로 고정한다.
-   */
   const handleCapture =
     async () => {
       if (
@@ -858,6 +1026,10 @@ export function RecordPage() {
 
         return;
       }
+
+      setRecordOperationActive(
+        true,
+      );
 
       try {
         setIsPreparingCapture(
@@ -904,10 +1076,6 @@ export function RecordPage() {
           );
         }
 
-        /*
-         * 네트워크 조회가 완료된 바로 이 시점의
-         * 게임 상태를 이번 촬영의 값으로 확정한다.
-         */
         const context:
           CapturedRecordContext =
           {
@@ -929,6 +1097,10 @@ export function RecordPage() {
           context,
         );
       } catch (error) {
+        setRecordOperationActive(
+          false,
+        );
+
         console.error(
           "촬영 시점 경기 상태 조회 실패:",
           error,
@@ -945,6 +1117,64 @@ export function RecordPage() {
           false,
         );
       }
+    };
+
+  const handleCaptionChange =
+    (
+      value: string,
+    ) => {
+      /*
+       * 한 번 저장을 시도한 뒤에는
+       * 동일 clientRecordId의 payload가
+       * 달라지지 않도록 caption도 고정한다.
+       */
+      if (
+        frozenCreateRequestRef.current
+      ) {
+        return;
+      }
+
+      setCaption(
+        value,
+      );
+
+      const context =
+        capturedRecordContextRef.current;
+
+      if (
+        !context ||
+        !recordedVideo
+      ) {
+        return;
+      }
+
+      void saveRecordDraft(
+        {
+          context,
+
+          video:
+            recordedVideo,
+
+          caption:
+            value,
+
+          createRequest:
+            null,
+
+          recordId:
+            createdRecordIdRef.current,
+
+          updatedAt:
+            new Date().toISOString(),
+        },
+      ).catch(
+        (error) => {
+          console.error(
+            "캡션 임시 저장 실패:",
+            error,
+          );
+        },
+      );
     };
 
   const handleCameraDirectionChange =
@@ -1037,13 +1267,6 @@ export function RecordPage() {
     recordedVideo,
   ]);
 
-  /**
-   * 현재 이닝 표시를 위한 서버 상태 조회.
-   *
-   * 이 함수에서 가져온 값은 화면 표시용이고,
-   * 실제 저장 값은 촬영 시 capturedRecordContext에
-   * 별도로 고정한다.
-   */
   const loadCurrentGameState =
     useCallback(
       async (
@@ -1133,11 +1356,9 @@ export function RecordPage() {
           const favoriteTeamGames =
             gameList.games.filter(
               (game) =>
-                game.homeTeam
-                  .id ===
+                game.homeTeam.id ===
                   nextFavoriteTeamId ||
-                game.awayTeam
-                  .id ===
+                game.awayTeam.id ===
                   nextFavoriteTeamId,
             );
 
@@ -1153,8 +1374,7 @@ export function RecordPage() {
 
           if (!nextGame) {
             setGameFeedbackMessage(
-              gameList
-                .scheduleData
+              gameList.scheduleData
                 .state ===
                 "NOT_IMPORTED"
                 ? "오늘 경기 일정이 아직 준비되지 않았습니다."
@@ -1172,8 +1392,7 @@ export function RecordPage() {
               getWatchingLocationKey(),
 
               toWatchingLocation(
-                nextGame
-                  .myViewing
+                nextGame.myViewing
                   .viewingType,
               ),
             );
@@ -1260,7 +1479,7 @@ export function RecordPage() {
     };
 
   const resetCapturedRecord =
-    () => {
+    async () => {
       setCaption(
         "",
       );
@@ -1276,8 +1495,24 @@ export function RecordPage() {
       capturedRecordContextRef.current =
         null;
 
+      frozenCreateRequestRef.current =
+        null;
+
       createdRecordIdRef.current =
         null;
+
+      setRecordOperationActive(
+        false,
+      );
+
+      try {
+        await clearRecordDraft();
+      } catch (error) {
+        console.error(
+          "촬영 임시 데이터 삭제 실패:",
+          error,
+        );
+      }
     };
 
   const handleClose =
@@ -1286,7 +1521,7 @@ export function RecordPage() {
         previewMode ===
         "caption"
       ) {
-        resetCapturedRecord();
+        void resetCapturedRecord();
 
         setPreviewMode(
           "camera",
@@ -1316,6 +1551,10 @@ export function RecordPage() {
         mediaRecorderRef.current.stop();
       }
 
+      setRecordOperationActive(
+        false,
+      );
+
       stopCamera();
 
       navigate(
@@ -1323,15 +1562,6 @@ export function RecordPage() {
       );
     };
 
-  /**
-   * 이닝 기록 + 영상 저장.
-   *
-   * 중요:
-   * 여기에서는 경기 상태를 다시 조회하지 않는다.
-   *
-   * 촬영 당시 저장된
-   * capturedRecordContext만 사용한다.
-   */
   const submitInningRecord =
     async (
       game:
@@ -1353,12 +1583,10 @@ export function RecordPage() {
         return;
       }
 
-      const capturedContext =
+      const context =
         capturedRecordContextRef.current;
 
-      if (
-        !capturedContext
-      ) {
+      if (!context) {
         setRecordErrorMessage(
           "촬영 정보를 확인할 수 없습니다. 다시 촬영해주세요.",
         );
@@ -1367,7 +1595,7 @@ export function RecordPage() {
       }
 
       if (
-        capturedContext.gameId !==
+        context.gameId !==
         game.gameId
       ) {
         setRecordErrorMessage(
@@ -1387,13 +1615,73 @@ export function RecordPage() {
         );
 
         setCurrentInning(
-          capturedContext.inning,
+          context.inning,
         );
 
         /*
-         * 이미 기록 생성이 성공했다면
-         * 영상 재시도에서는 기록을 다시 만들지 않는다.
+         * 첫 저장 시도 당시의 payload를 고정.
          */
+        let createRequest =
+          frozenCreateRequestRef.current;
+
+        if (
+          !createRequest
+        ) {
+          createRequest = {
+            gameId:
+              context.gameId,
+
+            clientRecordId:
+              context.clientRecordId,
+
+            inning:
+              context.inning,
+
+            half:
+              context.half,
+
+            recordedAt:
+              context.recordedAt,
+
+            text:
+              caption,
+          };
+
+          frozenCreateRequestRef.current =
+            createRequest;
+
+          /*
+           * API 호출 전에 반드시 IndexedDB에 저장.
+           *
+           * 서버에서는 생성됐는데 응답이 유실되고
+           * 브라우저가 새로고침되어도 같은 payload로
+           * 재시도할 수 있다.
+           */
+          await saveRecordDraft(
+            {
+              context,
+
+              video:
+                recordedVideo,
+
+              caption:
+                createRequest.text,
+
+              createRequest,
+
+              recordId:
+                createdRecordIdRef.current,
+
+              updatedAt:
+                new Date().toISOString(),
+            },
+          );
+
+          setCaption(
+            createRequest.text,
+          );
+        }
+
         let recordId =
           createdRecordIdRef.current;
 
@@ -1403,36 +1691,33 @@ export function RecordPage() {
         ) {
           const inningRecord =
             await createInningRecord(
-              {
-                gameId:
-                  capturedContext.gameId,
-
-                clientRecordId:
-                  capturedContext.clientRecordId,
-
-                inning:
-                  capturedContext.inning,
-
-                half:
-                  capturedContext.half,
-
-                recordedAt:
-                  capturedContext.recordedAt,
-
-                text:
-                  caption,
-              },
+              createRequest,
             );
 
           recordId =
             inningRecord.id;
 
-          /*
-           * 이 값을 성공 직후 바로 저장해야
-           * 이후 영상 업로드 실패 때 동일 record를 사용한다.
-           */
           createdRecordIdRef.current =
-            inningRecord.id;
+            recordId;
+
+          await saveRecordDraft(
+            {
+              context,
+
+              video:
+                recordedVideo,
+
+              caption:
+                createRequest.text,
+
+              createRequest,
+
+              recordId,
+
+              updatedAt:
+                new Date().toISOString(),
+            },
+          );
         }
 
         await uploadInningRecordVideo(
@@ -1440,15 +1725,20 @@ export function RecordPage() {
           recordedVideo,
         );
 
-        /*
-         * 기록과 영상 모두 완료된 경우에만
-         * 촬영 컨텍스트를 초기화한다.
-         */
+        await clearRecordDraft();
+
         capturedRecordContextRef.current =
+          null;
+
+        frozenCreateRequestRef.current =
           null;
 
         createdRecordIdRef.current =
           null;
+
+        setRecordOperationActive(
+          false,
+        );
 
         setRecordedVideo(
           null,
@@ -1467,14 +1757,6 @@ export function RecordPage() {
           error,
         );
 
-        /*
-         * 여기서 capturedRecordContext와
-         * createdRecordId를 지우지 않는다.
-         *
-         * 사용자가 저장 버튼을 다시 누르면
-         * 동일한 기록/동일한 영상을 가지고
-         * 업로드만 이어서 재시도할 수 있다.
-         */
         setRecordErrorMessage(
           error instanceof
             Error
@@ -1681,7 +1963,7 @@ export function RecordPage() {
             isRecording
           }
           onCaptionChange={
-            setCaption
+            handleCaptionChange
           }
           onClose={
             handleClose
