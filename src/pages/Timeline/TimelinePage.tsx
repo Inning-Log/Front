@@ -229,7 +229,7 @@ function formatGameDateTime(
  * 1. timeline profiles의 내 경기 확인
  * 2. 없으면 Home Calendar의 오늘 경기 확인
  */
-async function getMyTodayGameId() {
+async function getMyTimelineTarget() {
   const profiles =
     await getTimelineProfiles({
       afterUserId: 0,
@@ -240,26 +240,51 @@ async function getMyTodayGameId() {
     profiles.me.games[0];
 
   if (timelineGame) {
-    return timelineGame.gameId;
+    return {
+      gameId:
+        timelineGame.gameId,
+      nextResetAt:
+        profiles.nextResetAt,
+    };
   }
 
+  /*
+   * 실제 달력 날짜인 today가 아니라
+   * 서버가 계산한 현재 타임라인 기준 날짜 사용.
+   */
   const [
     yearString,
     monthString,
   ] =
-    profiles.today.split("-");
+    profiles.timelineDate.split(
+      "-",
+    );
 
   const year =
-    Number(yearString);
+    Number(
+      yearString,
+    );
 
   const month =
-    Number(monthString);
+    Number(
+      monthString,
+    );
 
   if (
-    !Number.isInteger(year) ||
-    !Number.isInteger(month)
+    !Number.isInteger(
+      year,
+    ) ||
+    !Number.isInteger(
+      month,
+    )
   ) {
-    return null;
+    return {
+      gameId:
+        null,
+
+      nextResetAt:
+        profiles.nextResetAt,
+    };
   }
 
   const calendar =
@@ -268,52 +293,83 @@ async function getMyTodayGameId() {
       month,
     );
 
-  const todaySchedule =
+  const timelineSchedule =
     calendar.days.find(
-      (day) =>
+      (
+        day,
+      ) =>
         day.date ===
-        calendar.today,
+        profiles.timelineDate,
     );
 
-  const todayGame =
-    todaySchedule?.games[0];
+  const timelineGameFallback =
+    timelineSchedule
+      ?.games[0];
 
-  return (
-    todayGame?.gameId ??
-    null
-  );
+  return {
+    gameId:
+      timelineGameFallback
+        ?.gameId ??
+      null,
+
+    nextResetAt:
+      profiles.nextResetAt,
+  };
 }
 
 /**
  * 친구 오늘 경기 ID 조회
  */
-async function getFriendTodayGameId(
-  userId: number,
+async function getFriendTimelineTarget(
+  userId:
+    number,
 ) {
-  let afterUserId = 0;
+  let afterUserId =
+    0;
 
   const visitedCursors =
     new Set<number>();
 
-  while (true) {
+  let nextResetAt:
+    string | null =
+    null;
+
+  while (
+    true
+  ) {
     const response =
-      await getTimelineProfiles({
-        afterUserId,
-        limit: 50,
-      });
+      await getTimelineProfiles(
+        {
+          afterUserId,
+
+          limit:
+            50,
+        },
+      );
+
+    nextResetAt =
+      response.nextResetAt;
 
     const friend =
       response.friends.find(
-        (item) =>
+        (
+          item,
+        ) =>
           item.userId ===
           userId,
       );
 
-    if (friend) {
-      return (
-        friend.games[0]
-          ?.gameId ?? null
-      );
+    if (
+      friend
+    ) {
+      return {
+        gameId:
+          friend.games[0]
+            ?.gameId ??
+          null,
+
+        nextResetAt,
+      };
     }
 
     const nextAfterUserId =
@@ -325,7 +381,12 @@ async function getFriendTodayGameId(
       nextAfterUserId ===
         undefined
     ) {
-      return null;
+      return {
+        gameId:
+          null,
+
+        nextResetAt,
+      };
     }
 
     if (
@@ -335,7 +396,12 @@ async function getFriendTodayGameId(
         nextAfterUserId,
       )
     ) {
-      return null;
+      return {
+        gameId:
+          null,
+
+        nextResetAt,
+      };
     }
 
     visitedCursors.add(
@@ -524,6 +590,25 @@ export function TimelinePage() {
     useState<TimelineResponse | null>(
       null,
     );
+
+  const [
+    nextResetAt,
+    setNextResetAt,
+  ] =
+    useState<string | null>(
+      null,
+    );
+
+  const [
+    refreshVersion,
+    setRefreshVersion,
+  ] =
+    useState(0);
+
+  const lastTriggeredResetAtRef =
+    useRef<string | null>(
+      null,
+    );  
 
   const [
     historyGame,
@@ -745,8 +830,8 @@ export function TimelinePage() {
                 );
               }
 
-              targetGameId =
-                await getFriendTodayGameId(
+              const target =
+                await getFriendTimelineTarget(
                   parsedUserId,
                 );
 
@@ -756,10 +841,18 @@ export function TimelinePage() {
                 return;
               }
 
+              targetGameId =
+                target.gameId;
+
+              setNextResetAt(
+                target.nextResetAt,
+              );
+
               if (
                 targetGameId ===
                 null
               ) {
+
                 setTimeline(
                   null,
                 );
@@ -775,14 +868,21 @@ export function TimelinePage() {
                 return;
               }
             } else {
-              targetGameId =
-                await getMyTodayGameId();
+              const target =
+                await getMyTimelineTarget();
 
               if (
                 cancelled
               ) {
                 return;
               }
+
+              targetGameId =
+                target.gameId;
+
+              setNextResetAt(
+                target.nextResetAt,
+              );
 
               if (
                 targetGameId ===
@@ -875,6 +975,10 @@ export function TimelinePage() {
 
           setTimeline(
             response,
+          );
+
+          setNextResetAt(
+            response.nextResetAt,
           );
 
           setRecords(
@@ -978,6 +1082,149 @@ export function TimelinePage() {
     parsedUserId,
     isFriendTimeline,
     isPastTimeline,
+    refreshVersion,
+  ]);
+
+  /**
+   * 서버가 내려준 nextResetAt 기준
+   * 현재 타임라인 자동 재조회
+   */
+  useEffect(() => {
+    /*
+    * /timeline/history/:gameId 형태의
+    * 과거 타임라인은 자동 리셋 대상이 아님.
+    */
+    if (
+      isPastTimeline
+    ) {
+      return;
+    }
+
+    let resetTimerId:
+      number | null =
+      null;
+
+    const triggerRefresh =
+      () => {
+        setRefreshVersion(
+          (
+            version,
+          ) =>
+            version + 1,
+        );
+      };
+
+    const scheduleResetRefresh =
+      () => {
+        if (
+          !nextResetAt
+        ) {
+          return;
+        }
+
+        /*
+        * 서버는 UTC ISO-8601,
+        * 예:
+        * 2026-10-27T09:30:00Z
+        *
+        * Date.parse가 브라우저의 실제 시각으로 변환해주므로
+        * 별도로 +9시간 계산하지 않아도 됨.
+        */
+        const resetTime =
+          Date.parse(
+            nextResetAt,
+          );
+
+        if (
+          Number.isNaN(
+            resetTime,
+          )
+        ) {
+          return;
+        }
+
+        const delay =
+          resetTime -
+          Date.now();
+
+        /*
+        * 이미 nextResetAt을 지난 상태에서
+        * 같은 값으로 무한 재조회되는 것 방지
+        */
+        if (
+          delay <=
+          0
+        ) {
+          if (
+            lastTriggeredResetAtRef.current !==
+            nextResetAt
+          ) {
+            lastTriggeredResetAtRef.current =
+              nextResetAt;
+
+            triggerRefresh();
+          }
+
+          return;
+        }
+
+        /*
+        * 서버의 리셋 경계를 완전히 지난 뒤
+        * 재조회하도록 250ms 여유
+        */
+        resetTimerId =
+          window.setTimeout(
+            () => {
+              lastTriggeredResetAtRef.current =
+                nextResetAt;
+
+              triggerRefresh();
+            },
+            delay +
+              250,
+          );
+      };
+
+    /*
+    * 앱/탭을 나갔다가 다시 돌아왔을 때도
+    * 서버에서 현재 timelineDate,
+    * nextResetAt을 다시 받는다.
+    */
+    const handleVisibilityChange =
+      () => {
+        if (
+          document.visibilityState ===
+          "visible"
+        ) {
+          triggerRefresh();
+        }
+      };
+
+    scheduleResetRefresh();
+
+    document.addEventListener(
+      "visibilitychange",
+      handleVisibilityChange,
+    );
+
+    return () => {
+      if (
+        resetTimerId !==
+        null
+      ) {
+        window.clearTimeout(
+          resetTimerId,
+        );
+      }
+
+      document.removeEventListener(
+        "visibilitychange",
+        handleVisibilityChange,
+      );
+    };
+  }, [
+    isPastTimeline,
+    nextResetAt,
   ]);
 
   /**
@@ -1745,6 +1992,9 @@ export function TimelinePage() {
           setTimeline(
             refreshed,
           );
+          setNextResetAt(
+            refreshed.nextResetAt,
+          );
           setRecords(
             refreshed.records ??
               [],
@@ -2018,7 +2268,7 @@ export function TimelinePage() {
    */
   if (isLoading) {
     return (
-      <div className="flex h-dvh w-full flex-col overflow-y-auto overscroll-y-contain pt-[45px]">
+      <div className="scrollbar-hide flex h-dvh w-full flex-col overflow-y-auto overscroll-y-contain pt-[45px]">
         <PageHeader title="타임라인" />
 
         {!isPastTimeline && (
@@ -2049,7 +2299,7 @@ export function TimelinePage() {
     !timeline
   ) {
     return (
-      <div className="flex h-dvh w-full flex-col overflow-y-auto overscroll-y-contain pt-[45px]">
+      <div className="scrollbar-hide flex h-dvh w-full flex-col overflow-y-auto overscroll-y-contain pt-[45px]">
         <PageHeader title="타임라인" />
 
         {!isPastTimeline && (
@@ -2084,7 +2334,7 @@ export function TimelinePage() {
    */
   if (!timeline) {
     return (
-      <div className="flex h-dvh w-full flex-col overflow-y-auto overscroll-y-contain pt-[45px]">
+      <div className="scrollbar-hide flex h-dvh w-full flex-col overflow-y-auto overscroll-y-contain pt-[45px]">
         <PageHeader title="타임라인" />
 
         {!isPastTimeline && (
