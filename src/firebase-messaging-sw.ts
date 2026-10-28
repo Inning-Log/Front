@@ -87,6 +87,7 @@ registerRoute(
 );
 
 cleanupOutdatedCaches();
+
 precacheAndRoute(
   self.__WB_MANIFEST,
 );
@@ -209,6 +210,7 @@ async function setValue(
       transaction.oncomplete =
         () => {
           database.close();
+
           resolve();
         };
 
@@ -364,10 +366,6 @@ function parsePositiveIntegerString(
   );
 }
 
-/**
- * 서버가 절대 URL 또는 /timeline/... 같은 상대 경로를
- * 보내도 현재 프론트 origin 기준으로 안전하게 해석한다.
- */
 function getSafeLink(
   link?: string,
 ): URL | null {
@@ -391,11 +389,6 @@ function getSafeLink(
       return null;
     }
 
-    /*
-     * 서버가 Production origin의 절대 URL을 보내더라도
-     * 현재 실행 중인 앱 origin에서 같은 pathname/query를 연다.
-     * Preview/localhost 검증에서도 동일하게 동작한다.
-     */
     return new URL(
       `${sourceUrl.pathname}${sourceUrl.search}${sourceUrl.hash}`,
       self.location.origin,
@@ -412,10 +405,53 @@ function buildNotificationLink(
       string
     >,
 ) {
-  const safeUrl =
+  let safeUrl =
     getSafeLink(
       data.link,
     );
+
+  if (
+    !safeUrl &&
+    data.type ===
+      "TIMELINE_COMMENT"
+  ) {
+    const ownerUserId =
+      parsePositiveIntegerString(
+        data.ownerUserId,
+      );
+
+    const recipientUserId =
+      parsePositiveIntegerString(
+        data.recipientUserId,
+      );
+
+    const gameId =
+      parsePositiveIntegerString(
+        data.gameId,
+      );
+
+    if (
+      ownerUserId &&
+      gameId
+    ) {
+      const isOwnTimeline =
+        recipientUserId !==
+          null &&
+        ownerUserId ===
+          recipientUserId;
+
+      const fallbackPath =
+        isOwnTimeline
+          ? `/timeline/history/${gameId}`
+          : `/timeline/${ownerUserId}?gameId=${gameId}`;
+
+      safeUrl =
+        new URL(
+          fallbackPath,
+          self.location.origin,
+        );
+    }
+  }
 
   if (!safeUrl) {
     return null;
@@ -482,10 +518,14 @@ onBackgroundMessage(
         "currentUserId",
       );
 
+    /*
+     * 현재 로그인한 사용자와
+     * 알림 수신자가 일치하는 경우에만 표시.
+     */
     if (
       !currentUserId ||
-      !data.audienceUserId ||
-      data.audienceUserId !==
+      !data.recipientUserId ||
+      data.recipientUserId !==
         currentUserId
     ) {
       return;
@@ -494,9 +534,7 @@ onBackgroundMessage(
     const notificationId =
       data.notificationId;
 
-    if (
-      !notificationId
-    ) {
+    if (!notificationId) {
       return;
     }
 
@@ -532,18 +570,35 @@ onBackgroundMessage(
       title,
       {
         body,
+
         tag:
           notificationId,
+
         data: {
           link,
+
           notificationId,
 
           recordId:
             data.recordId,
+
           videoId:
             data.videoId,
+
           commentId:
             data.commentId,
+
+          gameId:
+            data.gameId,
+
+          ownerUserId:
+            data.ownerUserId,
+
+          recipientUserId:
+            data.recipientUserId,
+
+          actorUserId:
+            data.actorUserId,
         },
       },
     );
@@ -575,9 +630,7 @@ self.addEventListener(
         link,
       );
 
-    if (
-      !safeUrl
-    ) {
+    if (!safeUrl) {
       return;
     }
 
@@ -589,6 +642,7 @@ self.addEventListener(
         .matchAll({
           type:
             "window",
+
           includeUncontrolled:
             true,
         })

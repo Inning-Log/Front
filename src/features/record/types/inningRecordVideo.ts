@@ -1,7 +1,13 @@
+export type InningRecordVideoStatus =
+  | "PENDING"
+  | "READY"
+  | "FAILED"
+  | string;
+
 export type InningRecordVideoResponse = {
   videoId: number;
   recordId: number;
-  status: string;
+  status: InningRecordVideoStatus;
   contentType: string;
   sizeBytes: number;
   downloadUrl: string;
@@ -19,6 +25,9 @@ export type VideoUploadUrlResponse = {
   recordId: number;
   uploadUrl: string;
   method: string;
-  headers: Record<string, string>;
+  headers: Record<
+    string,
+    string
+  >;
   expiresAt: string;
 };

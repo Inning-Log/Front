@@ -154,6 +154,55 @@ function normalizeAppLink(
   }
 }
 
+function buildCommentFallbackTarget(
+  notification:
+    NotificationResponse,
+) {
+  const data =
+    notification.data;
+
+  const ownerUserId =
+    parsePositiveInteger(
+      data.ownerUserId,
+    );
+
+  const recipientUserId =
+    parsePositiveInteger(
+      data.recipientUserId,
+    );
+
+  const gameId =
+    parsePositiveInteger(
+      data.gameId,
+    );
+
+  if (
+    !ownerUserId ||
+    !gameId
+  ) {
+    return null;
+  }
+
+  /*
+   * 알림 수신자가 영상 소유자라면
+   * 내 타임라인으로 이동
+   */
+  if (
+    recipientUserId &&
+    ownerUserId === recipientUserId
+  ) {
+    return `/timeline/history/${gameId}`;
+  }
+
+  return `/timeline/${ownerUserId}?gameId=${gameId}`;
+
+  /*
+   * 영상 소유자와 알림 수신자가 다르면
+   * 영상 소유자의 친구 타임라인으로 이동
+   */
+  return `/timeline/${ownerUserId}?gameId=${gameId}`;
+}
+
 function buildNotificationTarget(
   notification:
     NotificationResponse,
@@ -166,9 +215,6 @@ function buildNotificationTarget(
       data.link,
     );
 
-  /*
-   * 친구 수락 알림 fallback
-   */
   if (
     !target &&
     notification.type ===
@@ -185,45 +231,21 @@ function buildNotificationTarget(
         : "/mypage/friends";
   }
 
-  /*
-   * 댓글 알림에서 link가 없는 경우 fallback
-   */
   if (
     !target &&
     notification.type ===
       "TIMELINE_COMMENT"
   ) {
-    const actorUserId =
-      parsePositiveInteger(
-        data.actorUserId,
+    target =
+      buildCommentFallbackTarget(
+        notification,
       );
-
-    const gameId =
-      parsePositiveInteger(
-        data.gameId,
-      );
-
-    if (
-      actorUserId &&
-      gameId
-    ) {
-      target =
-        `/timeline/${actorUserId}?gameId=${gameId}`;
-    } else if (
-      gameId
-    ) {
-      target =
-        `/timeline?gameId=${gameId}`;
-    }
   }
 
   if (!target) {
     return null;
   }
 
-  /*
-   * 일반 알림이면 link 그대로 사용
-   */
   if (
     notification.type !==
     "TIMELINE_COMMENT"
@@ -231,11 +253,6 @@ function buildNotificationTarget(
     return target;
   }
 
-  /*
-   * 댓글 알림이면
-   * recordId / videoId / commentId도
-   * query parameter로 전달
-   */
   const targetUrl =
     new URL(
       target,
@@ -260,27 +277,21 @@ function buildNotificationTarget(
   if (recordId) {
     targetUrl.searchParams.set(
       "recordId",
-      String(
-        recordId,
-      ),
+      String(recordId),
     );
   }
 
   if (videoId) {
     targetUrl.searchParams.set(
       "videoId",
-      String(
-        videoId,
-      ),
+      String(videoId),
     );
   }
 
   if (commentId) {
     targetUrl.searchParams.set(
       "commentId",
-      String(
-        commentId,
-      ),
+      String(commentId),
     );
   }
 
@@ -357,9 +368,7 @@ export function NotificationPage() {
               20,
             );
 
-          if (
-            cancelled
-          ) {
+          if (cancelled) {
             return;
           }
 
@@ -374,12 +383,8 @@ export function NotificationPage() {
           setHasNext(
             data.hasNext,
           );
-        } catch (
-          error
-        ) {
-          if (
-            cancelled
-          ) {
+        } catch (error) {
+          if (cancelled) {
             return;
           }
 
@@ -396,21 +401,15 @@ export function NotificationPage() {
           const data =
             await getReceivedFriendRequests();
 
-          if (
-            cancelled
-          ) {
+          if (cancelled) {
             return;
           }
 
           setFriendRequests(
             data,
           );
-        } catch (
-          error
-        ) {
-          if (
-            cancelled
-          ) {
+        } catch (error) {
+          if (cancelled) {
             return;
           }
 
@@ -430,10 +429,6 @@ export function NotificationPage() {
     };
   }, []);
 
-  /*
-   * FRIEND_REQUEST는 신청 대기 탭에서
-   * 친구 신청 API 결과로 별도 표시
-   */
   const generalNotifications =
     notifications.filter(
       (
@@ -449,7 +444,8 @@ export function NotificationPage() {
       ? friendRequests.length >
         0
       : generalNotifications.length >
-        0;
+          0 ||
+        hasNext;
 
   const removeFriendRequest =
     (
@@ -489,9 +485,7 @@ export function NotificationPage() {
           message:
             "친구 신청을 수락했습니다!",
         });
-      } catch (
-        error
-      ) {
+      } catch (error) {
         console.error(
           "친구 신청 수락 실패:",
           error,
@@ -518,9 +512,7 @@ export function NotificationPage() {
           message:
             "친구 신청을 거절했습니다.",
         });
-      } catch (
-        error
-      ) {
+      } catch (error) {
         console.error(
           "친구 신청 거절 실패:",
           error,
@@ -528,9 +520,6 @@ export function NotificationPage() {
       }
     };
 
-  /*
-   * 알림 추가 조회
-   */
   const handleLoadMore =
     async () => {
       if (
@@ -591,9 +580,7 @@ export function NotificationPage() {
         setHasNext(
           data.hasNext,
         );
-      } catch (
-        error
-      ) {
+      } catch (error) {
         console.error(
           "알림 추가 조회 실패:",
           error,
@@ -611,12 +598,6 @@ export function NotificationPage() {
       }
     };
 
-  /*
-   * 알림 클릭
-   *
-   * 읽은 알림도 이동 가능.
-   * 안 읽은 알림만 read API 호출.
-   */
   const handleNotificationClick =
     async (
       notification:
@@ -647,16 +628,13 @@ export function NotificationPage() {
                   notification.id
                     ? {
                         ...item,
-
                         readAt:
                           new Date().toISOString(),
                       }
                     : item,
               ),
           );
-        } catch (
-          error
-        ) {
+        } catch (error) {
           console.error(
             "알림 읽음 처리 실패:",
             error,
@@ -692,17 +670,19 @@ export function NotificationPage() {
     };
 
   return (
-    <div className="min-h-dvh w-full bg-white pt-[20px]">
-      <PageHeader
-        title="알림"
-        rightText="알림 설정"
-        rightTo="/home/notifications/settings"
-      />
+    <div className="flex h-dvh w-full flex-col overflow-hidden bg-white pt-[45px]">
+      <div className="shrink-0">
+        <PageHeader
+          title="알림"
+          rightText="알림 설정"
+          rightTo="/home/notifications/settings"
+        />
+      </div>
 
       <div
         role="tablist"
         aria-label="알림 유형"
-        className="grid h-[53px] w-full grid-cols-2"
+        className="grid h-[53px] w-full shrink-0 grid-cols-2"
       >
         <button
           type="button"
@@ -718,9 +698,7 @@ export function NotificationPage() {
           }
           className={[
             "relative flex items-center justify-center",
-
             "font-pretendard text-[16px] font-medium leading-6 tracking-[0.32px]",
-
             activeTab ===
             "request"
               ? "text-black"
@@ -749,9 +727,7 @@ export function NotificationPage() {
           }
           className={[
             "relative flex items-center justify-center",
-
             "font-pretendard text-[16px] font-medium leading-6 tracking-[0.32px]",
-
             activeTab ===
             "game"
               ? "text-black"
@@ -767,7 +743,13 @@ export function NotificationPage() {
         </button>
       </div>
 
-      <main className="flex min-h-[calc(100dvh-151px)] flex-col items-center gap-[8px] bg-[#F5F5F5] pb-[24px] pt-[20px]">
+      <main
+        className="flex min-h-0 flex-1 flex-col items-center gap-[8px] overflow-y-auto overscroll-y-contain bg-[#F5F5F5] pb-[24px] pt-[20px]"
+        style={{
+          WebkitOverflowScrolling:
+            "touch",
+        }}
+      >
         {hasNotifications ? (
           activeTab ===
           "request" ? (
@@ -824,7 +806,7 @@ export function NotificationPage() {
                         notification,
                       )
                     }
-                    className="w-full"
+                    className="w-full shrink-0"
                   >
                     <NotificationItem
                       category={getNotificationCategory(
@@ -851,7 +833,7 @@ export function NotificationPage() {
                   disabled={
                     isLoadingMore
                   }
-                  className="mt-[8px] rounded-full border border-surface-secondary bg-white px-[22px] py-[10px] text-label-4 text-black disabled:opacity-50"
+                  className="mt-[8px] shrink-0 rounded-full border border-surface-secondary bg-white px-[22px] py-[10px] text-label-4 text-black disabled:opacity-50"
                 >
                   {isLoadingMore
                     ? "불러오는 중..."
@@ -862,7 +844,7 @@ export function NotificationPage() {
               {!hasNext &&
                 generalNotifications.length >
                   0 && (
-                  <p className="py-[12px] text-caption text-text-tertiary">
+                  <p className="shrink-0 py-[12px] text-caption text-text-tertiary">
                     모든 알림을 확인했습니다.
                   </p>
                 )}
