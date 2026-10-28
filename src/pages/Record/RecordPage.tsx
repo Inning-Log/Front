@@ -92,6 +92,15 @@ type TorchConstraint =
     torch?: boolean;
   };
 
+type LockableScreenOrientation = {
+  lock?: (
+    orientation:
+      "portrait-primary",
+  ) => Promise<void>;
+
+  unlock?: () => void;
+};
+
 const RECORD_OPERATION_KEY =
   "inninglog-record-operation-active";
 
@@ -483,6 +492,111 @@ export function RecordPage() {
     setRecordErrorMessage,
   ] =
     useState("");
+
+  /*
+   * 기록 화면에서만 화면 방향을 세로로 고정한다.
+   *
+   * Android 설치형 PWA 등 Screen Orientation API를
+   * 지원하는 환경에서는 기기를 가로로 돌려도
+   * 기록 화면 자체가 세로 방향으로 유지된다.
+   *
+   * 일반 모바일 브라우저나 iOS Safari처럼
+   * orientation lock을 허용하지 않는 환경에서는
+   * 예외를 발생시키지 않고 기존 동작을 유지한다.
+   *
+   * 기록 화면을 벗어나면 unlock()을 호출해서
+   * 다른 화면에서는 다시 기기 회전을 사용할 수 있다.
+   */
+  useEffect(() => {
+    if (
+      typeof screen ===
+      "undefined"
+    ) {
+      return;
+    }
+
+    const orientation =
+      screen.orientation as
+        | LockableScreenOrientation
+        | undefined;
+
+    if (
+      !orientation?.lock
+    ) {
+      return;
+    }
+
+    let isDisposed =
+      false;
+
+    const lockPortrait =
+      async () => {
+        try {
+          await orientation.lock?.(
+            "portrait-primary",
+          );
+        } catch (error) {
+          /*
+           * 일부 모바일 브라우저는
+           * 설치형 PWA / 전체화면이 아니면
+           * Screen Orientation API의 lock을
+           * 허용하지 않는다.
+           *
+           * 방향 잠금 실패가 카메라 기능 자체를
+           * 막으면 안 되므로 조용히 기존 화면을 유지한다.
+           */
+          if (
+            !isDisposed
+          ) {
+            console.info(
+              "기록 화면 세로 방향 고정을 지원하지 않는 환경입니다.",
+              error,
+            );
+          }
+        }
+      };
+
+    void lockPortrait();
+
+    /*
+     * 앱을 백그라운드로 보냈다가 돌아왔을 때
+     * 브라우저가 방향 잠금을 해제한 경우를 대비해
+     * 다시 한 번 세로 방향 잠금을 시도한다.
+     */
+    const handleVisibilityChange =
+      () => {
+        if (
+          document.visibilityState ===
+          "visible"
+        ) {
+          void lockPortrait();
+        }
+      };
+
+    document.addEventListener(
+      "visibilitychange",
+      handleVisibilityChange,
+    );
+
+    return () => {
+      isDisposed =
+        true;
+
+      document.removeEventListener(
+        "visibilitychange",
+        handleVisibilityChange,
+      );
+
+      try {
+        orientation.unlock?.();
+      } catch (error) {
+        console.info(
+          "화면 방향 잠금 해제 실패:",
+          error,
+        );
+      }
+    };
+  }, []);
 
   const clearCountdown =
     useCallback(
@@ -1605,57 +1719,56 @@ export function RecordPage() {
       ) {
         return;
       }
-
+      
       /*
-      * 직관 사용자는 경기장 내 플래시 사용 방지
-      */
-      if (
-        favoriteTeamGame
-          ?.myViewing
-          ?.viewingType ===
-        "STADIUM"
-      ) {
+        * 직관 사용자는 경기장 내 플래시 사용 방지
+        */
         if (
-          isFlashOn
+          favoriteTeamGame
+            ?.myViewing
+            ?.viewingType ===
+          "STADIUM"
         ) {
-          const videoTrack =
-            cameraStreamRef.current
-              ?.getVideoTracks()[0];
-
           if (
-            videoTrack
+            isFlashOn
           ) {
-            try {
-              await videoTrack.applyConstraints(
-                {
-                  advanced: [
-                    {
-                      torch:
-                        false,
-                    } as TorchConstraint,
-                  ],
-                },
-              );
-            } catch (error) {
-              console.error(
-                "플래시 종료 실패:",
-                error,
-              );
+            const videoTrack =
+              cameraStreamRef.current
+                ?.getVideoTracks()[0];
+
+            if (
+              videoTrack
+            ) {
+              try {
+                await videoTrack.applyConstraints(
+                  {
+                    advanced: [
+                      {
+                        torch:
+                          false,
+                      } as TorchConstraint,
+                    ],
+                  },
+                );
+              } catch (error) {
+                console.error(
+                  "플래시 종료 실패:",
+                  error,
+                );
+              }
             }
+
+            setIsFlashOn(
+              false,
+            );
           }
 
-          setIsFlashOn(
-            false,
+          setRecordErrorMessage(
+            "야구장 관람 중에는 플래시를 사용할 수 없습니다.",
           );
+
+          return;
         }
-
-        setRecordErrorMessage(
-          "야구장 관람 중에는 플래시를 사용할 수 없습니다.",
-        );
-
-        return;
-      }
-
       if (
         cameraDirection !==
         "rear"
@@ -1681,9 +1794,7 @@ export function RecordPage() {
         cameraStreamRef.current
           ?.getVideoTracks()[0];
 
-      if (
-        !videoTrack
-      ) {
+      if (!videoTrack) {
         setRecordErrorMessage(
           "카메라를 확인할 수 없습니다.",
         );
@@ -1701,7 +1812,8 @@ export function RecordPage() {
               {
                 torch:
                   nextFlashOn,
-              } as TorchConstraint,
+              } as
+                TorchConstraint,
             ],
           },
         );
