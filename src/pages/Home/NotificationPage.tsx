@@ -1,15 +1,7 @@
-import {
-  useEffect,
-  useState,
-} from "react";
+import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
-import {
-  useNavigate,
-} from "react-router-dom";
-
-import {
-  PageHeader,
-} from "../../app/layouts/PageHeader";
+import { PageHeader } from "../../app/layouts/PageHeader";
 
 import {
   acceptFriendRequest,
@@ -24,6 +16,7 @@ import type {
 import {
   getNotifications,
   readNotification,
+  readAllNotifications,
 } from "../../features/home/api/notificationApi";
 
 import {
@@ -40,43 +33,35 @@ import type {
   NotificationType,
 } from "../../features/home/types/notification";
 
-import {
-  Toast,
-} from "../../shared/ui/Toast";
+import { Toast } from "../../shared/ui/Toast";
 
-type NotificationTab =
-  | "request"
-  | "game";
+type NotificationTab = "request" | "game";
 
 type ToastState = {
   open: boolean;
   message: string;
 };
 
-const GAME_NOTIFICATION_TYPES:
-  NotificationType[] = [
-    "GAME_INNING_STARTED",
-    "GAME_INNING_ENDED",
-    "GAME_SCORE_CHANGED",
-  ];
+const GAME_NOTIFICATION_TYPES: NotificationType[] = [
+  "GAME_INNING_STARTED",
+  "GAME_INNING_ENDED",
+  "GAME_SCORE_CHANGED",
+];
 
-const RECORD_NOTIFICATION_TYPES:
-  NotificationType[] = [
-    "RECORD_REMINDER",
-    "GENERATED_VIDEO_READY",
-    "GENERATED_VIDEO_FAILED",
-  ];
+const RECORD_NOTIFICATION_TYPES: NotificationType[] = [
+  "RECORD_REMINDER",
+  "GENERATED_VIDEO_READY",
+  "GENERATED_VIDEO_FAILED",
+];
 
-const SOCIAL_NOTIFICATION_TYPES:
-  NotificationType[] = [
-    "FRIEND_ACCEPTED",
-    "TIMELINE_COMMENT",
-    "TIMELINE_REACTION",
-  ];
+const SOCIAL_NOTIFICATION_TYPES: NotificationType[] = [
+  "FRIEND_ACCEPTED",
+  "TIMELINE_COMMENT",
+  "TIMELINE_REACTION",
+];
 
 function getNotificationCategory(
-  notification:
-    NotificationResponse,
+  notification: NotificationResponse,
 ): NotificationCategory {
   if (
     GAME_NOTIFICATION_TYPES.includes(
@@ -112,13 +97,10 @@ function parsePositiveInteger(
     return null;
   }
 
-  const parsed =
-    Number(value);
+  const parsed = Number(value);
 
   if (
-    !Number.isSafeInteger(
-      parsed,
-    ) ||
+    !Number.isSafeInteger(parsed) ||
     parsed <= 0
   ) {
     return null;
@@ -135,11 +117,10 @@ function normalizeAppLink(
   }
 
   try {
-    const url =
-      new URL(
-        link,
-        window.location.origin,
-      );
+    const url = new URL(
+      link,
+      window.location.origin,
+    );
 
     if (
       url.origin !==
@@ -155,11 +136,9 @@ function normalizeAppLink(
 }
 
 function buildCommentFallbackTarget(
-  notification:
-    NotificationResponse,
+  notification: NotificationResponse,
 ) {
-  const data =
-    notification.data;
+  const data = notification.data;
 
   const ownerUserId =
     parsePositiveInteger(
@@ -194,8 +173,6 @@ function buildCommentFallbackTarget(
     return `/timeline/history/${gameId}`;
   }
 
-  return `/timeline/${ownerUserId}?gameId=${gameId}`;
-
   /*
    * 영상 소유자와 알림 수신자가 다르면
    * 영상 소유자의 친구 타임라인으로 이동
@@ -204,42 +181,35 @@ function buildCommentFallbackTarget(
 }
 
 function buildNotificationTarget(
-  notification:
-    NotificationResponse,
+  notification: NotificationResponse,
 ) {
-  const data =
-    notification.data;
+  const data = notification.data;
 
-  let target =
-    normalizeAppLink(
-      data.link,
-    );
+  let target = normalizeAppLink(
+    data.link,
+  );
 
   if (
     !target &&
-    notification.type ===
-      "FRIEND_ACCEPTED"
+    notification.type === "FRIEND_ACCEPTED"
   ) {
     const actorUserId =
       parsePositiveInteger(
         data.actorUserId,
       );
 
-    target =
-      actorUserId
-        ? `/timeline/${actorUserId}`
-        : "/mypage/friends";
+    target = actorUserId
+      ? `/timeline/${actorUserId}`
+      : "/mypage/friends";
   }
 
   if (
     !target &&
-    notification.type ===
-      "TIMELINE_COMMENT"
+    notification.type === "TIMELINE_COMMENT"
   ) {
-    target =
-      buildCommentFallbackTarget(
-        notification,
-      );
+    target = buildCommentFallbackTarget(
+      notification,
+    );
   }
 
   if (!target) {
@@ -247,17 +217,15 @@ function buildNotificationTarget(
   }
 
   if (
-    notification.type !==
-    "TIMELINE_COMMENT"
+    notification.type !== "TIMELINE_COMMENT"
   ) {
     return target;
   }
 
-  const targetUrl =
-    new URL(
-      target,
-      window.location.origin,
-    );
+  const targetUrl = new URL(
+    target,
+    window.location.origin,
+  );
 
   const recordId =
     parsePositiveInteger(
@@ -299,378 +267,374 @@ function buildNotificationTarget(
 }
 
 export function NotificationPage() {
-  const navigate =
-    useNavigate();
+  const navigate = useNavigate();
 
   const [
     activeTab,
     setActiveTab,
-  ] =
-    useState<NotificationTab>(
-      "request",
-    );
+  ] = useState<NotificationTab>("request");
 
   const [
     notifications,
     setNotifications,
-  ] =
-    useState<
-      NotificationResponse[]
-    >([]);
+  ] = useState<NotificationResponse[]>([]);
 
   const [
     nextCursor,
     setNextCursor,
-  ] =
-    useState<
-      number | null
-    >(null);
+  ] = useState<number | null>(null);
 
   const [
     hasNext,
     setHasNext,
-  ] =
-    useState(false);
+  ] = useState(false);
+
+  const [
+    isLoadingNotifications,
+    setIsLoadingNotifications,
+  ] = useState(true);
 
   const [
     isLoadingMore,
     setIsLoadingMore,
-  ] =
-    useState(false);
+  ] = useState(false);
+
+  // 모든 알림 읽음 처리 진행 상태
+  const [
+    isMarkingAllRead,
+    setIsMarkingAllRead,
+  ] = useState(false);
+
+  // 중복 요청 방지
+  const isMarkingAllReadRef = useRef(false);
 
   const [
     friendRequests,
     setFriendRequests,
-  ] =
-    useState<
-      FriendshipResponse[]
-    >([]);
+  ] = useState<FriendshipResponse[]>([]);
 
   const [
     toast,
     setToast,
-  ] =
-    useState<ToastState>({
-      open: false,
-      message: "",
-    });
+  ] = useState<ToastState>({
+    open: false,
+    message: "",
+  });
 
   useEffect(() => {
-    let cancelled =
-      false;
+    let cancelled = false;
 
-    const fetchNotifications =
-      async () => {
-        try {
-          const data =
-            await getNotifications(
-              null,
-              20,
-            );
+    const fetchNotifications = async () => {
+      try {
+        const data = await getNotifications(
+          null,
+          20,
+        );
 
-          if (cancelled) {
-            return;
-          }
-
-          setNotifications(
-            data.items,
-          );
-
-          setNextCursor(
-            data.nextCursor,
-          );
-
-          setHasNext(
-            data.hasNext,
-          );
-        } catch (error) {
-          if (cancelled) {
-            return;
-          }
-
-          console.error(
-            "알림 목록 조회 실패:",
-            error,
-          );
+        if (cancelled) {
+          return;
         }
-      };
 
-    const fetchFriendRequests =
-      async () => {
-        try {
-          const data =
-            await getReceivedFriendRequests();
-
-          if (cancelled) {
-            return;
-          }
-
-          setFriendRequests(
-            data,
-          );
-        } catch (error) {
-          if (cancelled) {
-            return;
-          }
-
-          console.error(
-            "받은 친구 신청 목록 조회 실패:",
-            error,
-          );
+        setNotifications(data.items);
+        setNextCursor(data.nextCursor);
+        setHasNext(data.hasNext);
+      } catch (error) {
+        if (cancelled) {
+          return;
         }
-      };
+
+        console.error(
+          "알림 목록 조회 실패:",
+          error,
+        );
+      } finally {
+        if (!cancelled) {
+          setIsLoadingNotifications(false);
+        }
+      }
+    };
+
+    const fetchFriendRequests = async () => {
+      try {
+        const data =
+          await getReceivedFriendRequests();
+
+        if (cancelled) {
+          return;
+        }
+
+        setFriendRequests(data);
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
+
+        console.error(
+          "받은 친구 신청 목록 조회 실패:",
+          error,
+        );
+      }
+    };
 
     void fetchNotifications();
     void fetchFriendRequests();
 
     return () => {
-      cancelled =
-        true;
+      cancelled = true;
     };
   }, []);
 
   const generalNotifications =
     notifications.filter(
-      (
-        notification,
-      ) =>
-        notification.type !==
-        "FRIEND_REQUEST",
+      (notification) =>
+        notification.type !== "FRIEND_REQUEST",
     );
 
   const hasNotifications =
-    activeTab ===
-    "request"
-      ? friendRequests.length >
-        0
-      : generalNotifications.length >
-          0 ||
+    activeTab === "request"
+      ? friendRequests.length > 0
+      : generalNotifications.length > 0 ||
         hasNext;
 
-  const removeFriendRequest =
-    (
-      friendshipId:
-        number,
-    ) => {
-      setFriendRequests(
-        (
-          previousRequests,
-        ) =>
-          previousRequests.filter(
-            (
-              request,
-            ) =>
-              request.id !==
-              friendshipId,
+  const removeFriendRequest = (
+    friendshipId: number,
+  ) => {
+    setFriendRequests(
+      (previousRequests) =>
+        previousRequests.filter(
+          (request) =>
+            request.id !== friendshipId,
+        ),
+    );
+  };
+
+  const handleAcceptRequest = async (
+    friendship: FriendshipResponse,
+  ) => {
+    try {
+      await acceptFriendRequest(
+        friendship.id,
+      );
+
+      removeFriendRequest(
+        friendship.id,
+      );
+
+      setToast({
+        open: true,
+        message:
+          "친구 신청을 수락했습니다!",
+      });
+    } catch (error) {
+      console.error(
+        "친구 신청 수락 실패:",
+        error,
+      );
+    }
+  };
+
+  const handleRejectRequest = async (
+    friendship: FriendshipResponse,
+  ) => {
+    try {
+      await rejectFriendRequest(
+        friendship.id,
+      );
+
+      removeFriendRequest(
+        friendship.id,
+      );
+
+      setToast({
+        open: true,
+        message:
+          "친구 신청을 거절했습니다.",
+      });
+    } catch (error) {
+      console.error(
+        "친구 신청 거절 실패:",
+        error,
+      );
+    }
+  };
+
+  const handleLoadMore = async () => {
+    if (
+      !hasNext ||
+      nextCursor === null ||
+      isLoadingMore ||
+      isMarkingAllReadRef.current
+    ) {
+      return;
+    }
+
+    try {
+      setIsLoadingMore(true);
+
+      const data = await getNotifications(
+        nextCursor,
+        20,
+      );
+
+      setNotifications((previous) => {
+        const existingIds = new Set(
+          previous.map(
+            (item) => item.id,
+          ),
+        );
+
+        const newItems = data.items.filter(
+          (item) =>
+            !existingIds.has(item.id),
+        );
+
+        return [
+          ...previous,
+          ...newItems,
+        ];
+      });
+
+      setNextCursor(data.nextCursor);
+      setHasNext(data.hasNext);
+    } catch (error) {
+      console.error(
+        "알림 추가 조회 실패:",
+        error,
+      );
+
+      setToast({
+        open: true,
+        message:
+          "이전 알림을 불러오지 못했습니다.",
+      });
+    } finally {
+      setIsLoadingMore(false);
+    }
+  };
+
+  /*
+   * 모든 알림 읽음 처리
+   *
+   * PATCH /api/notifications/read-all
+   *
+   * 서버 요청이 성공한 경우에만
+   * 현재 알림 목록의 읽음 상태를 변경한다.
+   */
+  const handleReadAllNotifications = async () => {
+    if (
+      isMarkingAllReadRef.current ||
+      isLoadingNotifications ||
+      isLoadingMore
+    ) {
+      return;
+    }
+
+    isMarkingAllReadRef.current = true;
+    setIsMarkingAllRead(true);
+
+    try {
+      await readAllNotifications();
+
+      const readAt = new Date().toISOString();
+
+      setNotifications(
+        (previousNotifications) =>
+          previousNotifications.map(
+            (notification) => ({
+              ...notification,
+              readAt:
+                notification.readAt ?? readAt,
+            }),
           ),
       );
-    };
 
-  const handleAcceptRequest =
-    async (
-      friendship:
-        FriendshipResponse,
-    ) => {
+      setToast({
+        open: true,
+        message:
+          "모든 알림을 읽음 처리했습니다.",
+      });
+    } catch (error) {
+      console.error(
+        "모든 알림 읽음 처리 실패:",
+        error,
+      );
+
+      setToast({
+        open: true,
+        message:
+          error instanceof Error
+            ? error.message
+            : "모든 알림 읽음 처리에 실패했습니다.",
+      });
+    } finally {
+      isMarkingAllReadRef.current = false;
+      setIsMarkingAllRead(false);
+    }
+  };
+
+  const handleNotificationClick = async (
+    notification: NotificationResponse,
+  ) => {
+    if (isMarkingAllReadRef.current) {
+      return;
+    }
+
+    const target = buildNotificationTarget(
+      notification,
+    );
+
+    if (!notification.readAt) {
       try {
-        await acceptFriendRequest(
-          friendship.id,
+        await readNotification(
+          notification.id,
         );
-
-        removeFriendRequest(
-          friendship.id,
-        );
-
-        setToast({
-          open: true,
-          message:
-            "친구 신청을 수락했습니다!",
-        });
-      } catch (error) {
-        console.error(
-          "친구 신청 수락 실패:",
-          error,
-        );
-      }
-    };
-
-  const handleRejectRequest =
-    async (
-      friendship:
-        FriendshipResponse,
-    ) => {
-      try {
-        await rejectFriendRequest(
-          friendship.id,
-        );
-
-        removeFriendRequest(
-          friendship.id,
-        );
-
-        setToast({
-          open: true,
-          message:
-            "친구 신청을 거절했습니다.",
-        });
-      } catch (error) {
-        console.error(
-          "친구 신청 거절 실패:",
-          error,
-        );
-      }
-    };
-
-  const handleLoadMore =
-    async () => {
-      if (
-        !hasNext ||
-        nextCursor ===
-          null ||
-        isLoadingMore
-      ) {
-        return;
-      }
-
-      try {
-        setIsLoadingMore(
-          true,
-        );
-
-        const data =
-          await getNotifications(
-            nextCursor,
-            20,
-          );
 
         setNotifications(
-          (
-            previous,
-          ) => {
-            const existingIds =
-              new Set(
-                previous.map(
-                  (
-                    item,
-                  ) =>
-                    item.id,
-                ),
-              );
-
-            const newItems =
-              data.items.filter(
-                (
-                  item,
-                ) =>
-                  !existingIds.has(
-                    item.id,
-                  ),
-              );
-
-            return [
-              ...previous,
-              ...newItems,
-            ];
-          },
-        );
-
-        setNextCursor(
-          data.nextCursor,
-        );
-
-        setHasNext(
-          data.hasNext,
+          (previousNotifications) =>
+            previousNotifications.map(
+              (item) =>
+                item.id === notification.id
+                  ? {
+                      ...item,
+                      readAt:
+                        new Date().toISOString(),
+                    }
+                  : item,
+            ),
         );
       } catch (error) {
         console.error(
-          "알림 추가 조회 실패:",
+          "알림 읽음 처리 실패:",
           error,
         );
-
-        setToast({
-          open: true,
-          message:
-            "이전 알림을 불러오지 못했습니다.",
-        });
-      } finally {
-        setIsLoadingMore(
-          false,
-        );
       }
-    };
+    }
 
-  const handleNotificationClick =
-    async (
-      notification:
-        NotificationResponse,
-    ) => {
-      const target =
-        buildNotificationTarget(
-          notification,
-        );
+    if (!target) {
+      setToast({
+        open: true,
+        message:
+          "이동할 수 없는 알림입니다.",
+      });
 
-      if (
-        !notification.readAt
-      ) {
-        try {
-          await readNotification(
-            notification.id,
-          );
+      return;
+    }
 
-          setNotifications(
-            (
-              previousNotifications,
-            ) =>
-              previousNotifications.map(
-                (
-                  item,
-                ) =>
-                  item.id ===
-                  notification.id
-                    ? {
-                        ...item,
-                        readAt:
-                          new Date().toISOString(),
-                      }
-                    : item,
-              ),
-          );
-        } catch (error) {
-          console.error(
-            "알림 읽음 처리 실패:",
-            error,
-          );
-        }
-      }
+    navigate(target);
+  };
 
-      if (!target) {
-        setToast({
-          open: true,
-          message:
-            "이동할 수 없는 알림입니다.",
-        });
-
-        return;
-      }
-
-      navigate(
-        target,
-      );
-    };
-
-  const handleCloseToast =
-    () => {
-      setToast(
-        (
-          previousToast,
-        ) => ({
-          ...previousToast,
-          open: false,
-        }),
-      );
-    };
+  const handleCloseToast = () => {
+    setToast(
+      (previousToast) => ({
+        ...previousToast,
+        open: false,
+      }),
+    );
+  };
 
   return (
     <div className="flex h-dvh w-full flex-col overflow-hidden bg-white pt-[45px]">
+      {/* 페이지 헤더 */}
       <div className="shrink-0">
         <PageHeader
           title="알림"
@@ -679,6 +643,7 @@ export function NotificationPage() {
         />
       </div>
 
+      {/* 알림 탭 */}
       <div
         role="tablist"
         aria-label="알림 유형"
@@ -688,27 +653,22 @@ export function NotificationPage() {
           type="button"
           role="tab"
           aria-selected={
-            activeTab ===
-            "request"
+            activeTab === "request"
           }
           onClick={() =>
-            setActiveTab(
-              "request",
-            )
+            setActiveTab("request")
           }
           className={[
             "relative flex items-center justify-center",
             "font-pretendard text-[16px] font-medium leading-6 tracking-[0.32px]",
-            activeTab ===
-            "request"
+            activeTab === "request"
               ? "text-black"
               : "text-text-tertiary",
           ].join(" ")}
         >
           신청 대기
 
-          {activeTab ===
-            "request" && (
+          {activeTab === "request" && (
             <span className="absolute bottom-0 left-1/2 h-[3px] w-[180px] -translate-x-1/2 rounded-full bg-accent-primary" />
           )}
         </button>
@@ -717,64 +677,73 @@ export function NotificationPage() {
           type="button"
           role="tab"
           aria-selected={
-            activeTab ===
-            "game"
+            activeTab === "game"
           }
           onClick={() =>
-            setActiveTab(
-              "game",
-            )
+            setActiveTab("game")
           }
           className={[
             "relative flex items-center justify-center",
             "font-pretendard text-[16px] font-medium leading-6 tracking-[0.32px]",
-            activeTab ===
-            "game"
+            activeTab === "game"
               ? "text-black"
               : "text-text-tertiary",
           ].join(" ")}
         >
           알림
 
-          {activeTab ===
-            "game" && (
+          {activeTab === "game" && (
             <span className="absolute bottom-0 left-1/2 h-[3px] w-[180px] -translate-x-1/2 rounded-full bg-accent-primary" />
           )}
         </button>
       </div>
 
+      {/* 알림 목록 영역 */}
       <main
-        className="flex min-h-0 flex-1 flex-col items-center gap-[8px] overflow-y-auto overscroll-y-contain bg-[#F5F5F5] pb-[24px] pt-[20px]"
+        className="flex min-h-0 flex-1 flex-col items-center gap-[8px] overflow-y-auto overscroll-y-contain bg-[#F5F5F5] pb-[24px] pt-[20px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         style={{
-          WebkitOverflowScrolling:
-            "touch",
+          WebkitOverflowScrolling: "touch",
         }}
       >
+        {/* 알림 탭에서만 모두 읽음 버튼 표시 */}
+        {activeTab === "game" && (
+          <div className="flex w-full shrink-0 justify-end px-4 pb-[4px]">
+            <button
+              type="button"
+              onClick={() =>
+                void handleReadAllNotifications()
+              }
+              disabled={
+                isMarkingAllRead ||
+                isLoadingNotifications ||
+                isLoadingMore ||
+                !hasNotifications
+              }
+              aria-busy={isMarkingAllRead}
+              className="flex min-h-[36px] items-center justify-center rounded-[8px] px-[12px] text-label-4 text-text-tertiary transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {isMarkingAllRead
+                ? "처리 중..."
+                : "모두 읽음"}
+            </button>
+          </div>
+        )}
+
         {hasNotifications ? (
-          activeTab ===
-          "request" ? (
+          activeTab === "request" ? (
+            /* 친구 신청 목록 */
             friendRequests.map(
-              (
-                friendship,
-              ) => (
+              (friendship) => (
                 <FriendRequestNotificationItem
-                  key={
-                    friendship.id
-                  }
+                  key={friendship.id}
                   userId={
-                    friendship
-                      .friend
-                      .username
+                    friendship.friend.username
                   }
                   userName={
-                    friendship
-                      .friend
-                      .nickname
+                    friendship.friend.nickname
                   }
                   profileImage={
-                    friendship
-                      .friend
-                      .profileImageUrl ??
+                    friendship.friend.profileImageUrl ??
                     undefined
                   }
                   onAccept={() =>
@@ -791,30 +760,26 @@ export function NotificationPage() {
               ),
             )
           ) : (
+            /* 일반 알림 목록 */
             <>
               {generalNotifications.map(
-                (
-                  notification,
-                ) => (
+                (notification) => (
                   <button
-                    key={
-                      notification.id
-                    }
+                    key={notification.id}
                     type="button"
                     onClick={() =>
                       void handleNotificationClick(
                         notification,
                       )
                     }
-                    className="w-full shrink-0"
+                    disabled={isMarkingAllRead}
+                    className="w-full shrink-0 disabled:cursor-not-allowed"
                   >
                     <NotificationItem
                       category={getNotificationCategory(
                         notification,
                       )}
-                      message={
-                        notification.body
-                      }
+                      message={notification.body}
                       isRead={
                         notification.readAt !==
                         null
@@ -824,6 +789,7 @@ export function NotificationPage() {
                 ),
               )}
 
+              {/* 이전 알림 더보기 */}
               {hasNext && (
                 <button
                   type="button"
@@ -831,7 +797,8 @@ export function NotificationPage() {
                     void handleLoadMore()
                   }
                   disabled={
-                    isLoadingMore
+                    isLoadingMore ||
+                    isMarkingAllRead
                   }
                   className="mt-[8px] shrink-0 rounded-full border border-surface-secondary bg-white px-[22px] py-[10px] text-label-4 text-black disabled:opacity-50"
                 >
@@ -852,24 +819,18 @@ export function NotificationPage() {
           )
         ) : (
           <p className="pt-[40px] text-label-4 text-text-tertiary">
-            {activeTab ===
-            "request"
+            {activeTab === "request"
               ? "대기 중인 신청이 없습니다."
               : "알림이 없습니다."}
           </p>
         )}
       </main>
 
+      {/* 토스트 메시지 */}
       <Toast
-        open={
-          toast.open
-        }
-        message={
-          toast.message
-        }
-        onClose={
-          handleCloseToast
-        }
+        open={toast.open}
+        message={toast.message}
+        onClose={handleCloseToast}
       />
     </div>
   );
