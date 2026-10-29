@@ -1,6 +1,4 @@
-import {
-  apiClient,
-} from "../../../shared/api/apiClient";
+import { apiClient } from "../../../shared/api/apiClient";
 
 import type {
   NotificationListResponse,
@@ -10,6 +8,7 @@ import type {
   UpdateNotificationSettingsRequest,
 } from "../types/notification";
 
+// 알림 설정 조회
 export function getNotificationSettings() {
   return apiClient<NotificationSettingsResponse>(
     "/notification-settings",
@@ -21,22 +20,22 @@ export function getNotificationSettings() {
   );
 }
 
+// 알림 설정 변경
 export function updateNotificationSettings(
-  request:
-    UpdateNotificationSettingsRequest,
+  request: UpdateNotificationSettingsRequest,
 ) {
   return apiClient<NotificationSettingsResponse>(
     "/notification-settings",
     {
       method: "PATCH",
-      body:
-        request,
+      body: request,
       fallbackErrorMessage:
         "알림 설정을 변경하지 못했습니다.",
     },
   );
 }
 
+// 알림 목록 조회
 export function getNotifications(
   cursor?: number | null,
   size = 20,
@@ -46,8 +45,7 @@ export function getNotifications(
     {
       method: "GET",
       params: {
-        cursor:
-          cursor ?? undefined,
+        cursor: cursor ?? undefined,
         size,
       },
       fallbackErrorMessage:
@@ -56,6 +54,7 @@ export function getNotifications(
   );
 }
 
+// 개별 알림 읽음 처리
 export function readNotification(
   notificationId: number,
 ) {
@@ -69,22 +68,34 @@ export function readNotification(
   );
 }
 
+// 모든 알림 읽음 처리
+export function readAllNotifications() {
+  return apiClient<void>(
+    "/notifications/read-all",
+    {
+      method: "PATCH",
+      fallbackErrorMessage:
+        "모든 알림 읽음 처리에 실패했습니다.",
+    },
+  );
+}
+
+// 푸시 알림 기기 등록
 export function registerPushNotification(
-  request:
-    PushRegistrationRequest,
+  request: PushRegistrationRequest,
 ) {
   return apiClient<PushRegistrationResponse>(
     "/notifications/push-registration",
     {
       method: "PUT",
-      body:
-        request,
+      body: request,
       fallbackErrorMessage:
         "푸시 알림 기기 등록에 실패했습니다.",
     },
   );
 }
 
+// 푸시 알림 기기 해제
 export function unregisterPushNotification(
   installationId: string,
 ) {
