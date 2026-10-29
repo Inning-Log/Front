@@ -2484,7 +2484,7 @@ if (
   preGame
 ) {
   return (
-    <div className="scrollbar-hide flex h-dvh w-full flex-col overflow-y-auto overscroll-y-contain pt-[45px]">
+    <div className="scrollbar-hide flex h-dvh w-full flex-col overflow-y-auto overscroll-y-contain pt-[20px]">
       <PageHeader title="타임라인" />
 
       {!isPastTimeline && (

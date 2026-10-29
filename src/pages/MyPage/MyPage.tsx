@@ -1230,7 +1230,7 @@ export function MyPage() {
 
   return (
     <div className="min-h-dvh w-full bg-[#F1F2F1] pb-[110px]">
-      <div className="bg-[#F1F2F1] pt-[45px]">
+      <div className="bg-[#F1F2F1] pt-[20px]">
         <PageHeader
           title={
             isEditing
