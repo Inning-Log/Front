@@ -25,6 +25,7 @@ import { getHomeCalendar } from "../../features/home/api/homeApi";
 
 import type {
   HomeCalendarGame,
+  HomeCalendarResponse,
 } from "../../features/home/types/home";
 
 import {
@@ -223,11 +224,52 @@ function formatGameDateTime(
   return `${getPart("month")}.${getPart("day")} ${getPart("hour")}:${getPart("minute")}`;
 }
 
+function findFavoriteTeamGame(
+  calendar: HomeCalendarResponse,
+  date: string,
+) {
+  const targetDay =
+    calendar.days.find(
+      (day) =>
+        day.date === date,
+    );
+
+  if (!targetDay) {
+    return null;
+  }
+
+  const favoriteTeamGames =
+    targetDay.games
+      .filter(
+        (game) =>
+          game.homeTeam.id ===
+            calendar.favoriteTeamId ||
+          game.awayTeam.id ===
+            calendar.favoriteTeamId,
+      )
+      .sort(
+        (first, second) =>
+          Date.parse(
+            first.scheduledAt,
+          ) -
+          Date.parse(
+            second.scheduledAt,
+          ),
+      );
+
+  return (
+    favoriteTeamGames[0] ??
+    null
+  );
+}
+
 /**
- * 내 오늘 경기 ID 조회
+ * 내 타임라인 대상 경기 조회
  *
- * 1. timeline profiles의 내 경기 확인
- * 2. 없으면 Home Calendar의 오늘 경기 확인
+ * 1. 현재 타임라인에 연결된 경기 확인
+ * 2. 없으면 timelineDate 기준 경기 확인
+ * 3. 타임라인 리셋 전이라면 실제 today 기준
+ *    오늘 응원팀 경기를 경기 전 화면용으로 확인
  */
 async function getMyTimelineTarget() {
   const profiles =
@@ -243,14 +285,18 @@ async function getMyTimelineTarget() {
     return {
       gameId:
         timelineGame.gameId,
+
       nextResetAt:
         profiles.nextResetAt,
+
+      preGame:
+        null,
     };
   }
 
   /*
-   * 실제 달력 날짜인 today가 아니라
-   * 서버가 계산한 현재 타임라인 기준 날짜 사용.
+   * 우선 기존 타임라인 기준 날짜의
+   * 경기가 있는지 확인한다.
    */
   const [
     yearString,
@@ -261,29 +307,20 @@ async function getMyTimelineTarget() {
     );
 
   const year =
-    Number(
-      yearString,
-    );
+    Number(yearString);
 
   const month =
-    Number(
-      monthString,
-    );
+    Number(monthString);
 
   if (
-    !Number.isInteger(
-      year,
-    ) ||
-    !Number.isInteger(
-      month,
-    )
+    !Number.isInteger(year) ||
+    !Number.isInteger(month)
   ) {
     return {
-      gameId:
-        null,
-
+      gameId: null,
       nextResetAt:
         profiles.nextResetAt,
+      preGame: null,
     };
   }
 
@@ -295,25 +332,112 @@ async function getMyTimelineTarget() {
 
   const timelineSchedule =
     calendar.days.find(
-      (
-        day,
-      ) =>
+      (day) =>
         day.date ===
         profiles.timelineDate,
     );
 
+  /*
+   * timelineDate에 여러 경기가 있어도
+   * 응원팀 경기만 선택한다.
+   */
   const timelineGameFallback =
     timelineSchedule
-      ?.games[0];
+      ?.games.find(
+        (game) =>
+          game.homeTeam.id ===
+            calendar.favoriteTeamId ||
+          game.awayTeam.id ===
+            calendar.favoriteTeamId,
+      ) ??
+    null;
 
+  if (timelineGameFallback) {
+    return {
+      gameId:
+        timelineGameFallback.gameId,
+
+      nextResetAt:
+        profiles.nextResetAt,
+
+      preGame:
+        null,
+    };
+  }
+
+  /*
+   * 여기까지 왔다는 것은
+   * 아직 타임라인이 이전 날짜를 기준으로 하고 있고
+   * 해당 날짜에는 응원팀 경기가 없는 상황일 수 있다.
+   *
+   * 따라서 실제 오늘(today)의 경기 일정을 확인한다.
+   */
+  const [
+    todayYearString,
+    todayMonthString,
+  ] =
+    profiles.today.split(
+      "-",
+    );
+
+  const todayYear =
+    Number(todayYearString);
+
+  const todayMonth =
+    Number(todayMonthString);
+
+  if (
+    !Number.isInteger(
+      todayYear,
+    ) ||
+    !Number.isInteger(
+      todayMonth,
+    )
+  ) {
+    return {
+      gameId: null,
+      nextResetAt:
+        profiles.nextResetAt,
+      preGame: null,
+    };
+  }
+
+  /*
+   * timelineDate와 today가 같은 달이면
+   * 이미 조회한 calendar 재사용.
+   *
+   * 월이 바뀐 경우에만
+   * 오늘 달력을 한 번 더 조회한다.
+   */
+  const todayCalendar =
+    todayYear === year &&
+    todayMonth === month
+      ? calendar
+      : await getHomeCalendar(
+          todayYear,
+          todayMonth,
+        );
+
+  const preGame =
+    findFavoriteTeamGame(
+      todayCalendar,
+      profiles.today,
+    );
+
+  /*
+   * preGame은 화면 표시용일 뿐
+   * 아직 타임라인 gameId로 사용하지 않는다.
+   *
+   * 따라서 서버의 기존 30분 전 리셋 규칙은
+   * 그대로 유지된다.
+   */
   return {
-    gameId:
-      timelineGameFallback
-        ?.gameId ??
-      null,
+    gameId: null,
 
     nextResetAt:
       profiles.nextResetAt,
+
+    preGame,
   };
 }
 
@@ -619,6 +743,14 @@ export function TimelinePage() {
     );
 
   const [
+    preGame,
+    setPreGame,
+  ] =
+    useState<HomeCalendarGame | null>(
+      null,
+  );  
+
+  const [
     records,
     setRecords,
   ] =
@@ -803,6 +935,10 @@ export function TimelinePage() {
             null,
           );
 
+          setPreGame(
+            null,
+          );
+
           let targetGameId =
             parsedGameId;
 
@@ -882,6 +1018,10 @@ export function TimelinePage() {
 
               setNextResetAt(
                 target.nextResetAt,
+              );
+
+              setPreGame(
+                target.preGame,
               );
 
               if (
@@ -1031,6 +1171,7 @@ export function TimelinePage() {
               setHistoryGame(
                 null,
               );
+
             }
           }
         } catch (error) {
@@ -1052,6 +1193,10 @@ export function TimelinePage() {
           setRecords([]);
 
           setHistoryGame(
+            null,
+          );
+
+          setPreGame(
             null,
           );
 
@@ -2328,6 +2473,52 @@ export function TimelinePage() {
       </div>
     );
   }
+
+/**
+ * 아직 타임라인 리셋 전이지만
+ * 실제 오늘 응원팀 경기가 있는 경우
+ */
+if (
+  !timeline &&
+  !isFriendTimeline &&
+  preGame
+) {
+  return (
+    <div className="scrollbar-hide flex h-dvh w-full flex-col overflow-y-auto overscroll-y-contain pt-[45px]">
+      <PageHeader title="타임라인" />
+
+      {!isPastTimeline && (
+        <TimelineProfileList />
+      )}
+
+      <TimelineGameScore
+        homeTeamName={
+          preGame.homeTeam.name
+        }
+        awayTeamName={
+          preGame.awayTeam.name
+        }
+        homeScore={null}
+        awayScore={null}
+        gameDateTime={formatGameDateTime(
+          preGame.scheduledAt,
+        )}
+        stadium={
+          preGame.stadiumName ??
+          ""
+        }
+      />
+
+      <main className="flex flex-1 items-center justify-center">
+        <p className="text-label-3 text-text-tertiary">
+          경기 전입니다.
+        </p>
+      </main>
+
+      <BottomBar />
+    </div>
+  );
+}
 
   /**
    * 오늘 경기 자체가 없는 경우
