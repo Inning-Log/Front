@@ -633,7 +633,7 @@ export function NotificationPage() {
   };
 
   return (
-    <div className="flex h-dvh w-full flex-col overflow-hidden bg-white pt-[45px]">
+    <div className="flex h-dvh w-full flex-col overflow-hidden bg-white pt-[20px]">
       {/* 페이지 헤더 */}
       <div className="shrink-0">
         <PageHeader

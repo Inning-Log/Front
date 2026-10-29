@@ -161,7 +161,7 @@ export function FriendsPage() {
 
   return (
     <div className="flex min-h-dvh w-full flex-col bg-bg-primary">
-      <div className="pt-[45px]">
+      <div className="pt-[20px]">
         <PageHeader
           title="친구"
           rightContent={
