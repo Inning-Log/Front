@@ -3,8 +3,8 @@ import { TeamMascot } from "../../../shared/ui/TeamMascot";
 type TimelineGameScoreProps = {
   homeTeamName: string;
   awayTeamName: string;
-  homeScore: number;
-  awayScore: number;
+  homeScore: number | null;
+  awayScore: number | null;
   gameDateTime: string;
   stadium: string;
 };
@@ -26,9 +26,17 @@ export function TimelineGameScore({
 
       <div className="flex min-w-0 flex-col items-center text-center">
         <div className="text-title-2 flex items-center gap-[12px] text-button-neutral">
-          <span>{homeScore}</span>
-          <span className="text-text-tertiary">:</span>
-          <span>{awayScore}</span>
+          <span>
+            {homeScore ?? "-"}
+          </span>
+
+          <span className="text-text-tertiary">
+            :
+          </span>
+
+          <span>
+            {awayScore ?? "-"}
+          </span>
         </div>
 
         <time className="text-caption mt-[2px] text-text-tertiary">
