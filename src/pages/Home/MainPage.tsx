@@ -266,7 +266,7 @@ export function MainPage() {
           </div>
         )}
 
-        <div className="mt-[8px] flex justify-center">
+        <div className="mt-[40px] flex justify-center">
           <Button onClick={() => navigate("/home/record")}>
             <span className="text-label-2 text-white">
               기록하기
