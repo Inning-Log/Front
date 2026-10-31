@@ -4,129 +4,178 @@ import { useNavigate } from "react-router-dom";
 
 import { PageHeader } from "../../app/layouts/PageHeader";
 import { loginWithGoogle } from "../../features/auth/api/authApi";
-import { updateNotificationSettings } from "../../features/home/api/notificationApi";
 import {
   hasStoredAuthSession,
   saveAuthSession,
 } from "../../shared/auth/authSession";
-import { registerPushInstallation } from "../../shared/firebase/pushRegistration";
-import { requestNotificationPermission } from "../../shared/firebase/requestNotificationPermission";
-import { saveCurrentUserId } from "../../shared/firebase/pushUserStorage";
-import { syncPushUserContext } from "../../shared/firebase/pushUserContext";
+import {
+  registerPushInstallation,
+} from "../../shared/firebase/pushRegistration";
+import {
+  saveCurrentUserId,
+} from "../../shared/firebase/pushUserStorage";
+import {
+  syncPushUserContext,
+} from "../../shared/firebase/pushUserContext";
 
 export function LoginPage() {
-  const navigate = useNavigate();
+  const navigate =
+    useNavigate();
 
-  const [errorMessage, setErrorMessage] = useState("");
-  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [
+    errorMessage,
+    setErrorMessage,
+  ] =
+    useState("");
+
+  const [
+    isLoggingIn,
+    setIsLoggingIn,
+  ] =
+    useState(false);
 
   useEffect(() => {
-    if (hasStoredAuthSession()) {
-      navigate("/", { replace: true });
-    }
-  }, [navigate]);
-
-  const handleGoogleLogin = async (credential?: string) => {
-    if (!credential) {
-      setErrorMessage(
-        "Google 로그인 정보를 받아오지 못했습니다.",
+    if (
+      hasStoredAuthSession()
+    ) {
+      navigate(
+        "/",
+        {
+          replace:
+            true,
+        },
       );
-      return;
     }
+  }, [
+    navigate,
+  ]);
 
-    setErrorMessage("");
-    setIsLoggingIn(true);
-
-    try {
-      const loginResponse =
-        await loginWithGoogle(credential);
-
-      saveAuthSession({
-        accessToken: loginResponse.accessToken,
-        accessTokenExpiresAt: loginResponse.expiresAt,
-        refreshToken: loginResponse.refreshToken,
-        refreshTokenExpiresAt: loginResponse.refreshTokenExpiresAt,
-        tokenType: loginResponse.tokenType,
-      });
-
-      if (loginResponse.user?.id) {
-        saveCurrentUserId(
-          loginResponse.user.id,
+  const handleGoogleLogin =
+    async (
+      credential?:
+        string,
+    ) => {
+      if (!credential) {
+        setErrorMessage(
+          "Google 로그인 정보를 받아오지 못했습니다.",
         );
 
-        void syncPushUserContext(
-          loginResponse.user.id,
-        ).catch((error) => {
-          console.error(
-            "푸시 사용자 정보 동기화 실패:",
-            error,
-          );
-        });
+        return;
       }
 
-      void (async () => {
-        try {
-          if (loginResponse.isNewUser) {
-            const permissionGranted =
-              await requestNotificationPermission();
+      setErrorMessage(
+        "",
+      );
 
-            if (permissionGranted) {
-              await registerPushInstallation();
+      setIsLoggingIn(
+        true,
+      );
 
-              await updateNotificationSettings({
-                gameProgressEnabled: true,
-                recordReminderEnabled: true,
-                socialReactionEnabled: true,
-              });
+      try {
+        const loginResponse =
+          await loginWithGoogle(
+            credential,
+          );
 
+        saveAuthSession({
+          accessToken:
+            loginResponse.accessToken,
+
+          accessTokenExpiresAt:
+            loginResponse.expiresAt,
+
+          refreshToken:
+            loginResponse.refreshToken,
+
+          refreshTokenExpiresAt:
+            loginResponse.refreshTokenExpiresAt,
+
+          tokenType:
+            loginResponse.tokenType,
+        });
+
+        const userId =
+          loginResponse.user
+            ?.id ??
+          null;
+
+        if (userId) {
+          saveCurrentUserId(
+            userId,
+          );
+        }
+
+        /*
+         * 로그인 중에는 알림 권한을 새로 요청하지 않는다.
+         *
+         * 이미 권한이 허용된 사용자라면
+         * FCM 설치 등록을 갱신하고,
+         * 그 다음 사용자 ID를 서비스워커에 전달한다.
+         */
+        void (async () => {
+          try {
+            if (
+              !(
+                "Notification" in
+                window
+              )
+            ) {
               return;
             }
 
-            await updateNotificationSettings({
-              gameProgressEnabled: false,
-              recordReminderEnabled: false,
-              socialReactionEnabled: false,
-            });
+            if (
+              Notification.permission !==
+              "granted"
+            ) {
+              return;
+            }
 
-            return;
-          }
-
-          if (
-            "Notification" in window &&
-            Notification.permission === "granted"
-          ) {
             await registerPushInstallation();
+
+            if (userId) {
+              await syncPushUserContext(
+                userId,
+              );
+            }
+          } catch (
+            error
+          ) {
+            console.error(
+              "푸시 알림 초기 설정 실패:",
+              error,
+            );
           }
-        } catch (error) {
-          console.error(
-            "푸시 알림 초기 설정 실패:",
-            error,
-          );
-        }
-      })();
+        })();
 
-      const needsProfileSetup =
-        loginResponse.isNewUser ||
-        !loginResponse.user?.onboardingCompleted;
+        const needsProfileSetup =
+          loginResponse.isNewUser ||
+          !loginResponse.user
+            ?.onboardingCompleted;
 
-      navigate(
-        needsProfileSetup
-          ? "/profile-setup"
-          : "/home",
-        {
-          replace: true,
-        },
-      );
-    } catch (error) {
-      setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : "로그인에 실패했습니다. 잠시 후 다시 시도해 주세요.",
-      );
-    } finally {
-      setIsLoggingIn(false);
-    }
-  };
+        navigate(
+          needsProfileSetup
+            ? "/profile-setup"
+            : "/home",
+          {
+            replace:
+              true,
+          },
+        );
+      } catch (
+        error
+      ) {
+        setErrorMessage(
+          error instanceof
+            Error
+            ? error.message
+            : "로그인에 실패했습니다. 잠시 후 다시 시도해 주세요.",
+        );
+      } finally {
+        setIsLoggingIn(
+          false,
+        );
+      }
+    };
 
   return (
     <div className="flex min-h-dvh w-full flex-col bg-bg-primary pt-[28.5px]">
@@ -154,10 +203,14 @@ export function LoginPage() {
                 isLoggingIn
                   ? "pointer-events-none opacity-60"
                   : "",
-              ].join(" ")}
+              ].join(
+                " ",
+              )}
             >
               <GoogleLogin
-                onSuccess={(credentialResponse) => {
+                onSuccess={(
+                  credentialResponse,
+                ) => {
                   void handleGoogleLogin(
                     credentialResponse.credential,
                   );
