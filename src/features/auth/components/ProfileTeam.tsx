@@ -93,47 +93,49 @@ export function ProfileTeam({
         {"응원하는 팀을\n골라주세요"}
       </h1>
 
-      <div className="mt-[10px] grid w-full grid-cols-3 gap-x-[8px] gap-y-[3px]">
-        {isLoading ? (
-          <p className="col-span-3 mt-[72px] text-center text-caption text-text-secondary">
-            구단 목록을 불러오는 중...
-          </p>
-        ) : (
-          teams.map((team) => (
-            <TeamCard
-              key={team.id}
-              name={team.name}
-              mascotSrc={getTeamMascotSrc(team)}
-              selected={selectedTeamId === team.id}
-              onSelect={() => onSelectTeam(team.id)}
-            />
-          ))
-        )}
-      </div>
-
-      {feedbackMessage && (
-        <div className="mt-[10px] px-[7px] text-center">
-          <p aria-live="polite" className="text-caption text-danger">
-            {feedbackMessage}
-          </p>
-
-          {!isLoading && teams.length === 0 && (
-            <button
-              type="button"
-              onClick={onRetryLoadTeams}
-              className="mt-[8px] text-caption text-accent-primary"
-            >
-              다시 불러오기
-            </button>
+      <div className="scrollbar-hide mt-[10px] min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        <div className="grid w-full grid-cols-3 gap-x-[8px] gap-y-[3px]">
+          {isLoading ? (
+            <p className="col-span-3 mt-[72px] text-center text-caption text-text-secondary">
+              구단 목록을 불러오는 중...
+            </p>
+          ) : (
+            teams.map((team) => (
+              <TeamCard
+                key={team.id}
+                name={team.name}
+                mascotSrc={getTeamMascotSrc(team)}
+                selected={selectedTeamId === team.id}
+                onSelect={() => onSelectTeam(team.id)}
+              />
+            ))
           )}
         </div>
-      )}
+
+        {feedbackMessage && (
+          <div className="mt-[10px] px-[7px] text-center">
+            <p aria-live="polite" className="text-caption text-danger">
+              {feedbackMessage}
+            </p>
+
+            {!isLoading && teams.length === 0 && (
+              <button
+                type="button"
+                onClick={onRetryLoadTeams}
+                className="mt-[8px] text-caption text-accent-primary"
+              >
+                다시 불러오기
+              </button>
+            )}
+          </div>
+        )}
+      </div>
 
       <Button
         onClick={handleNext}
         disabled={!isNextEnabled}
         className={[
-          "mt-auto",
+          "mt-[10px] shrink-0",
           isNextEnabled ? "" : "opacity-60",
         ].join(" ")}
       >
