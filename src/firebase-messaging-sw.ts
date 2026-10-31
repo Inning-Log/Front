@@ -420,9 +420,9 @@ function buildNotificationLink(
         data.ownerUserId,
       );
 
-    const recipientUserId =
+    const audienceUserId =
       parsePositiveIntegerString(
-        data.recipientUserId,
+        data.audienceUserId,
       );
 
     const gameId =
@@ -435,10 +435,10 @@ function buildNotificationLink(
       gameId
     ) {
       const isOwnTimeline =
-        recipientUserId !==
+        audienceUserId !==
           null &&
         ownerUserId ===
-          recipientUserId;
+          audienceUserId;
 
       const fallbackPath =
         isOwnTimeline
@@ -519,13 +519,16 @@ onBackgroundMessage(
       );
 
     /*
+     * 서버 FCM payload의 공통 사용자 식별 필드는
+     * audienceUserId이다.
+     *
      * 현재 로그인한 사용자와
-     * 알림 수신자가 일치하는 경우에만 표시.
+     * 알림 수신 대상이 일치하는 경우에만 표시한다.
      */
     if (
       !currentUserId ||
-      !data.recipientUserId ||
-      data.recipientUserId !==
+      !data.audienceUserId ||
+      data.audienceUserId !==
         currentUserId
     ) {
       return;
@@ -594,8 +597,8 @@ onBackgroundMessage(
           ownerUserId:
             data.ownerUserId,
 
-          recipientUserId:
-            data.recipientUserId,
+          audienceUserId:
+            data.audienceUserId,
 
           actorUserId:
             data.actorUserId,

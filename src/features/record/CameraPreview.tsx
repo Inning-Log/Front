@@ -13,6 +13,12 @@ export type CameraPreviewMode =
   | "camera"
   | "caption";
 
+export type CameraZoom =
+  | 0.5
+  | 1
+  | 2
+  | 3;
+
 type CameraPreviewProps = {
   mode:
     CameraPreviewMode;
@@ -22,6 +28,12 @@ type CameraPreviewProps = {
 
   cameraDirection:
     CameraDirection;
+
+  cameraZoom:
+    CameraZoom;
+
+  supportedZooms:
+    CameraZoom[];
 
   countdown:
     number | null;
@@ -48,15 +60,43 @@ type CameraPreviewProps = {
     value: string,
   ) => void;
 
+  onZoomChange?: (
+    zoom: CameraZoom,
+  ) => void;
+
   onClose?: () => void;
   onCapture?: () => void;
   onLocationClick?: () => void;
 };
 
+const CAMERA_ZOOMS:
+  CameraZoom[] = [
+    0.5,
+    1,
+    2,
+    3,
+  ];
+
+function getZoomLabel(
+  zoom: CameraZoom,
+) {
+  if (
+    zoom === 1
+  ) {
+    return "1x";
+  }
+
+  return String(
+    zoom,
+  );
+}
+
 export function CameraPreview({
   mode,
   caption,
   cameraDirection,
+  cameraZoom,
+  supportedZooms,
   countdown,
   captionInputRef,
   videoRef,
@@ -65,6 +105,7 @@ export function CameraPreview({
   isRequestingCamera,
   isRecording,
   onCaptionChange,
+  onZoomChange,
   onClose,
   onCapture,
   onLocationClick,
@@ -76,6 +117,12 @@ export function CameraPreview({
   const isCountingDown =
     countdown !==
     null;
+
+  const zoomControlsDisabled =
+    isRecording ||
+    isCountingDown ||
+    isRequestingCamera ||
+    !isCameraActive;
 
   return (
     <section
@@ -96,6 +143,7 @@ export function CameraPreview({
             playsInline
             className={[
               "absolute inset-0 h-full w-full object-cover",
+
               /*
                * 전면카메라는 미리보기만
                * 거울처럼 보여준다.
@@ -107,7 +155,9 @@ export function CameraPreview({
               "front"
                 ? "scale-x-[-1]"
                 : "",
-            ].join(" ")}
+            ].join(
+              " ",
+            )}
           />
 
           {isRecording && (
@@ -129,6 +179,79 @@ export function CameraPreview({
               </span>
             </div>
           )}
+
+          {cameraDirection ===
+            "rear" && (
+            <div className="absolute bottom-[125px] left-1/2 z-30 flex -translate-x-1/2 items-center gap-[6px] rounded-full bg-black/35 px-[8px] py-[6px] backdrop-blur-sm">
+              {CAMERA_ZOOMS.map(
+                (
+                  zoom,
+                ) => {
+                  const isSupported =
+                    supportedZooms.includes(
+                      zoom,
+                    );
+
+                  const isSelected =
+                    cameraZoom ===
+                    zoom;
+
+                  const disabled =
+                    zoomControlsDisabled ||
+                    !isSupported;
+
+                  return (
+                    <button
+                      key={
+                        zoom
+                      }
+                      type="button"
+                      disabled={
+                        disabled
+                      }
+                      aria-label={`${zoom}배 카메라`}
+                      aria-pressed={
+                        isSelected
+                      }
+                      onClick={() => {
+                        if (
+                          disabled
+                        ) {
+                          return;
+                        }
+
+                        onZoomChange?.(
+                          zoom,
+                        );
+                      }}
+                      className={[
+                        "flex h-[38px] min-w-[38px] items-center justify-center rounded-full px-[8px]",
+                        "font-pretendard text-[14px] font-semibold leading-none transition-all",
+                        isSelected
+                          ? "bg-white text-black"
+                          : "bg-black/40 text-white",
+                        !isSupported
+                          ? "cursor-not-allowed opacity-30"
+                          : "",
+                        zoomControlsDisabled &&
+                        isSupported
+                          ? "opacity-50"
+                          : "",
+                      ].join(
+                        " ",
+                      )}
+                    >
+                      {
+                        getZoomLabel(
+                          zoom,
+                        )
+                      }
+                    </button>
+                  );
+                },
+              )}
+            </div>
+          )}
         </>
       )}
 
@@ -142,10 +265,6 @@ export function CameraPreview({
               autoPlay
               loop
               playsInline
-              /*
-               * 촬영된 영상에서는
-               * 실제 녹음된 소리를 재생한다.
-               */
               muted={
                 false
               }
@@ -179,7 +298,9 @@ export function CameraPreview({
           isRecording
             ? "opacity-50"
             : "",
-        ].join(" ")}
+        ].join(
+          " ",
+        )}
       >
         <img
           src={
@@ -262,7 +383,9 @@ export function CameraPreview({
             !isCameraActive
               ? "opacity-70"
               : "",
-          ].join(" ")}
+          ].join(
+            " ",
+          )}
         />
       )}
     </section>

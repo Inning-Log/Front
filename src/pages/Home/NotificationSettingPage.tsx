@@ -25,6 +25,14 @@ import {
 } from "../../shared/firebase/requestNotificationPermission";
 
 import {
+  getCurrentUserId,
+} from "../../shared/firebase/pushUserStorage";
+
+import {
+  syncPushUserContext,
+} from "../../shared/firebase/pushUserContext";
+
+import {
   Toast,
 } from "../../shared/ui/Toast";
 
@@ -53,27 +61,56 @@ export function NotificationSettingPage() {
   ] =
     useState("");
 
+  /*
+   * FCM 설치 등록 후
+   * 현재 로그인한 사용자 ID를
+   * 서비스워커에도 동기화한다.
+   */
   const registerPush =
     async () => {
-      try {
-        await registerPushInstallation();
-      } catch (error) {
-        console.error(
-          "푸시 알림 등록 실패:",
-          error,
-        );
+      await registerPushInstallation();
+
+      const currentUserId =
+        getCurrentUserId();
+
+      if (
+        !currentUserId
+      ) {
+        return;
       }
+
+      const parsedUserId =
+        Number(
+          currentUserId,
+        );
+
+      if (
+        !Number.isSafeInteger(
+          parsedUserId,
+        ) ||
+        parsedUserId <=
+          0
+      ) {
+        return;
+      }
+
+      await syncPushUserContext(
+        parsedUserId,
+      );
     };
 
   /*
-   * 알림 설정 화면 진입 시
-   * 브라우저 알림 권한 확인.
+   * 설정 화면 진입만으로
+   * 알림 권한 팝업을 띄우지 않는다.
+   *
+   * 이미 권한이 허용된 경우에만
+   * FCM 설치 등록을 갱신한다.
    */
   useEffect(() => {
     let cancelled =
       false;
 
-    const initializeNotificationPermission =
+    const initializePush =
       async () => {
         if (
           !(
@@ -81,78 +118,23 @@ export function NotificationSettingPage() {
             window
           )
         ) {
-          if (
-            !cancelled
-          ) {
-            setToastMessage(
-              "현재 브라우저에서는 알림 기능을 지원하지 않습니다.",
-            );
-          }
-
           return;
         }
 
-        /*
-         * 이미 허용된 경우
-         * 별도 팝업 없이 푸시 등록만 확인.
-         */
         if (
-          Notification.permission ===
+          Notification.permission !==
           "granted"
         ) {
-          await registerPush();
-
           return;
         }
 
-        /*
-         * 사용자가 이전에 차단한 경우
-         * 브라우저 정책상 requestPermission으로
-         * 다시 팝업을 띄울 수 없다.
-         */
-        if (
-          Notification.permission ===
-          "denied"
-        ) {
-          if (
-            !cancelled
-          ) {
-            setToastMessage(
-              "알림 권한이 차단되어 있습니다. 브라우저 설정에서 알림 권한을 허용해주세요.",
-            );
-          }
-
-          return;
-        }
-
-        /*
-         * 아직 선택하지 않은 상태(default)라면
-         * 설정 화면 진입 시 권한 요청.
-         */
         try {
-          const permissionGranted =
-            await requestNotificationPermission();
-
-          if (
-            cancelled
-          ) {
-            return;
-          }
-
-          if (
-            permissionGranted
-          ) {
-            await registerPush();
-
-            return;
-          }
-
-          setToastMessage(
-            "알림을 받으려면 알림 권한을 허용해주세요.",
-          );
-        } catch (error) {
+          await registerPush();
+        } catch (
+          error
+        ) {
           console.error(
-            "알림 권한 요청 실패:",
+            "푸시 알림 등록 실패:",
             error,
           );
 
@@ -160,13 +142,13 @@ export function NotificationSettingPage() {
             !cancelled
           ) {
             setToastMessage(
-              "알림 권한을 요청하지 못했습니다. 브라우저 설정을 확인해주세요.",
+              "푸시 알림을 등록하지 못했습니다.",
             );
           }
         }
       };
 
-    void initializeNotificationPermission();
+    void initializePush();
 
     return () => {
       cancelled =
@@ -174,6 +156,9 @@ export function NotificationSettingPage() {
     };
   }, []);
 
+  /*
+   * 서버에 저장된 알림 설정 조회.
+   */
   useEffect(() => {
     let cancelled =
       false;
@@ -201,7 +186,9 @@ export function NotificationSettingPage() {
           setReactionNotification(
             data.socialReactionEnabled,
           );
-        } catch (error) {
+        } catch (
+          error
+        ) {
           console.error(
             "알림 설정 조회 실패:",
             error,
@@ -217,6 +204,10 @@ export function NotificationSettingPage() {
     };
   }, []);
 
+  /*
+   * 사용자가 알림 토글을 ON 했을 때
+   * 브라우저 권한을 확인하고 필요하면 요청한다.
+   */
   const checkNotificationPermission =
     async () => {
       if (
@@ -232,13 +223,38 @@ export function NotificationSettingPage() {
         return false;
       }
 
+      /*
+       * 이미 권한이 허용된 경우에도
+       * FCM 등록을 다시 확인한다.
+       */
       if (
         Notification.permission ===
         "granted"
       ) {
-        return true;
+        try {
+          await registerPush();
+
+          return true;
+        } catch (
+          error
+        ) {
+          console.error(
+            "푸시 알림 등록 실패:",
+            error,
+          );
+
+          setToastMessage(
+            "푸시 알림을 등록하지 못했습니다.",
+          );
+
+          return false;
+        }
       }
 
+      /*
+       * 사용자가 과거에 차단했다면
+       * requestPermission으로 다시 요청할 수 없다.
+       */
       if (
         Notification.permission ===
         "denied"
@@ -267,7 +283,9 @@ export function NotificationSettingPage() {
         await registerPush();
 
         return true;
-      } catch (error) {
+      } catch (
+        error
+      ) {
         console.error(
           "알림 권한 요청 실패:",
           error,
@@ -286,7 +304,9 @@ export function NotificationSettingPage() {
       const nextValue =
         !gameNotification;
 
-      if (nextValue) {
+      if (
+        nextValue
+      ) {
         const permissionGranted =
           await checkNotificationPermission();
 
@@ -309,7 +329,9 @@ export function NotificationSettingPage() {
         setGameNotification(
           data.gameProgressEnabled,
         );
-      } catch (error) {
+      } catch (
+        error
+      ) {
         console.error(
           "경기 진행 상황 알림 설정 변경 실패:",
           error,
@@ -322,7 +344,9 @@ export function NotificationSettingPage() {
       const nextValue =
         !recordNotification;
 
-      if (nextValue) {
+      if (
+        nextValue
+      ) {
         const permissionGranted =
           await checkNotificationPermission();
 
@@ -345,7 +369,9 @@ export function NotificationSettingPage() {
         setRecordNotification(
           data.recordReminderEnabled,
         );
-      } catch (error) {
+      } catch (
+        error
+      ) {
         console.error(
           "기록 독촉 알림 설정 변경 실패:",
           error,
@@ -358,7 +384,9 @@ export function NotificationSettingPage() {
       const nextValue =
         !reactionNotification;
 
-      if (nextValue) {
+      if (
+        nextValue
+      ) {
         const permissionGranted =
           await checkNotificationPermission();
 
@@ -381,7 +409,9 @@ export function NotificationSettingPage() {
         setReactionNotification(
           data.socialReactionEnabled,
         );
-      } catch (error) {
+      } catch (
+        error
+      ) {
         console.error(
           "댓글 또는 반응 알림 설정 변경 실패:",
           error,
