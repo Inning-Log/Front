@@ -35,6 +35,7 @@ import type {
 import {
   CameraPreview,
   type CameraPreviewMode,
+  type CameraZoom,
 } from "../../features/record/CameraPreview";
 
 import {
@@ -82,14 +83,28 @@ type RecordLocationState = {
   gameId?: number;
 };
 
-type TorchCapabilities =
+type MediaSettingsRangeLike = {
+  min: number;
+  max: number;
+  step: number;
+};
+
+type CameraCapabilities =
   MediaTrackCapabilities & {
     torch?: boolean;
+
+    zoom?:
+      MediaSettingsRangeLike;
   };
 
 type TorchConstraint =
   MediaTrackConstraintSet & {
     torch?: boolean;
+  };
+
+type ZoomConstraint =
+  MediaTrackConstraintSet & {
+    zoom?: number;
   };
 
 type LockableScreenOrientation = {
@@ -106,6 +121,14 @@ const RECORD_OPERATION_KEY =
 
 const CAMERA_DIRECTION_STORAGE_KEY =
   "inninglog-camera-direction";
+
+const CAMERA_ZOOMS:
+  CameraZoom[] = [
+    0.5,
+    1,
+    2,
+    3,
+  ];
 
 function getStoredCameraDirection():
   CameraDirection {
@@ -395,6 +418,22 @@ export function RecordPage() {
     setIsFlashSupported,
   ] =
     useState(false);
+  
+  const [
+    cameraZoom,
+    setCameraZoom,
+  ] =
+    useState<CameraZoom>(
+      1,
+    );
+
+  const [
+    supportedZooms,
+    setSupportedZooms,
+  ] =
+    useState<CameraZoom[]>(
+      [1],
+    );
 
   const [
     isTimerEnabled,
@@ -648,6 +687,18 @@ export function RecordPage() {
           false,
         );
 
+        /*
+        * 카메라 스트림이 종료되면
+        * 줌 상태도 기본값으로 초기화한다.
+        */
+        setCameraZoom(
+          1,
+        );
+
+        setSupportedZooms(
+          [1],
+        );
+
         setIsCameraActive(
           false,
         );
@@ -757,17 +808,120 @@ export function RecordPage() {
           ) {
             const capabilities =
               videoTrack.getCapabilities() as
-                TorchCapabilities;
+                CameraCapabilities;
 
+            /*
+            * 플래시는 후면 카메라에서만 사용한다.
+            */
             setIsFlashSupported(
               direction ===
                 "rear" &&
                 capabilities.torch ===
                   true,
             );
+
+            /*
+            * 웹 카메라가 노출하는 zoom capability를 기준으로
+            * 사용할 수 있는 배율만 활성화한다.
+            *
+            * 0.5배는 초광각 렌즈를 별도 카메라로 제공하는
+            * 기기/브라우저에서는 zoom 범위에 포함되지 않을 수 있다.
+            */
+            if (
+              direction ===
+                "rear" &&
+              capabilities.zoom
+            ) {
+              const zoomRange =
+                capabilities.zoom;
+
+              const availableZooms =
+                CAMERA_ZOOMS.filter(
+                  (
+                    zoom,
+                  ) =>
+                    zoom >=
+                      zoomRange.min &&
+                    zoom <=
+                      zoomRange.max,
+                );
+
+              /*
+              * 일반적으로 1배가 포함되지만,
+              * 브라우저 capability가 특이한 값을 반환하는 경우에도
+              * UI가 비어 있지 않도록 한다.
+              */
+              const nextSupportedZooms:
+                CameraZoom[] =
+                availableZooms.length >
+                0
+                  ? availableZooms
+                  : [1];
+
+              setSupportedZooms(
+                nextSupportedZooms,
+              );
+
+              const initialZoom:
+                CameraZoom =
+                nextSupportedZooms.includes(
+                  1,
+                )
+                  ? 1
+                  : nextSupportedZooms[0] ??
+                    1;
+
+              setCameraZoom(
+                initialZoom,
+              );
+
+              /*
+              * 새 카메라를 열었을 때도
+              * UI에 표시된 초기 배율과 실제 track 배율을 맞춘다.
+              */
+                try {
+                  await videoTrack.applyConstraints(
+                    {
+                      advanced: [
+                        {
+                          zoom:
+                            initialZoom,
+                        } as ZoomConstraint,
+                      ],
+                    },
+                  );
+                } catch (
+                  zoomError
+                ) {
+                  console.info(
+                    "카메라 초기 배율 적용을 지원하지 않는 환경입니다.",
+                    zoomError,
+                  );
+                }
+            } else {
+              /*
+              * 전면 카메라거나 zoom API를 지원하지 않으면
+              * 기본 1배만 표시한다.
+              */
+              setSupportedZooms(
+                [1],
+              );
+
+              setCameraZoom(
+                1,
+              );
+            }
           } else {
             setIsFlashSupported(
               false,
+            );
+
+            setSupportedZooms(
+              [1],
+            );
+
+            setCameraZoom(
+              1,
             );
           }
 
@@ -842,6 +996,14 @@ export function RecordPage() {
 
           setIsFlashSupported(
             false,
+          );
+
+          setCameraZoom(
+            1,
+          );
+
+          setSupportedZooms(
+            [1],
           );
 
           setIsCameraActive(
@@ -1709,6 +1871,94 @@ export function RecordPage() {
       void prepareAndStartRecording();
     };
 
+  const handleZoomChange =
+    async (
+      zoom:
+        CameraZoom,
+    ) => {
+      /*
+      * 현재 UI에서는 줌 기능을
+      * 후면 카메라에서만 제공한다.
+      */
+      if (
+        cameraDirection !==
+        "rear"
+      ) {
+        return;
+      }
+
+      if (
+        isRecording ||
+        countdown !==
+          null ||
+        isPreparingCapture ||
+        isRequestingCamera
+      ) {
+        return;
+      }
+
+      /*
+      * capability에 없는 배율을
+      * applyConstraints에 전달하지 않는다.
+      */
+      if (
+        !supportedZooms.includes(
+          zoom,
+        )
+      ) {
+        setRecordErrorMessage(
+          `${zoom}배 카메라는 현재 기기 또는 브라우저에서 지원하지 않습니다.`,
+        );
+
+        return;
+      }
+
+      const videoTrack =
+        cameraStreamRef.current
+          ?.getVideoTracks()[0];
+
+      if (
+        !videoTrack
+      ) {
+        setRecordErrorMessage(
+          "카메라를 확인할 수 없습니다.",
+        );
+
+        return;
+      }
+
+      try {
+        await videoTrack.applyConstraints(
+          {
+            advanced: [
+              {
+                zoom,
+              } as ZoomConstraint,
+            ],
+          },
+        );
+
+        setCameraZoom(
+          zoom,
+        );
+
+        setRecordErrorMessage(
+          "",
+        );
+      } catch (
+        error
+      ) {
+        console.error(
+          "카메라 배율 변경 실패:",
+          error,
+        );
+
+        setRecordErrorMessage(
+          `${zoom}배 카메라를 사용할 수 없습니다.`,
+        );
+      }
+    };
+
   const handleFlashClick =
     async () => {
       if (
@@ -1876,7 +2126,8 @@ export function RecordPage() {
         isRecording ||
         countdown !==
           null ||
-        isPreparingCapture
+        isPreparingCapture ||
+        isRequestingCamera
       ) {
         setRecordErrorMessage(
           "촬영 중에는 카메라를 전환할 수 없습니다.",
@@ -1890,10 +2141,27 @@ export function RecordPage() {
         direction,
       );
 
+      /*
+      * 카메라를 변경하면 기존 카메라의
+      * zoom capability도 더 이상 유효하지 않으므로
+      * 기본값으로 초기화한다.
+      */
+      setCameraZoom(
+        1,
+      );
+
+      setSupportedZooms(
+        [1],
+      );
+
       stopCamera();
 
       setCameraDirection(
         direction,
+      );
+
+      setRecordErrorMessage(
+        "",
       );
     };
 
@@ -2695,6 +2963,12 @@ export function RecordPage() {
           cameraDirection={
             cameraDirection
           }
+          cameraZoom={
+            cameraZoom
+          }
+          supportedZooms={
+            supportedZooms
+          }
           countdown={
             countdown
           }
@@ -2720,6 +2994,13 @@ export function RecordPage() {
           onCaptionChange={
             handleCaptionChange
           }
+          onZoomChange={(
+            zoom,
+          ) => {
+            void handleZoomChange(
+              zoom,
+            );
+          }}
           onClose={
             handleClose
           }
