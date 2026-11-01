@@ -77,6 +77,9 @@ import type {
   TimelineResponse,
 } from "../../features/timeline/types/timeline";
 
+import { getGameStateHistory } from "../../features/games/api/gamesApi";
+import { useGamePolling } from "../../shared/hooks/useGamePolling";
+
 type TimelineParams = {
   userId?: string;
   gameId?: string;
@@ -915,6 +918,68 @@ export function TimelinePage() {
       setDeleteRecordError,
     ] =
       useState("");
+
+    /**
+   * 경기 점수 및 이닝 정보 자동 갱신
+   *
+   * - 15초 간격으로 최신 경기 상태 조회
+   * - 점수와 현재 이닝/초말만 업데이트
+   * - 기존 타임라인 기록 목록은 유지
+   * - 과거 타임라인에서는 자동 갱신하지 않음
+   */
+  const currentGameId =
+    timeline?.game.gameId ?? null;
+
+  useGamePolling({
+    enabled:
+      !isPastTimeline &&
+      currentGameId !== null,
+
+    interval: 15000,
+
+    onPoll: async () => {
+      if (currentGameId === null) {
+        return;
+      }
+
+      const response =
+        await getGameStateHistory(currentGameId);
+
+      const latestState =
+        response.states.at(-1);
+
+      if (!latestState) {
+        return;
+      }
+
+      setTimeline((previous) => {
+        if (
+          !previous ||
+          previous.game.gameId !== currentGameId
+        ) {
+          return previous;
+        }
+
+        return {
+          ...previous,
+
+          currentInning: latestState.inning,
+          currentHalf: latestState.half,
+
+          game: {
+            ...previous.game,
+
+            status: latestState.status,
+
+            score: {
+              home: latestState.homeScore,
+              away: latestState.awayScore,
+            },
+          },
+        };
+      });
+    },
+  });
 
   /**
    * 최초 타임라인 조회
