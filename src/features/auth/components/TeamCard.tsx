@@ -17,18 +17,21 @@ export function TeamCard({
       aria-pressed={selected}
       onClick={onSelect}
       className={[
-        "relative mx-auto flex aspect-[5/4] w-[100%] items-center justify-center rounded-[17px] bg-[#f1f2f1]",
-        "border-4 transition-colors",
+        "mx-auto grid aspect-[5/4] w-full self-start grid-rows-[minmax(0,1fr)_20px] overflow-hidden rounded-[17px] bg-[#f1f2f1] p-0",
+        "box-border border-4 transition-colors",
         selected ? "border-accent-primary bg-white" : "border-transparent",
       ].join(" ")}
     >
-      <img
-        src={mascotSrc}
-        alt=""
-        className="h-[100px] w-[100px] max-h-[70%] max-w-[70%] -translate-y-[8px]"
-      />
-      <span className="absolute bottom-[0px] max-w-[65px] truncate text-center font-pretendard text-[12px] font-semibold leading-[150%] tracking-[-0.24px] text-black">
-        {name}
+      <span className="flex min-h-0 items-center justify-center overflow-hidden">
+        <img
+          src={mascotSrc}
+          alt=""
+          className="h-[100px] w-[100px] max-h-full max-w-[70%] shrink-0"
+        />
+      </span>
+
+      <span className="flex h-[20px] min-w-0 items-center justify-center overflow-hidden px-[2px] text-center font-pretendard text-[12px] font-semibold leading-none tracking-[-0.24px] text-black">
+        <span className="block max-w-full truncate">{name}</span>
       </span>
     </button>
   );
