@@ -78,6 +78,8 @@ import {
   Toast,
 } from "../../shared/ui/Toast";
 
+import { useGamePolling } from "../../shared/hooks/useGamePolling";
+
 type RecordLocationState = {
   inning?: number;
   gameId?: number;
@@ -2266,6 +2268,26 @@ export function RecordPage() {
         requestedInning,
       ],
     );
+
+  useGamePolling({
+    enabled:
+      favoriteTeamGame !== null &&
+      favoriteTeamGame.status === "LIVE" &&
+      !isRecording &&
+      !isPreparingCapture,
+
+    interval: 15000,
+
+    onPoll: async () => {
+      if (!favoriteTeamGame) {
+        return;
+      }
+
+      await loadCurrentGameState(
+        favoriteTeamGame.gameId,
+      );
+    },
+  });
 
   const loadFavoriteTeamGame =
     useCallback(
