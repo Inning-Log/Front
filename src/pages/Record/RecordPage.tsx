@@ -85,6 +85,13 @@ type RecordLocationState = {
   gameId?: number;
 };
 
+type LocationSheetPurpose = "record" | "flash";
+
+type PendingViewingLocation = {
+  gameId: number;
+  location: WatchingLocation;
+};
+
 type MediaSettingsRangeLike = {
   min: number;
   max: number;
@@ -478,6 +485,24 @@ export function RecordPage() {
     setIsLocationSheetOpen,
   ] =
     useState(false);
+
+  // 바텀시트가 열린 목적
+  const [
+    locationSheetPurpose,
+    setLocationSheetPurpose,
+  ] = useState<LocationSheetPurpose>("record");
+
+  // 플래시 사용을 위해 임시 선택한 관람 장소
+  const [
+    pendingViewingLocation,
+    setPendingViewingLocation,
+  ] = useState<PendingViewingLocation | null>(null);
+
+  // 플래시 사용 안내 토스트
+  const [
+    flashGuideMessage,
+    setFlashGuideMessage,
+  ] = useState("");
 
   const [
     favoriteTeamId,
@@ -1961,137 +1986,167 @@ export function RecordPage() {
       }
     };
 
-  const handleFlashClick =
-    async () => {
-      if (
-        isRecording ||
-        countdown !==
-          null ||
-        isPreparingCapture
-      ) {
-        return;
-      }
-      
-      /*
-        * 직관 사용자는 경기장 내 플래시 사용 방지
-        */
-        if (
-          favoriteTeamGame
-            ?.myViewing
-            ?.viewingType ===
-          "STADIUM"
-        ) {
-          if (
-            isFlashOn
-          ) {
-            const videoTrack =
-              cameraStreamRef.current
-                ?.getVideoTracks()[0];
+  /**
+   * 실제 카메라 플래시 상태 변경
+   */
+  const applyFlashState = async (
+    enabled: boolean,
+  ) => {
+    const videoTrack =
+      cameraStreamRef.current?.getVideoTracks()[0];
 
-            if (
-              videoTrack
-            ) {
-              try {
-                await videoTrack.applyConstraints(
-                  {
-                    advanced: [
-                      {
-                        torch:
-                          false,
-                      } as TorchConstraint,
-                    ],
-                  },
-                );
-              } catch (error) {
-                console.error(
-                  "플래시 종료 실패:",
-                  error,
-                );
-              }
-            }
+    if (!videoTrack) {
+      setRecordErrorMessage(
+        "카메라를 확인할 수 없습니다.",
+      );
 
-            setIsFlashOn(
-              false,
-            );
-          }
+      return false;
+    }
 
-          setRecordErrorMessage(
-            "야구장 관람 중에는 플래시를 사용할 수 없습니다.",
-          );
-
-          return;
-        }
-      if (
-        cameraDirection !==
-        "rear"
-      ) {
-        setRecordErrorMessage(
-          "플래시는 후면 카메라에서만 사용할 수 있습니다.",
-        );
-
-        return;
-      }
-
-      if (
-        !isFlashSupported
-      ) {
-        setRecordErrorMessage(
-          "현재 기기 또는 브라우저에서는 플래시 기능을 지원하지 않습니다.",
-        );
-
-        return;
-      }
-
-      const videoTrack =
-        cameraStreamRef.current
-          ?.getVideoTracks()[0];
-
-      if (!videoTrack) {
-        setRecordErrorMessage(
-          "카메라를 확인할 수 없습니다.",
-        );
-
-        return;
-      }
-
-      const nextFlashOn =
-        !isFlashOn;
-
-      try {
-        await videoTrack.applyConstraints(
+    try {
+      await videoTrack.applyConstraints({
+        advanced: [
           {
-            advanced: [
-              {
-                torch:
-                  nextFlashOn,
-              } as
-                TorchConstraint,
-            ],
-          },
-        );
+            torch: enabled,
+          } as TorchConstraint,
+        ],
+      });
 
-        setIsFlashOn(
-          nextFlashOn,
-        );
+      setIsFlashOn(enabled);
 
-        setRecordErrorMessage(
-          "",
-        );
-      } catch (error) {
-        console.error(
-          "플래시 설정 실패:",
-          error,
-        );
+      setRecordErrorMessage("");
 
-        setIsFlashOn(
-          false,
-        );
+      return true;
+    } catch (error) {
+      console.error(
+        "플래시 설정 실패:",
+        error,
+      );
+
+      if (enabled) {
+        setIsFlashOn(false);
 
         setRecordErrorMessage(
           "플래시를 사용할 수 없습니다.",
         );
       }
-    };
+
+      return false;
+    }
+  };
+
+  /**
+   * 플래시 버튼 클릭
+   */
+  const handleFlashClick = async () => {
+    if (
+      isRecording ||
+      countdown !== null ||
+      isPreparingCapture ||
+      isRequestingCamera ||
+      isLocationSheetOpen ||
+      isSubmittingLocation
+    ) {
+      return;
+    }
+
+    // 후면 카메라 확인
+    if (cameraDirection !== "rear") {
+      setRecordErrorMessage(
+        "플래시는 후면 카메라에서만 사용할 수 있습니다.",
+      );
+
+      return;
+    }
+
+    // 기기 지원 여부 확인
+    if (!isFlashSupported) {
+      setRecordErrorMessage(
+        "현재 기기 또는 브라우저에서는 플래시 기능을 지원하지 않습니다.",
+      );
+
+      return;
+    }
+
+    // 경기 정보 확인
+    if (isLoadingGame || !favoriteTeamGame) {
+      setRecordErrorMessage(
+        "현재 경기 정보를 확인하고 있습니다.",
+      );
+
+      return;
+    }
+
+    // 서버에 저장된 관람 장소
+    const registeredViewingType =
+      favoriteTeamGame.myViewing?.viewingType;
+
+    // 현재 경기에 대해 임시 선택한 관람 장소
+    const selectedPendingLocation =
+      pendingViewingLocation?.gameId ===
+      favoriteTeamGame.gameId
+        ? pendingViewingLocation.location
+        : null;
+
+    /**
+     * 이미 직관으로 등록했거나
+     * 임시로 직관을 선택한 경우
+     */
+    const isStadium =
+      registeredViewingType === "STADIUM" ||
+      (!registeredViewingType &&
+        selectedPendingLocation === "stadium");
+
+    if (isStadium) {
+      if (isFlashOn) {
+        await applyFlashState(false);
+      }
+
+      setRecordErrorMessage(
+        "야구장 관람 중에는 플래시를 사용할 수 없습니다.",
+      );
+
+      return;
+    }
+
+    /**
+     * 아직 직관/집관을 선택하지 않은 경우
+     */
+    if (
+      !registeredViewingType &&
+      !selectedPendingLocation
+    ) {
+      setLocationSheetPurpose("flash");
+
+      setGameFeedbackMessage("");
+
+      setIsLocationSheetOpen(true);
+
+      setFlashGuideMessage(
+        "플래시 사용 전 관람 장소를 선택해 주세요.",
+      );
+
+      return;
+    }
+
+    /**
+     * 집관 사용자만 플래시 사용 가능
+     */
+    const isHome =
+      registeredViewingType === "HOME" ||
+      (!registeredViewingType &&
+        selectedPendingLocation === "home");
+
+    if (!isHome) {
+      setRecordErrorMessage(
+        "관람 장소를 확인할 수 없습니다.",
+      );
+
+      return;
+    }
+
+    await applyFlashState(!isFlashOn);
+  };
 
   const handleTimerClick =
     () => {
@@ -2817,42 +2872,70 @@ export function RecordPage() {
       }
     };
 
-  const handleLocationClick =
-    () => {
-      captionInputRef.current?.blur();
+  const handleLocationClick = () => {
+    captionInputRef.current?.blur();
 
-      if (
-        isLoadingGame ||
-        isSubmittingRecord
-      ) {
-        return;
-      }
+    if (
+      isLoadingGame ||
+      isSubmittingRecord ||
+      isSubmittingLocation
+    ) {
+      return;
+    }
 
-      if (
-        !favoriteTeamGame
-      ) {
-        setRecordErrorMessage(
-          gameFeedbackMessage ||
-            "오늘 경기 정보를 확인할 수 없습니다.",
-        );
-
-        return;
-      }
-
-      if (
-        favoriteTeamGame.myViewing
-      ) {
-        void submitInningRecord(
-          favoriteTeamGame,
-        );
-
-        return;
-      }
-
-      setIsLocationSheetOpen(
-        true,
+    if (!favoriteTeamGame) {
+      setRecordErrorMessage(
+        gameFeedbackMessage ||
+          "오늘 경기 정보를 확인할 수 없습니다.",
       );
-    };
+
+      return;
+    }
+
+    /**
+     * 이미 서버에 관람 정보가 등록된 경우
+     * 기존처럼 바로 기록 저장
+     */
+    if (favoriteTeamGame.myViewing) {
+      void submitInningRecord(favoriteTeamGame);
+
+      return;
+    }
+
+    /**
+     * 플래시 사용을 위해 임시 선택한
+     * 관람 장소가 있는지 확인
+     */
+    const selectedPendingLocation =
+      pendingViewingLocation?.gameId ===
+      favoriteTeamGame.gameId
+        ? pendingViewingLocation.location
+        : null;
+
+    if (selectedPendingLocation) {
+      setLocationSheetPurpose("record");
+
+      /**
+       * 임시 선택한 관람 장소로
+       * 서버 등록 및 기록 저장
+       */
+      void handleLocationSelect(
+        selectedPendingLocation,
+      );
+
+      return;
+    }
+
+    /**
+     * 관람 장소를 선택한 적이 없다면
+     * 기존처럼 바텀시트 표시
+     */
+    setLocationSheetPurpose("record");
+
+    setGameFeedbackMessage("");
+
+    setIsLocationSheetOpen(true);
+  };
 
   const handleLocationSelect =
     async (
@@ -2877,6 +2960,45 @@ export function RecordPage() {
         setGameFeedbackMessage(
           "오늘 응원팀 경기가 없습니다.",
         );
+
+        return;
+      }
+
+      /**
+       * 플래시 버튼에서 열린 바텀시트인 경우
+       * 서버 등록 없이 관람 장소만 임시 저장
+       */
+      if (locationSheetPurpose === "flash") {
+        setPendingViewingLocation({
+          gameId: favoriteTeamGame.gameId,
+          location: watchingLocation,
+        });
+
+        setIsLocationSheetOpen(false);
+
+        setLocationSheetPurpose("record");
+
+        setFlashGuideMessage("");
+
+        if (watchingLocation === "stadium") {
+          if (isFlashOn) {
+            await applyFlashState(false);
+          }
+
+          setRecordErrorMessage(
+            "야구장 관람 중에는 플래시를 사용할 수 없습니다.",
+          );
+
+          return;
+        }
+
+        // 집관 선택 시 플래시 자동 활성화
+        if (
+          cameraDirection === "rear" &&
+          isFlashSupported
+        ) {
+          await applyFlashState(true);
+        }
 
         return;
       }
@@ -2932,6 +3054,8 @@ export function RecordPage() {
         setFavoriteTeamGame(
           updatedGame,
         );
+
+        setPendingViewingLocation(null);
 
         setIsLocationSheetOpen(
           false,
@@ -3076,11 +3200,11 @@ export function RecordPage() {
         feedbackMessage={
           gameFeedbackMessage
         }
-        onClose={() =>
-          setIsLocationSheetOpen(
-            false,
-          )
-        }
+        onClose={() => {
+          setIsLocationSheetOpen(false);
+          setLocationSheetPurpose("record");
+          setFlashGuideMessage("");
+        }}
         onRetry={
           handleGameRetry
         }
@@ -3100,6 +3224,16 @@ export function RecordPage() {
           </div>
         </div>
       )}
+
+      {/* 플래시 사용 전 관람 장소 안내 */}
+      <Toast
+        open={Boolean(flashGuideMessage)}
+        message={flashGuideMessage}
+        duration={2000}
+        onClose={() => {
+          setFlashGuideMessage("");
+        }}
+      />
 
       <Toast
         open={Boolean(
