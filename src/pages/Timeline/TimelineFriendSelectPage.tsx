@@ -1,25 +1,32 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import { getGameVideoFriends, type GameVideoFriend } from "../../features/timeline/api/gameVideoApi";
+import { useGameVideoSave } from "../../features/timeline/hooks/useGameVideoSave";
 
 import { PageHeader } from "../../app/layouts/PageHeader";
 
 import friendsIcon from "../../assets/icons/friends.svg";
 import selectedCheckIcon from "../../assets/icons/selected_check.svg";
 
-import { getTimelineProfiles } from "../../features/timeline/api/timelineApi";
+
 
 import {
   TimelineFriendSelectItem,
   type TimelineSelectableFriend,
 } from "../../features/timeline/components/TimelineFriendSelectItem";
 
-import type { TimelineProfile } from "../../features/timeline/types/timeline";
+
 
 import { Toast } from "../../shared/ui/Toast";
 
 export function TimelineFriendSelectPage() {
+  const [params] = useSearchParams();
+  const gameId = Number(params.get("gameId"));
+  const { isSaving, message, clearMessage, save } = useGameVideoSave();
+  const [maxFriends, setMaxFriends] = useState(0);
 
   const [friends, setFriends] = useState<
-    TimelineProfile[]
+    GameVideoFriend[]
   >([]);
 
   const [selectedFriendId, setSelectedFriendId] =
@@ -27,17 +34,14 @@ export function TimelineFriendSelectPage() {
 
   const [isLoading, setIsLoading] = useState(true);
 
-  const [isLoadingMore, setIsLoadingMore] =
-    useState(false);
 
-  const [nextAfterUserId, setNextAfterUserId] =
-    useState<number | null>(null);
+
+
 
   const [errorMessage, setErrorMessage] =
     useState<string | null>(null);
 
-  const [isToastOpen, setIsToastOpen] =
-    useState(false);
+
 
   // 최초 친구 목록 조회
   useEffect(() => {
@@ -48,20 +52,17 @@ export function TimelineFriendSelectPage() {
         setIsLoading(true);
         setErrorMessage(null);
 
-        const response = await getTimelineProfiles({
-          afterUserId: 0,
-          limit: 50,
-        });
+        if (!Number.isSafeInteger(gameId) || gameId <= 0) throw new Error("경기 정보가 없습니다.");
+        const response = await getGameVideoFriends(gameId);
 
         if (cancelled) {
           return;
         }
 
         setFriends(response.friends ?? []);
+        setMaxFriends(response.maxFriends);
 
-        setNextAfterUserId(
-          response.nextAfterUserId ?? null,
-        );
+
       } catch (error) {
         if (cancelled) {
           return;
@@ -87,58 +88,7 @@ export function TimelineFriendSelectPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
-
-  // 추가 친구 목록 조회
-  const handleLoadMore = async () => {
-    if (
-      nextAfterUserId === null ||
-      isLoadingMore
-    ) {
-      return;
-    }
-
-    try {
-      setIsLoadingMore(true);
-      setErrorMessage(null);
-
-      const response = await getTimelineProfiles({
-        afterUserId: nextAfterUserId,
-        limit: 50,
-      });
-
-      setFriends((previous) => {
-        const existingIds = new Set(
-          previous.map((friend) => friend.userId),
-        );
-
-        const newFriends = response.friends.filter(
-          (friend) =>
-            !existingIds.has(friend.userId),
-        );
-
-        return [
-          ...previous,
-          ...newFriends,
-        ];
-      });
-
-      setNextAfterUserId(
-        response.nextAfterUserId ?? null,
-      );
-    } catch (error) {
-      console.error(
-        "친구 추가 조회 실패:",
-        error,
-      );
-
-      setErrorMessage(
-        "친구 목록을 추가로 불러오지 못했습니다.",
-      );
-    } finally {
-      setIsLoadingMore(false);
-    }
-  };
+  }, [gameId]);
 
   // 기존 선택 컴포넌트 형식으로 변환
   const selectableFriends: TimelineSelectableFriend[] =
@@ -158,19 +108,7 @@ export function TimelineFriendSelectPage() {
   };
 
   const handleSaveWithFriend = () => {
-    if (!selectedFriendId) {
-      return;
-    }
-
-    // TODO: 친구와 함께 영상 저장 API 연동
-    // 실제 저장 기능이 연결되기 전까지 저장 성공 처리 금지
-
-    console.log(
-      "선택된 친구:",
-      selectedFriendId,
-    );
-
-    setIsToastOpen(true);
+    if (selectedFriendId && maxFriends >= 1 && !isSaving) void save(gameId, [Number(selectedFriendId)]);
   };
 
   return (
@@ -235,7 +173,7 @@ export function TimelineFriendSelectPage() {
                   >
                     <TimelineFriendSelectItem
                       friend={friend}
-                      disabled={false}
+                      disabled={isSaving || maxFriends < 1}
                       onSelect={handleSelectFriend}
                     />
 
@@ -252,19 +190,6 @@ export function TimelineFriendSelectPage() {
               })}
             </div>
 
-            {nextAfterUserId !== null && (
-              <button
-                type="button"
-                onClick={() => void handleLoadMore()}
-                disabled={isLoadingMore}
-                className="mt-[20px] w-full py-[12px] text-label-3 text-text-tertiary disabled:opacity-50"
-              >
-                {isLoadingMore
-                  ? "불러오는 중..."
-                  : "친구 더보기"}
-              </button>
-            )}
-
             {errorMessage && (
               <p className="mt-[12px] text-center text-caption text-red-500">
                 {errorMessage}
@@ -277,6 +202,7 @@ export function TimelineFriendSelectPage() {
               <button
                 type="button"
                 onClick={handleSaveWithFriend}
+                disabled={isSaving || maxFriends < 1}
                 className="text-label-3 flex h-[55px] w-full items-center justify-center rounded-[27.5px] bg-accent-primary text-white active:bg-accent-pressed"
               >
                 함께 저장하기
@@ -286,10 +212,18 @@ export function TimelineFriendSelectPage() {
         </>
       )}
 
+      {isSaving && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50">
+          <div className="flex flex-col items-center rounded-[20px] bg-white px-[40px] py-[32px]">
+            <div className="size-[36px] animate-spin rounded-full border-[4px] border-surface-secondary border-t-accent-primary" />
+            <p className="mt-[16px] text-label-3 text-black">영상 저장 중...</p>
+          </div>
+        </div>
+      )}
       <Toast
-        open={isToastOpen}
-        message="영상 저장 기능은 아직 준비 중입니다."
-        onClose={() => setIsToastOpen(false)}
+        open={Boolean(message)}
+        message={message}
+        onClose={clearMessage}
       />
     </div>
   );
