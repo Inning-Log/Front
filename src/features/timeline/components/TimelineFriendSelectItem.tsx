@@ -1,5 +1,7 @@
+
 export type TimelineSelectableFriend = {
   id: string;
+  username: string;
   name: string;
 };
 
@@ -29,8 +31,9 @@ export function TimelineFriendSelectItem({
 
         <div className="ml-[9px] flex min-w-0 flex-col justify-center">
           <p className="truncate text-label-3 text-black">
-            {friend.id}
+            {friend.username}
           </p>
+
           <p className="mt-[4.5px] truncate text-caption text-text-secondary">
             {friend.name}
           </p>
