@@ -1,32 +1,48 @@
+
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { getGameVideoFriends, type GameVideoFriend } from "../../features/timeline/api/gameVideoApi";
-import { useGameVideoSave } from "../../features/timeline/hooks/useGameVideoSave";
 
 import { PageHeader } from "../../app/layouts/PageHeader";
 
 import friendsIcon from "../../assets/icons/friends.svg";
 import selectedCheckIcon from "../../assets/icons/selected_check.svg";
 
+import { getFriends } from "../../features/friends/api/friendsApi";
+import type { FriendshipResponse } from "../../features/friends/types/friend";
 
+import {
+  getGameVideoFriends,
+} from "../../features/timeline/api/gameVideoApi";
+
+import { useGameVideoSave } from "../../features/timeline/hooks/useGameVideoSave";
 
 import {
   TimelineFriendSelectItem,
   type TimelineSelectableFriend,
 } from "../../features/timeline/components/TimelineFriendSelectItem";
 
-
-
 import { Toast } from "../../shared/ui/Toast";
+
+type SelectableFriend = TimelineSelectableFriend & {
+  canSaveVideo: boolean;
+};
 
 export function TimelineFriendSelectPage() {
   const [params] = useSearchParams();
+
   const gameId = Number(params.get("gameId"));
-  const { isSaving, message, clearMessage, save } = useGameVideoSave();
+
+  const {
+    isSaving,
+    message,
+    clearMessage,
+    save,
+  } = useGameVideoSave();
+
   const [maxFriends, setMaxFriends] = useState(0);
 
   const [friends, setFriends] = useState<
-    GameVideoFriend[]
+    SelectableFriend[]
   >([]);
 
   const [selectedFriendId, setSelectedFriendId] =
@@ -34,16 +50,12 @@ export function TimelineFriendSelectPage() {
 
   const [isLoading, setIsLoading] = useState(true);
 
-
-
-
-
   const [errorMessage, setErrorMessage] =
     useState<string | null>(null);
 
+  const [refreshVersion, setRefreshVersion] =
+    useState(0);
 
-
-  // 최초 친구 목록 조회
   useEffect(() => {
     let cancelled = false;
 
@@ -52,29 +64,79 @@ export function TimelineFriendSelectPage() {
         setIsLoading(true);
         setErrorMessage(null);
 
-        if (!Number.isSafeInteger(gameId) || gameId <= 0) throw new Error("경기 정보가 없습니다.");
-        const response = await getGameVideoFriends(gameId);
+        if (
+          !Number.isSafeInteger(gameId) ||
+          gameId <= 0
+        ) {
+          throw new Error("경기 정보가 없습니다.");
+        }
+
+        // 실제 친구 목록과 영상 저장 가능 목록 조회
+        const [friendships, videoFriends] =
+          await Promise.all([
+            getFriends(),
+            getGameVideoFriends(gameId),
+          ]);
 
         if (cancelled) {
           return;
         }
 
-        setFriends(response.friends ?? []);
-        setMaxFriends(response.maxFriends);
+        // 서버가 허용한 영상 저장 대상 ID
+        const eligibleFriendIds = new Set(
+          videoFriends.friends.map(
+            (friend) => friend.userId,
+          ),
+        );
 
+        // 수락된 친구만 표시
+        const acceptedFriends: FriendshipResponse[] =
+          friendships.filter(
+            (friendship) =>
+              friendship.status === "ACCEPTED",
+          );
 
+        const mappedFriends: SelectableFriend[] =
+          acceptedFriends.map((friendship) => ({
+            id: String(friendship.friend.id),
+            username: friendship.friend.username,
+            name:
+              friendship.friend.nickname ||
+              friendship.friend.username,
+            canSaveVideo: eligibleFriendIds.has(
+              friendship.friend.id,
+            ),
+          }));
+
+        // 저장 가능한 친구를 먼저 표시
+        mappedFriends.sort(
+          (a, b) =>
+            Number(b.canSaveVideo) -
+            Number(a.canSaveVideo),
+        );
+
+        setFriends(mappedFriends);
+        setMaxFriends(videoFriends.maxFriends);
+
+        setSelectedFriendId(null);
       } catch (error) {
         if (cancelled) {
           return;
         }
 
         console.error(
-          "친구 목록 조회 실패:",
+          "영상 저장 친구 목록 조회 실패:",
           error,
         );
 
+        setFriends([]);
+        setMaxFriends(0);
+        setSelectedFriendId(null);
+
         setErrorMessage(
-          "친구 목록을 불러오지 못했습니다.",
+          error instanceof Error
+            ? error.message
+            : "친구 목록을 불러오지 못했습니다.",
         );
       } finally {
         if (!cancelled) {
@@ -88,27 +150,46 @@ export function TimelineFriendSelectPage() {
     return () => {
       cancelled = true;
     };
-  }, [gameId]);
-
-  // 기존 선택 컴포넌트 형식으로 변환
-  const selectableFriends: TimelineSelectableFriend[] =
-    friends.map((friend) => ({
-      id: String(friend.userId),
-      name:
-        friend.nickname ||
-        friend.username,
-    }));
+  }, [gameId, refreshVersion]);
 
   const handleSelectFriend = (userId: string) => {
+    if (isSaving || maxFriends < 1) {
+      return;
+    }
+
+    const selectedFriend = friends.find(
+      (friend) => friend.id === userId,
+    );
+
+    if (!selectedFriend?.canSaveVideo) {
+      return;
+    }
+
     setSelectedFriendId((current) =>
-      current === userId
-        ? null
-        : userId,
+      current === userId ? null : userId,
     );
   };
 
   const handleSaveWithFriend = () => {
-    if (selectedFriendId && maxFriends >= 1 && !isSaving) void save(gameId, [Number(selectedFriendId)]);
+    if (
+      !selectedFriendId ||
+      maxFriends < 1 ||
+      isSaving
+    ) {
+      return;
+    }
+
+    const selectedFriend = friends.find(
+      (friend) => friend.id === selectedFriendId,
+    );
+
+    if (!selectedFriend?.canSaveVideo) {
+      return;
+    }
+
+    void save(gameId, [
+      Number(selectedFriendId),
+    ]);
   };
 
   return (
@@ -133,7 +214,9 @@ export function TimelineFriendSelectPage() {
 
           <button
             type="button"
-            onClick={() => window.location.reload()}
+            onClick={() =>
+              setRefreshVersion((version) => version + 1)
+            }
             className="mt-[16px] rounded-full bg-accent-primary px-[24px] py-[12px] text-white"
           >
             다시 시도
@@ -162,7 +245,7 @@ export function TimelineFriendSelectPage() {
         <>
           <main className="mt-[66px] min-h-0 flex-1 overflow-y-auto px-[29px] pb-[100px]">
             <div className="border-t-[1.5px] border-surface-secondary">
-              {selectableFriends.map((friend) => {
+              {friends.map((friend) => {
                 const selected =
                   selectedFriendId === friend.id;
 
@@ -173,7 +256,11 @@ export function TimelineFriendSelectPage() {
                   >
                     <TimelineFriendSelectItem
                       friend={friend}
-                      disabled={isSaving || maxFriends < 1}
+                      disabled={
+                        isSaving ||
+                        maxFriends < 1 ||
+                        !friend.canSaveVideo
+                      }
                       onSelect={handleSelectFriend}
                     />
 
@@ -216,10 +303,14 @@ export function TimelineFriendSelectPage() {
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50">
           <div className="flex flex-col items-center rounded-[20px] bg-white px-[40px] py-[32px]">
             <div className="size-[36px] animate-spin rounded-full border-[4px] border-surface-secondary border-t-accent-primary" />
-            <p className="mt-[16px] text-label-3 text-black">영상 저장 중...</p>
+
+            <p className="mt-[16px] text-label-3 text-black">
+              영상 저장 중...
+            </p>
           </div>
         </div>
       )}
+
       <Toast
         open={Boolean(message)}
         message={message}
