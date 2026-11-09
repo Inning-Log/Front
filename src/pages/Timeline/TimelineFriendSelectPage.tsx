@@ -103,6 +103,8 @@ export function TimelineFriendSelectPage() {
             name:
               friendship.friend.nickname ||
               friendship.friend.username,
+            profileImageUrl:
+              friendship.friend.profileImageUrl,
             canSaveVideo: eligibleFriendIds.has(
               friendship.friend.id,
             ),
