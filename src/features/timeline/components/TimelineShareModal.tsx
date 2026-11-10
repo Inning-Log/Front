@@ -1,10 +1,10 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useGameVideoSave } from "../hooks/useGameVideoSave";
 
 import { Toast } from "../../../shared/ui/Toast";
 
 type TimelineShareModalProps = {
   isOpen: boolean;
+  gameId: number;
   onClose: () => void;
   onSaveMyVideo: () => void;
   onSaveWithFriend: () => void;
@@ -12,43 +12,15 @@ type TimelineShareModalProps = {
 
 export function TimelineShareModal({
   isOpen,
+  gameId,
   onClose,
   //onSaveMyVideo,
   onSaveWithFriend,
 }: TimelineShareModalProps) {
-  const navigate = useNavigate();
-
-  const [isSaving, setIsSaving] = useState(false);
-
-  const [isToastOpen, setIsToastOpen] = useState(false);
-
-  if (!isOpen) {
-    return null;
-  }
-
-    const handleSaveMyVideo = () => {
-    if (isSaving) {
-    return;
-    }
-
-    setIsSaving(true);
-
-    // TODO: 실제 영상 생성 및 저장 완료 시 false 처리
-    // 현재는 임시 로딩 확인용
-    setTimeout(() => {
-    setIsSaving(false);
-    setIsToastOpen(true);
-
-    setTimeout(() => {
-        onClose();
-    }, 1000);
-    }, 3000);
-    };
-
-  const handleSaveWithFriend = () => {
-    onSaveWithFriend();
-    navigate("/timeline/save/friend");
-  };
+  const { isSaving, message, clearMessage, save } = useGameVideoSave();
+  if (!isOpen) return null;
+  const handleSaveMyVideo = () => { void save(gameId); };
+  const handleSaveWithFriend = () => { if (!isSaving) onSaveWithFriend(); };
 
   return (
     <>
@@ -109,9 +81,9 @@ export function TimelineShareModal({
       )}
 
       <Toast
-        open={isToastOpen}
-        message="영상이 저장되었습니다."
-        onClose={() => setIsToastOpen(false)}
+        open={Boolean(message)}
+        message={message}
+        onClose={clearMessage}
         />
     </>
   );

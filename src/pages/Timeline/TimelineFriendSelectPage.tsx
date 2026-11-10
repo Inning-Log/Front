@@ -1,25 +1,48 @@
+
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 
 import { PageHeader } from "../../app/layouts/PageHeader";
 
 import friendsIcon from "../../assets/icons/friends.svg";
 import selectedCheckIcon from "../../assets/icons/selected_check.svg";
 
-import { getTimelineProfiles } from "../../features/timeline/api/timelineApi";
+import { getFriends } from "../../features/friends/api/friendsApi";
+import type { FriendshipResponse } from "../../features/friends/types/friend";
+
+import {
+  getGameVideoFriends,
+} from "../../features/timeline/api/gameVideoApi";
+
+import { useGameVideoSave } from "../../features/timeline/hooks/useGameVideoSave";
 
 import {
   TimelineFriendSelectItem,
   type TimelineSelectableFriend,
 } from "../../features/timeline/components/TimelineFriendSelectItem";
 
-import type { TimelineProfile } from "../../features/timeline/types/timeline";
-
 import { Toast } from "../../shared/ui/Toast";
 
+type SelectableFriend = TimelineSelectableFriend & {
+  canSaveVideo: boolean;
+};
+
 export function TimelineFriendSelectPage() {
+  const [params] = useSearchParams();
+
+  const gameId = Number(params.get("gameId"));
+
+  const {
+    isSaving,
+    message,
+    clearMessage,
+    save,
+  } = useGameVideoSave();
+
+  const [maxFriends, setMaxFriends] = useState(0);
 
   const [friends, setFriends] = useState<
-    TimelineProfile[]
+    SelectableFriend[]
   >([]);
 
   const [selectedFriendId, setSelectedFriendId] =
@@ -27,19 +50,12 @@ export function TimelineFriendSelectPage() {
 
   const [isLoading, setIsLoading] = useState(true);
 
-  const [isLoadingMore, setIsLoadingMore] =
-    useState(false);
-
-  const [nextAfterUserId, setNextAfterUserId] =
-    useState<number | null>(null);
-
   const [errorMessage, setErrorMessage] =
     useState<string | null>(null);
 
-  const [isToastOpen, setIsToastOpen] =
-    useState(false);
+  const [refreshVersion, setRefreshVersion] =
+    useState(0);
 
-  // 최초 친구 목록 조회
   useEffect(() => {
     let cancelled = false;
 
@@ -48,32 +64,81 @@ export function TimelineFriendSelectPage() {
         setIsLoading(true);
         setErrorMessage(null);
 
-        const response = await getTimelineProfiles({
-          afterUserId: 0,
-          limit: 50,
-        });
+        if (
+          !Number.isSafeInteger(gameId) ||
+          gameId <= 0
+        ) {
+          throw new Error("경기 정보가 없습니다.");
+        }
+
+        // 실제 친구 목록과 영상 저장 가능 목록 조회
+        const [friendships, videoFriends] =
+          await Promise.all([
+            getFriends(),
+            getGameVideoFriends(gameId),
+          ]);
 
         if (cancelled) {
           return;
         }
 
-        setFriends(response.friends ?? []);
-
-        setNextAfterUserId(
-          response.nextAfterUserId ?? null,
+        // 서버가 허용한 영상 저장 대상 ID
+        const eligibleFriendIds = new Set(
+          videoFriends.friends.map(
+            (friend) => friend.userId,
+          ),
         );
+
+        // 수락된 친구만 표시
+        const acceptedFriends: FriendshipResponse[] =
+          friendships.filter(
+            (friendship) =>
+              friendship.status === "ACCEPTED",
+          );
+
+        const mappedFriends: SelectableFriend[] =
+          acceptedFriends.map((friendship) => ({
+            id: String(friendship.friend.id),
+            username: friendship.friend.username,
+            name:
+              friendship.friend.nickname ||
+              friendship.friend.username,
+            profileImageUrl:
+              friendship.friend.profileImageUrl,
+            canSaveVideo: eligibleFriendIds.has(
+              friendship.friend.id,
+            ),
+          }));
+
+        // 저장 가능한 친구를 먼저 표시
+        mappedFriends.sort(
+          (a, b) =>
+            Number(b.canSaveVideo) -
+            Number(a.canSaveVideo),
+        );
+
+        setFriends(mappedFriends);
+        setMaxFriends(videoFriends.maxFriends);
+
+        setSelectedFriendId(null);
       } catch (error) {
         if (cancelled) {
           return;
         }
 
         console.error(
-          "친구 목록 조회 실패:",
+          "영상 저장 친구 목록 조회 실패:",
           error,
         );
 
+        setFriends([]);
+        setMaxFriends(0);
+        setSelectedFriendId(null);
+
         setErrorMessage(
-          "친구 목록을 불러오지 못했습니다.",
+          error instanceof Error
+            ? error.message
+            : "친구 목록을 불러오지 못했습니다.",
         );
       } finally {
         if (!cancelled) {
@@ -87,90 +152,46 @@ export function TimelineFriendSelectPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [gameId, refreshVersion]);
 
-  // 추가 친구 목록 조회
-  const handleLoadMore = async () => {
-    if (
-      nextAfterUserId === null ||
-      isLoadingMore
-    ) {
+  const handleSelectFriend = (userId: string) => {
+    if (isSaving || maxFriends < 1) {
       return;
     }
 
-    try {
-      setIsLoadingMore(true);
-      setErrorMessage(null);
+    const selectedFriend = friends.find(
+      (friend) => friend.id === userId,
+    );
 
-      const response = await getTimelineProfiles({
-        afterUserId: nextAfterUserId,
-        limit: 50,
-      });
-
-      setFriends((previous) => {
-        const existingIds = new Set(
-          previous.map((friend) => friend.userId),
-        );
-
-        const newFriends = response.friends.filter(
-          (friend) =>
-            !existingIds.has(friend.userId),
-        );
-
-        return [
-          ...previous,
-          ...newFriends,
-        ];
-      });
-
-      setNextAfterUserId(
-        response.nextAfterUserId ?? null,
-      );
-    } catch (error) {
-      console.error(
-        "친구 추가 조회 실패:",
-        error,
-      );
-
-      setErrorMessage(
-        "친구 목록을 추가로 불러오지 못했습니다.",
-      );
-    } finally {
-      setIsLoadingMore(false);
+    if (!selectedFriend?.canSaveVideo) {
+      return;
     }
-  };
 
-  // 기존 선택 컴포넌트 형식으로 변환
-  const selectableFriends: TimelineSelectableFriend[] =
-    friends.map((friend) => ({
-      id: String(friend.userId),
-      name:
-        friend.nickname ||
-        friend.username,
-    }));
-
-  const handleSelectFriend = (userId: string) => {
     setSelectedFriendId((current) =>
-      current === userId
-        ? null
-        : userId,
+      current === userId ? null : userId,
     );
   };
 
   const handleSaveWithFriend = () => {
-    if (!selectedFriendId) {
+    if (
+      !selectedFriendId ||
+      maxFriends < 1 ||
+      isSaving
+    ) {
       return;
     }
 
-    // TODO: 친구와 함께 영상 저장 API 연동
-    // 실제 저장 기능이 연결되기 전까지 저장 성공 처리 금지
-
-    console.log(
-      "선택된 친구:",
-      selectedFriendId,
+    const selectedFriend = friends.find(
+      (friend) => friend.id === selectedFriendId,
     );
 
-    setIsToastOpen(true);
+    if (!selectedFriend?.canSaveVideo) {
+      return;
+    }
+
+    void save(gameId, [
+      Number(selectedFriendId),
+    ]);
   };
 
   return (
@@ -195,7 +216,9 @@ export function TimelineFriendSelectPage() {
 
           <button
             type="button"
-            onClick={() => window.location.reload()}
+            onClick={() =>
+              setRefreshVersion((version) => version + 1)
+            }
             className="mt-[16px] rounded-full bg-accent-primary px-[24px] py-[12px] text-white"
           >
             다시 시도
@@ -224,7 +247,7 @@ export function TimelineFriendSelectPage() {
         <>
           <main className="mt-[66px] min-h-0 flex-1 overflow-y-auto px-[29px] pb-[100px]">
             <div className="border-t-[1.5px] border-surface-secondary">
-              {selectableFriends.map((friend) => {
+              {friends.map((friend) => {
                 const selected =
                   selectedFriendId === friend.id;
 
@@ -235,7 +258,11 @@ export function TimelineFriendSelectPage() {
                   >
                     <TimelineFriendSelectItem
                       friend={friend}
-                      disabled={false}
+                      disabled={
+                        isSaving ||
+                        maxFriends < 1 ||
+                        !friend.canSaveVideo
+                      }
                       onSelect={handleSelectFriend}
                     />
 
@@ -252,19 +279,6 @@ export function TimelineFriendSelectPage() {
               })}
             </div>
 
-            {nextAfterUserId !== null && (
-              <button
-                type="button"
-                onClick={() => void handleLoadMore()}
-                disabled={isLoadingMore}
-                className="mt-[20px] w-full py-[12px] text-label-3 text-text-tertiary disabled:opacity-50"
-              >
-                {isLoadingMore
-                  ? "불러오는 중..."
-                  : "친구 더보기"}
-              </button>
-            )}
-
             {errorMessage && (
               <p className="mt-[12px] text-center text-caption text-red-500">
                 {errorMessage}
@@ -277,6 +291,7 @@ export function TimelineFriendSelectPage() {
               <button
                 type="button"
                 onClick={handleSaveWithFriend}
+                disabled={isSaving || maxFriends < 1}
                 className="text-label-3 flex h-[55px] w-full items-center justify-center rounded-[27.5px] bg-accent-primary text-white active:bg-accent-pressed"
               >
                 함께 저장하기
@@ -286,10 +301,22 @@ export function TimelineFriendSelectPage() {
         </>
       )}
 
+      {isSaving && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50">
+          <div className="flex flex-col items-center rounded-[20px] bg-white px-[40px] py-[32px]">
+            <div className="size-[36px] animate-spin rounded-full border-[4px] border-surface-secondary border-t-accent-primary" />
+
+            <p className="mt-[16px] text-label-3 text-black">
+              영상 저장 중...
+            </p>
+          </div>
+        </div>
+      )}
+
       <Toast
-        open={isToastOpen}
-        message="영상 저장 기능은 아직 준비 중입니다."
-        onClose={() => setIsToastOpen(false)}
+        open={Boolean(message)}
+        message={message}
+        onClose={clearMessage}
       />
     </div>
   );

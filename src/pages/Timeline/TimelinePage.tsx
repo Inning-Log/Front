@@ -2253,27 +2253,17 @@ export function TimelinePage() {
       }
     };
 
-  const handleSaveMyVideo =
-    () => {
-      setIsShareModalOpen(
-        false,
-      );
+  const handleSaveMyVideo = () => {
+    if (!timeline) return;
+    setIsShareModalOpen(false);
 
-      console.log(
-        "내 영상 저장",
-      );
-    };
+  };
 
-  const handleSaveWithFriend =
-    () => {
-      setIsShareModalOpen(
-        false,
-      );
-
-      navigate(
-        "/timeline/save/friend",
-      );
-    };
+  const handleSaveWithFriend = () => {
+    if (!timeline) return;
+    setIsShareModalOpen(false);
+    navigate(`/timeline/save/friend?gameId=${timeline.game.gameId}`);
+  };
 
   /**
    * 드래그
@@ -3028,6 +3018,7 @@ if (
       />
 
       <TimelineShareModal
+        gameId={timeline.game.gameId}
         isOpen={
           isShareModalOpen
         }
@@ -3062,3 +3053,4 @@ if (
     </div>
   );
 }
+
