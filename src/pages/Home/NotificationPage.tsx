@@ -5,6 +5,7 @@ import { PageHeader } from "../../app/layouts/PageHeader";
 
 import {
   acceptFriendRequest,
+  getFriends,
   getReceivedFriendRequests,
   rejectFriendRequest,
 } from "../../features/friends/api/friendsApi";
@@ -314,6 +315,11 @@ export function NotificationPage() {
   ] = useState<FriendshipResponse[]>([]);
 
   const [
+    friendProfileImages,
+    setFriendProfileImages,
+  ] = useState<Record<string, string | null>>({});
+
+  const [
     toast,
     setToast,
   ] = useState<ToastState>({
@@ -376,8 +382,37 @@ export function NotificationPage() {
       }
     };
 
+    const fetchFriendProfiles = async () => {
+      try {
+        const data = await getFriends();
+
+        if (cancelled) {
+          return;
+        }
+
+        setFriendProfileImages(
+          Object.fromEntries(
+            data.map((friendship) => [
+              String(friendship.friend.id),
+              friendship.friend.profileImageUrl,
+            ]),
+          ),
+        );
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
+
+        console.error(
+          "친구 프로필 이미지 조회 실패:",
+          error,
+        );
+      }
+    };
+
     void fetchNotifications();
     void fetchFriendRequests();
+    void fetchFriendProfiles();
 
     return () => {
       cancelled = true;
@@ -779,6 +814,15 @@ export function NotificationPage() {
                       category={getNotificationCategory(
                         notification,
                       )}
+                      profileImage={
+                        notification.type ===
+                        "FRIEND_ACCEPTED"
+                          ? friendProfileImages[
+                              notification.data
+                                .actorUserId ?? ""
+                            ]
+                          : undefined
+                      }
                       message={notification.body}
                       isRead={
                         notification.readAt !==

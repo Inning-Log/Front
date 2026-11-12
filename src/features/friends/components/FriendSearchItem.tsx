@@ -1,3 +1,4 @@
+import defaultProfileIcon from "../../../assets/icons/defaultprofile.svg";
 import type { FriendRelationshipStatus } from "../types/friend";
 import type { FriendSearchItemProps } from "../types/friendSearch";
 
@@ -47,9 +48,14 @@ export function FriendSearchItem({
             : "h-full",
         ].join(" ")}
       >
-        <span
-          aria-hidden="true"
-          className="h-[44px] w-[44px] shrink-0 rounded-full bg-text-tertiary"
+        <img
+          src={user.profileImageUrl || defaultProfileIcon}
+          alt=""
+          onError={(event) => {
+            event.currentTarget.onerror = null;
+            event.currentTarget.src = defaultProfileIcon;
+          }}
+          className="h-[44px] w-[44px] shrink-0 rounded-full object-cover"
         />
 
         <div className="ml-[9px] flex min-w-0 flex-1 flex-col justify-center">
