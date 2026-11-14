@@ -13,12 +13,14 @@ type NotificationItemProps = {
   category: NotificationCategory;
   message: ReactNode;
   isRead?: boolean;
+  profileImage?: string | null;
 };
 
 export function NotificationItem({
   category,
   message,
   isRead = false,
+  profileImage,
 }: NotificationItemProps) {
   return (
     <article
@@ -30,10 +32,12 @@ export function NotificationItem({
       ].join(" ")}
     >
       <img
-        src={
-          defaultProfileIcon
-        }
+        src={profileImage || defaultProfileIcon}
         alt=""
+        onError={(event) => {
+          event.currentTarget.onerror = null;
+          event.currentTarget.src = defaultProfileIcon;
+        }}
         className={[
           "h-[44px] w-[44px] shrink-0 rounded-full object-cover",
           isRead
